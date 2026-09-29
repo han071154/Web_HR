@@ -6,6 +6,12 @@ const exactMessages = {
   'Email or password is incorrect': 'Email hoặc mật khẩu không đúng.',
   'You do not have permission to perform this action': 'Bạn không có quyền thực hiện thao tác này.',
   'Employee not found': 'Không tìm thấy nhân viên.',
+  'Department not found': 'Không tìm thấy phòng ban.',
+  'Employee code already exists': 'Mã nhân viên đã tồn tại. Vui lòng dùng mã khác.',
+  'Employee email already exists': 'Email đã được sử dụng. Vui lòng dùng email khác.',
+  'Department name already exists': 'Tên phòng ban đã tồn tại. Vui lòng dùng tên khác.',
+  'Related record does not exist or is still in use': 'Dữ liệu liên quan không tồn tại hoặc đang được sử dụng.',
+  'Invalid identifier or database value': 'Dữ liệu gửi lên không hợp lệ.',
   'Internal server error': 'Hệ thống đang gặp lỗi. Vui lòng thử lại sau.'
 };
 
@@ -14,6 +20,8 @@ const fieldLabels = {
   fullName: 'Họ tên',
   email: 'Email',
   password: 'Mật khẩu',
+  name: 'Tên',
+  description: 'Mô tả',
   phone: 'Số điện thoại',
   gender: 'Giới tính',
   dateOfBirth: 'Ngày sinh',

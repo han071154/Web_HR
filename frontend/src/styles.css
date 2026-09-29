@@ -377,6 +377,32 @@ td span {
   justify-content: flex-end;
 }
 
+/* Bảng ít cột (phòng ban, chức vụ) không cần rộng như bảng nhân viên */
+table.compact-table {
+  min-width: 560px;
+}
+
+.compact-table th:nth-child(3),
+.compact-table td:nth-child(3) {
+  width: 130px;
+}
+
+.muted-cell {
+  color: #9aa5a1;
+  font-style: italic;
+}
+
+.count-pill {
+  display: inline-flex;
+  min-width: 32px;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  color: #0f5d65;
+  background: #e1f1f2;
+  font-weight: 800;
+}
+
 .link-button {
   border: 0;
   padding: 0;

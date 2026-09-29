@@ -14,12 +14,17 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, clearSession, getStoredUser, getToken, setSession, setUnauthorizedHandler } from './api.js';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
+import DepartmentsPanel from './components/DepartmentsPanel.jsx';
 import EmployeeDetail from './components/EmployeeDetail.jsx';
 import Toast from './components/Toast.jsx';
 import { formatMoney, statusLabels, toDateInputValue } from './format.js';
 
 // Chỉ các vai trò này được xóa nhân viên (khớp với backend).
 const DELETE_ROLES = ['ADMIN', 'HR_MANAGER'];
+
+function viewFromHash() {
+  return window.location.hash === '#departments' ? 'departments' : 'employees';
+}
 
 const emptyEmployee = {
   employeeCode: '',
@@ -233,6 +238,7 @@ function Dashboard({ user, onLogout }) {
   const [deletingEmployee, setDeletingEmployee] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState(null);
+  const [view, setView] = useState(viewFromHash);
   const canDelete = DELETE_ROLES.includes(user?.role);
 
   const showToast = useCallback((type, message) => {
@@ -273,6 +279,16 @@ function Dashboard({ user, onLogout }) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    // Menu bên trái đổi trang qua #employees / #departments trên URL.
+    function handleHashChange() {
+      setView(viewFromHash());
+    }
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   async function saveEmployee(employee) {
     setError('');
@@ -346,11 +362,11 @@ function Dashboard({ user, onLogout }) {
           </div>
         </div>
         <nav>
-          <a className="nav-item active" href="#employees">
+          <a className={`nav-item${view === 'employees' ? ' active' : ''}`} href="#employees">
             <Users size={18} aria-hidden="true" />
             Hồ sơ nhân sự
           </a>
-          <a className="nav-item" href="#departments">
+          <a className={`nav-item${view === 'departments' ? ' active' : ''}`} href="#departments">
             <Building2 size={18} aria-hidden="true" />
             Phòng ban
           </a>
@@ -392,119 +408,129 @@ function Dashboard({ user, onLogout }) {
           </article>
         </section>
 
-        <section className="content-panel" id="employees">
-          <div className="section-header">
-            <div>
-              <p className="eyebrow">Employee records</p>
-              <h2>Hồ sơ nhân sự</h2>
+        {view === 'employees' ? (
+          <section className="content-panel" id="employees">
+            <div className="section-header">
+              <div>
+                <p className="eyebrow">Employee records</p>
+                <h2>Hồ sơ nhân sự</h2>
+              </div>
+              <button type="button" className="primary-button" onClick={beginCreate}>
+                <Plus size={18} aria-hidden="true" />
+                Thêm
+              </button>
             </div>
-            <button type="button" className="primary-button" onClick={beginCreate}>
-              <Plus size={18} aria-hidden="true" />
-              Thêm
-            </button>
-          </div>
 
-          <div className="toolbar">
-            <label className="search-field">
-              <Search size={18} aria-hidden="true" />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Tìm theo tên, mã, email"
+            <div className="toolbar">
+              <label className="search-field">
+                <Search size={18} aria-hidden="true" />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Tìm theo tên, mã, email"
+                />
+              </label>
+              <select value={status} onChange={(event) => setStatus(event.target.value)}>
+                <option value="">Tất cả trạng thái</option>
+                {Object.entries(statusLabels).map(([value, label]) => (
+                  <option value={value} key={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <button type="button" className="icon-text-button" onClick={() => loadData({ search, status })}>
+                <RefreshCw size={18} aria-hidden="true" />
+                Lọc
+              </button>
+            </div>
+
+            {error && <p className="form-error">{error}</p>}
+
+            {showForm && (
+              <EmployeeForm
+                departments={departments}
+                employee={editingEmployee}
+                onSubmit={saveEmployee}
+                onCancel={() => {
+                  setShowForm(false);
+                  setEditingEmployee(null);
+                }}
               />
-            </label>
-            <select value={status} onChange={(event) => setStatus(event.target.value)}>
-              <option value="">Tất cả trạng thái</option>
-              {Object.entries(statusLabels).map(([value, label]) => (
-                <option value={value} key={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <button type="button" className="icon-text-button" onClick={() => loadData({ search, status })}>
-              <RefreshCw size={18} aria-hidden="true" />
-              Lọc
-            </button>
-          </div>
+            )}
 
-          {error && <p className="form-error">{error}</p>}
-
-          {showForm && (
-            <EmployeeForm
-              departments={departments}
-              employee={editingEmployee}
-              onSubmit={saveEmployee}
-              onCancel={() => {
-                setShowForm(false);
-                setEditingEmployee(null);
-              }}
-            />
-          )}
-
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Mã</th>
-                  <th>Nhân viên</th>
-                  <th>Phòng ban</th>
-                  <th>Chức danh</th>
-                  <th>Trạng thái</th>
-                  <th>Lương</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
+            <div className="table-wrap">
+              <table>
+                <thead>
                   <tr>
-                    <td colSpan="7">Đang tải dữ liệu</td>
+                    <th>Mã</th>
+                    <th>Nhân viên</th>
+                    <th>Phòng ban</th>
+                    <th>Chức danh</th>
+                    <th>Trạng thái</th>
+                    <th>Lương</th>
+                    <th></th>
                   </tr>
-                ) : employees.length ? (
-                  employees.map((employee) => (
-                    <tr key={employee.id}>
-                      <td>{employee.employeeCode}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="link-button"
-                          onClick={() => setViewingEmployee(employee)}
-                          title="Xem chi tiết"
-                        >
-                          {employee.fullName}
-                        </button>
-                        <span>{employee.email}</span>
-                      </td>
-                      <td>{employee.departmentName || 'Chưa phân phòng'}</td>
-                      <td>{employee.position}</td>
-                      <td>
-                        <span className={`status-pill status-${employee.status.toLowerCase()}`}>
-                          {statusLabels[employee.status] || employee.status}
-                        </span>
-                      </td>
-                      <td>{formatMoney(employee.baseSalary)}</td>
-                      <td>
-                        <div className="row-actions">
-                          <button type="button" className="icon-button" onClick={() => beginEdit(employee)} title="Sửa">
-                            <UserRoundPen size={17} aria-hidden="true" />
-                          </button>
-                          {canDelete && (
-                            <button type="button" className="icon-button danger" onClick={() => setDeletingEmployee(employee)} title="Xóa">
-                              <Trash2 size={17} aria-hidden="true" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan="7">Đang tải dữ liệu</td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="7">Chưa có nhân viên phù hợp</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                  ) : employees.length ? (
+                    employees.map((employee) => (
+                      <tr key={employee.id}>
+                        <td>{employee.employeeCode}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="link-button"
+                            onClick={() => setViewingEmployee(employee)}
+                            title="Xem chi tiết"
+                          >
+                            {employee.fullName}
+                          </button>
+                          <span>{employee.email}</span>
+                        </td>
+                        <td>{employee.departmentName || 'Chưa phân phòng'}</td>
+                        <td>{employee.position}</td>
+                        <td>
+                          <span className={`status-pill status-${employee.status.toLowerCase()}`}>
+                            {statusLabels[employee.status] || employee.status}
+                          </span>
+                        </td>
+                        <td>{formatMoney(employee.baseSalary)}</td>
+                        <td>
+                          <div className="row-actions">
+                            <button type="button" className="icon-button" onClick={() => beginEdit(employee)} title="Sửa">
+                              <UserRoundPen size={17} aria-hidden="true" />
+                            </button>
+                            {canDelete && (
+                              <button type="button" className="icon-button danger" onClick={() => setDeletingEmployee(employee)} title="Xóa">
+                                <Trash2 size={17} aria-hidden="true" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="7">Chưa có nhân viên phù hợp</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : (
+          <DepartmentsPanel
+            user={user}
+            departments={departments}
+            loading={loading}
+            onChanged={loadData}
+            showToast={showToast}
+          />
+        )}
       </section>
 
       {viewingEmployee && (

@@ -77,6 +77,20 @@ export const api = {
       body: JSON.stringify({ email, password })
     }),
   departments: () => request('/departments'),
+  createDepartment: (department) =>
+    request('/departments', {
+      method: 'POST',
+      body: JSON.stringify(department)
+    }),
+  updateDepartment: (id, department) =>
+    request(`/departments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(department)
+    }),
+  deleteDepartment: (id) =>
+    request(`/departments/${id}`, {
+      method: 'DELETE'
+    }),
   employees: (params = {}) => {
     const search = new URLSearchParams(params);
     return request(`/employees?${search.toString()}`);
