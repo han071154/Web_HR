@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Web HR API Tests",
-    "description": "Bộ kiểm thử API Web HR – Sprint 3 (3.5.1 Auth, 3.5.2 CRUD nhân sự, 3.5.3 Postman).\n\nChuẩn bị:\n1. `npm run db:setup` và `npm run db:test-users`\n2. `npm run dev` (backend chạy ở http://localhost:4000)\n3. Import collection + environment `WebHR-local`, chọn environment, rồi Run collection theo đúng thứ tự.",
+    "description": "Bộ kiểm thử API Web HR – Sprint 3 (3.5.1 Auth, 3.5.2 CRUD nhân sự, 3.5.3 Postman, 3.5.4 phân quyền RBAC, 3.5.4 phân quyền RBAC).\n\nChuẩn bị:\n1. `npm run db:setup` và `npm run db:test-users`\n2. `npm run dev` (backend chạy ở http://localhost:4000)\n3. Import collection + environment `WebHR-local`, chọn environment, rồi Run collection theo đúng thứ tự.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -1731,6 +1731,941 @@
       ]
     },
     {
+      "name": "3.5.4 Phân quyền RBAC",
+      "item": [
+        {
+          "name": "RBAC-01 Đăng nhập HR Manager (lấy token)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"rbacStamp\", String(Date.now()).slice(-6));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set(\"managerToken\", body.token);",
+                  "pm.test(\"Vai trò là HR_MANAGER\", () => pm.expect(body.user.role).to.eql(\"HR_MANAGER\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{managerEmail}}\",\n  \"password\": \"{{managerPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "RBAC-02 HR Staff xem danh sách phòng ban (được phép)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/departments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "departments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "RBAC-03 HR Staff thêm phòng ban (không có quyền)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Báo không có quyền\", () => pm.expect(pm.response.json().message).to.eql(\"You do not have permission to perform this action\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/departments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "departments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"RBAC Staff {{rbacStamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "RBAC-04 HR Manager thêm phòng ban (được phép)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"rbacDepartmentId\", pm.response.json().data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/departments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "departments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"RBAC Phong ban {{rbacStamp}}\",\n  \"description\": \"Tạo bởi test phân quyền\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "RBAC-05 HR Staff sửa phòng ban (không có quyền)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Báo không có quyền\", () => pm.expect(pm.response.json().message).to.eql(\"You do not have permission to perform this action\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/departments/{{rbacDepartmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "departments",
+                "{{rbacDepartmentId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Staff sửa\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "RBAC-06 HR Manager sửa phòng ban (được phép)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/departments/{{rbacDepartmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "departments",
+                "{{rbacDepartmentId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Manager đã sửa\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "RBAC-07 HR Staff xoá phòng ban (không có quyền)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Báo không có quyền\", () => pm.expect(pm.response.json().message).to.eql(\"You do not have permission to perform this action\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/departments/{{rbacDepartmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "departments",
+                "{{rbacDepartmentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "RBAC-08 HR Staff thêm chức vụ (không có quyền)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Báo không có quyền\", () => pm.expect(pm.response.json().message).to.eql(\"You do not have permission to perform this action\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/positions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "positions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"RBS{{rbacStamp}}\",\n  \"name\": \"Staff tạo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "RBAC-09 HR Manager thêm chức vụ (được phép)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"rbacPositionId\", pm.response.json().data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/positions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "positions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"RBM{{rbacStamp}}\",\n  \"name\": \"Chức vụ RBAC\",\n  \"departmentId\": \"{{rbacDepartmentId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "RBAC-10 HR Staff sửa chức vụ (không có quyền)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Báo không có quyền\", () => pm.expect(pm.response.json().message).to.eql(\"You do not have permission to perform this action\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/positions/{{rbacPositionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "positions",
+                "{{rbacPositionId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "RBAC-11 HR Staff xoá chức vụ (không có quyền)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Báo không có quyền\", () => pm.expect(pm.response.json().message).to.eql(\"You do not have permission to perform this action\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/positions/{{rbacPositionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "positions",
+                "{{rbacPositionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "RBAC-12 HR Manager thêm nhân viên (được phép)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"rbacEmployeeId\", pm.response.json().data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "employees"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeCode\": \"RB{{rbacStamp}}\",\n  \"fullName\": \"Nhân Viên Phân Quyền\",\n  \"email\": \"rbac{{rbacStamp}}@webhr.local\",\n  \"departmentId\": \"{{rbacDepartmentId}}\",\n  \"position\": \"Chức vụ RBAC\",\n  \"employmentType\": \"FULL_TIME\",\n  \"status\": \"ACTIVE\",\n  \"hireDate\": \"2026-09-29\",\n  \"baseSalary\": 10000000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "RBAC-13 HR Staff sửa nhân viên (được phép)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/employees/{{rbacEmployeeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "employees",
+                "{{rbacEmployeeId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"0909123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "RBAC-14 HR Staff thêm hợp đồng (được phép)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"rbacContractId\", pm.response.json().data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contracts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contractNumber\": \"HD-RBAC-{{rbacStamp}}\",\n  \"employeeId\": \"{{rbacEmployeeId}}\",\n  \"contractType\": \"PROBATION\",\n  \"startDate\": \"2026-09-29\",\n  \"endDate\": \"2026-11-28\",\n  \"salary\": 8000000,\n  \"status\": \"ACTIVE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "RBAC-15 HR Staff xoá hợp đồng (không có quyền)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Báo không có quyền\", () => pm.expect(pm.response.json().message).to.eql(\"You do not have permission to perform this action\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{rbacContractId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contracts",
+                "{{rbacContractId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "RBAC-16 HR Staff xoá nhân viên (không có quyền)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Báo không có quyền\", () => pm.expect(pm.response.json().message).to.eql(\"You do not have permission to perform this action\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/employees/{{rbacEmployeeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "employees",
+                "{{rbacEmployeeId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "RBAC-17 Không đăng nhập thêm phòng ban",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/departments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "departments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Khong token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "RBAC-18 Token giả xoá chức vụ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{fakeToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/positions/{{rbacPositionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "positions",
+                "{{rbacPositionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "RBAC-19 HR Manager xoá hợp đồng (được phép)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{rbacContractId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contracts",
+                "{{rbacContractId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "RBAC-20 HR Manager xoá nhân viên (được phép)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/employees/{{rbacEmployeeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "employees",
+                "{{rbacEmployeeId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "RBAC-21 HR Manager xoá chức vụ (được phép)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/positions/{{rbacPositionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "positions",
+                "{{rbacPositionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "RBAC-22 HR Manager xoá phòng ban (được phép)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code là 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/departments/{{rbacDepartmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "departments",
+                "{{rbacDepartmentId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "9. Cleanup",
       "item": [
         {
@@ -1806,6 +2741,30 @@
     {
       "key": "fakeToken",
       "value": "eyJhbGciOiJIUzI1NiJ9.gia.mao"
+    },
+    {
+      "key": "managerToken",
+      "value": ""
+    },
+    {
+      "key": "rbacStamp",
+      "value": ""
+    },
+    {
+      "key": "rbacDepartmentId",
+      "value": ""
+    },
+    {
+      "key": "rbacPositionId",
+      "value": ""
+    },
+    {
+      "key": "rbacEmployeeId",
+      "value": ""
+    },
+    {
+      "key": "rbacContractId",
+      "value": ""
     }
   ]
 }

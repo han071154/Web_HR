@@ -1,6 +1,6 @@
 # Postman API tests
 
-Bo kiem thu API Web HR (WBS 3.5.1, 3.5.2, 3.5.3): 40 request, 70 kiem tra tu dong.
+Bo kiem thu API Web HR (WBS 3.5.1, 3.5.2, 3.5.3, 3.5.4): 62 request, 101 kiem tra tu dong, gom ca ma tran phan quyen ADMIN / HR_MANAGER / HR_STAFF.
 
 ## Chay test
 
@@ -23,6 +23,7 @@ Chay theo dung thu tu: cac request sau dung token va id luu tu request truoc. Re
 | Email | Vai tro |
 | --- | --- |
 | admin@webhr.local | ADMIN (seed mac dinh) |
+| manager@webhr.local | HR_MANAGER (seed mac dinh) |
 | hrstaff@webhr.local | HR_STAFF |
 | inactive@webhr.local | HR_STAFF, bi khoa |
 
