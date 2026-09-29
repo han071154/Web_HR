@@ -8,7 +8,8 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "lint": "eslint .",
-    "db:setup": "node scripts/setupDatabase.js"
+    "db:setup": "node scripts/setupDatabase.js",
+    "db:test-users": "node scripts/seedTestUsers.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
