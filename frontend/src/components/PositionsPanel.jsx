@@ -206,10 +206,7 @@ export default function PositionsPanel({ user, departments, showToast }) {
   return (
     <section className="content-panel" id="positions">
       <div className="section-header">
-        <div>
-          <p className="eyebrow">Positions</p>
-          <h2>Chức vụ</h2>
-        </div>
+        <h2>Danh sách chức vụ</h2>
         {canManage && (
           <button
             type="button"
@@ -307,7 +304,7 @@ export default function PositionsPanel({ user, departments, showToast }) {
                       <div className="row-actions">
                         <button
                           type="button"
-                          className="icon-button"
+                          className="icon-button success"
                           onClick={() => {
                             setError('');
                             setEditing(position);

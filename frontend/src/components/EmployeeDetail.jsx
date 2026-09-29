@@ -1,6 +1,6 @@
 import { UserRoundPen, X } from 'lucide-react';
 import { useEffect } from 'react';
-import { employmentTypeLabels, formatDate, formatMoney, genderLabels, statusLabels } from '../format.js';
+import { employmentTypeLabels, formatDate, formatMoney, genderLabels, initials, statusLabels } from '../format.js';
 
 const EMPTY = 'Chưa cập nhật';
 
@@ -53,7 +53,7 @@ export default function EmployeeDetail({ employee, onEdit, onClose }) {
       >
         <header className="detail-header">
           <div className="avatar" aria-hidden="true">
-            {employee.fullName.trim().split(/\s+/).pop()?.[0]?.toUpperCase()}
+            {initials(employee.fullName)}
           </div>
           <div>
             <p className="eyebrow">{employee.employeeCode}</p>

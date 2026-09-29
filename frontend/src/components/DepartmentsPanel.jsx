@@ -137,10 +137,7 @@ export default function DepartmentsPanel({ user, departments, loading, onChanged
   return (
     <section className="content-panel" id="departments">
       <div className="section-header">
-        <div>
-          <p className="eyebrow">Departments</p>
-          <h2>Phòng ban</h2>
-        </div>
+        <h2>Danh sách phòng ban</h2>
         {canManage && (
           <button
             type="button"
@@ -213,7 +210,7 @@ export default function DepartmentsPanel({ user, departments, loading, onChanged
                       <div className="row-actions">
                         <button
                           type="button"
-                          className="icon-button"
+                          className="icon-button success"
                           onClick={() => {
                             setError('');
                             setEditing(department);

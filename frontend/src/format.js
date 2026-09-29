@@ -20,6 +20,25 @@ export const employmentTypeLabels = {
   INTERN: 'Thực tập'
 };
 
+export const roleLabels = {
+  ADMIN: 'Quản trị viên',
+  HR_MANAGER: 'Quản lý nhân sự',
+  HR_STAFF: 'Nhân viên nhân sự'
+};
+
+// Chữ cái đầu cho avatar: chữ đầu của họ + chữ đầu của tên (Trần Thị Bình → TB).
+export function initials(name) {
+  const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+
+  if (!words.length) {
+    return '?';
+  }
+
+  const first = words[0][0];
+  const last = words.length > 1 ? words[words.length - 1][0] : '';
+  return `${first}${last}`.toUpperCase();
+}
+
 export function formatMoney(value) {
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',

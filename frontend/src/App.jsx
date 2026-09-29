@@ -18,12 +18,18 @@ import DepartmentsPanel from './components/DepartmentsPanel.jsx';
 import PositionsPanel from './components/PositionsPanel.jsx';
 import EmployeeDetail from './components/EmployeeDetail.jsx';
 import Toast from './components/Toast.jsx';
-import { formatMoney, statusLabels, toDateInputValue } from './format.js';
+import { formatMoney, initials, roleLabels, statusLabels, toDateInputValue } from './format.js';
 
 // Chỉ các vai trò này được xóa nhân viên (khớp với backend).
 const DELETE_ROLES = ['ADMIN', 'HR_MANAGER'];
 
 const VIEWS = ['employees', 'departments', 'positions'];
+
+const pageTitles = {
+  employees: { title: 'Danh sách nhân sự', subtitle: 'Quản lý hồ sơ nhân viên của công ty' },
+  departments: { title: 'Phòng ban', subtitle: 'Quản lý danh mục phòng ban' },
+  positions: { title: 'Chức vụ', subtitle: 'Quản lý danh mục chức vụ' }
+};
 
 function viewFromHash() {
   const view = window.location.hash.slice(1);
@@ -73,13 +79,12 @@ function Login({ onLogin }) {
       <section className="login-panel">
         <div className="brand-row">
           <div className="brand-mark">
-            <Users size={24} aria-hidden="true" />
+            <Users size={22} aria-hidden="true" />
           </div>
-          <div>
-            <p className="eyebrow">Web HR</p>
-            <h1>Quản lý nhân sự</h1>
-          </div>
+          <span className="brand-name">WebHR</span>
         </div>
+        <h1 style={{ marginTop: 28 }}>Đăng nhập</h1>
+        <p className="page-subtitle">Dùng tài khoản được cấp để quản lý nhân sự và ca làm.</p>
 
         <form onSubmit={handleSubmit} className="login-form">
           <label>
@@ -358,17 +363,15 @@ function Dashboard({ user, onLogout }) {
       <aside className="sidebar">
         <div className="brand-row">
           <div className="brand-mark">
-            <Users size={22} aria-hidden="true" />
+            <Users size={20} aria-hidden="true" />
           </div>
-          <div>
-            <p className="eyebrow">Web HR</p>
-            <strong>Nhân sự</strong>
-          </div>
+          <span className="brand-name">WebHR</span>
         </div>
+        <p className="menu-label">Menu</p>
         <nav>
           <a className={`nav-item${view === 'employees' ? ' active' : ''}`} href="#employees">
             <Users size={18} aria-hidden="true" />
-            Hồ sơ nhân sự
+            Nhân sự
           </a>
           <a className={`nav-item${view === 'departments' ? ' active' : ''}`} href="#departments">
             <Building2 size={18} aria-hidden="true" />
@@ -379,53 +382,74 @@ function Dashboard({ user, onLogout }) {
             Chức vụ
           </a>
         </nav>
+        <div className="sidebar-footer">
+          <div className="avatar small" aria-hidden="true">
+            {initials(user?.fullName || user?.email)}
+          </div>
+          <div className="sidebar-user">
+            <strong>{user?.fullName || user?.email}</strong>
+            <span>{roleLabels[user?.role] || user?.role}</span>
+          </div>
+          <button type="button" className="logout-button" onClick={handleLogout} title="Đăng xuất" aria-label="Đăng xuất">
+            <LogOut size={18} aria-hidden="true" />
+          </button>
+        </div>
       </aside>
 
       <section className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Xin chào, {user?.fullName || user?.email}</p>
-            <h1>Dashboard nhân sự</h1>
+            <h1>{pageTitles[view].title}</h1>
+            <p className="page-subtitle">{pageTitles[view].subtitle}</p>
           </div>
-          <button type="button" className="icon-text-button" onClick={handleLogout} title="Đăng xuất">
-            <LogOut size={18} aria-hidden="true" />
-            Đăng xuất
-          </button>
         </header>
 
         <section className="stats-grid">
           <article className="stat-card">
-            <Users size={22} aria-hidden="true" />
-            <span>Tổng nhân viên</span>
-            <strong>{stats.total}</strong>
+            <div className="stat-icon">
+              <Users size={22} aria-hidden="true" />
+            </div>
+            <div>
+              <span>Tổng nhân viên</span>
+              <strong>{stats.total}</strong>
+            </div>
           </article>
           <article className="stat-card">
-            <ShieldCheck size={22} aria-hidden="true" />
-            <span>Đang làm</span>
-            <strong>{stats.active}</strong>
+            <div className="stat-icon green">
+              <ShieldCheck size={22} aria-hidden="true" />
+            </div>
+            <div>
+              <span>Đang làm</span>
+              <strong>{stats.active}</strong>
+            </div>
           </article>
           <article className="stat-card">
-            <BriefcaseBusiness size={22} aria-hidden="true" />
-            <span>Phòng ban</span>
-            <strong>{stats.departments}</strong>
+            <div className="stat-icon blue">
+              <Building2 size={22} aria-hidden="true" />
+            </div>
+            <div>
+              <span>Phòng ban</span>
+              <strong>{stats.departments}</strong>
+            </div>
           </article>
           <article className="stat-card">
-            <CircleDollarSign size={22} aria-hidden="true" />
-            <span>Quỹ lương</span>
-            <strong>{formatMoney(stats.payroll)}</strong>
+            <div className="stat-icon red">
+              <CircleDollarSign size={22} aria-hidden="true" />
+            </div>
+            <div>
+              <span>Quỹ lương</span>
+              <strong>{formatMoney(stats.payroll)}</strong>
+            </div>
           </article>
         </section>
 
         {view === 'employees' ? (
           <section className="content-panel" id="employees">
             <div className="section-header">
-              <div>
-                <p className="eyebrow">Employee records</p>
-                <h2>Hồ sơ nhân sự</h2>
-              </div>
+              <h2>Hồ sơ nhân sự</h2>
               <button type="button" className="primary-button" onClick={beginCreate}>
                 <Plus size={18} aria-hidden="true" />
-                Thêm
+                Thêm nhân sự
               </button>
             </div>
 
@@ -509,7 +533,7 @@ function Dashboard({ user, onLogout }) {
                         <td>{formatMoney(employee.baseSalary)}</td>
                         <td>
                           <div className="row-actions">
-                            <button type="button" className="icon-button" onClick={() => beginEdit(employee)} title="Sửa">
+                            <button type="button" className="icon-button success" onClick={() => beginEdit(employee)} title="Sửa">
                               <UserRoundPen size={17} aria-hidden="true" />
                             </button>
                             {canDelete && (

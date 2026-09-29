@@ -1,9 +1,47 @@
+/*
+ * Design system WebHR (Figma: DS-01_MauSac_Chu_KichThuoc, DS-02_ThanhPhan — SCRUM-42).
+ * Số đo theo mẫu Mazer. Đổi màu/kích thước ở :root là cả web đổi theo.
+ */
 :root {
-  color: #16201d;
-  background: #eef2ef;
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  --primary: #435ebe;
+  --primary-hover: #3950a2;
+  --primary-light: #ebf3ff;
+  --primary-light-text: #002152;
+  --secondary: #6c757d;
+  --secondary-light: #e6eaee;
+  --secondary-light-text: #181e24;
+  --success: #198754;
+  --success-light: #d1e7dd;
+  --info: #0dcaf0;
+  --warning: #ffc107;
+  --danger: #dc3545;
+  --danger-light: #f8d7da;
+  --dark: #131313;
+
+  --accent-purple: #9694ff;
+  --accent-blue: #57caeb;
+  --accent-green: #5ddab4;
+  --accent-red: #ff7976;
+
+  --page-bg: #f2f7ff;
+  --card-bg: #ffffff;
+  --heading: #25396f;
+  --text: #607080;
+  --input-border: #dce7f1;
+  --border: #dee2e6;
+  --gray-light: #ced4da;
+
+  --radius-card: 11.2px;
+  --radius-control: 4px;
+  --radius-menu: 8px;
+  --control-height: 37.6px;
+  --sidebar-width: 300px;
+
+  color: var(--text);
+  background: var(--page-bg);
+  font-family: Nunito, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -16,6 +54,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: var(--page-bg);
 }
 
 button,
@@ -29,26 +68,62 @@ button {
   cursor: pointer;
 }
 
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--heading);
+  font-weight: 700;
+}
+
+/* Tiêu đề trang 28px/700 */
+h1 {
+  margin-bottom: 0;
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+/* Tiêu đề thẻ 19.2px/700 */
+h2 {
+  margin-bottom: 0;
+  font-size: 19.2px;
+  line-height: 1.3;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.page-subtitle {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+/* ---------- Đăng nhập ---------- */
 .login-shell {
   display: grid;
   min-height: 100vh;
   place-items: center;
   padding: 24px;
-  background:
-    linear-gradient(120deg, rgba(15, 65, 74, 0.78), rgba(111, 73, 42, 0.68)),
-    url("https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1800&q=80");
-  background-position: center;
-  background-size: cover;
+  background: linear-gradient(135deg, var(--primary) 0%, #2e4494 100%);
 }
 
 .login-panel {
   width: min(100%, 420px);
-  border: 1px solid rgba(255, 255, 255, 0.32);
-  border-radius: 8px;
-  padding: 28px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 24px 80px rgba(18, 31, 35, 0.22);
-  backdrop-filter: blur(14px);
+  border-radius: var(--radius-card);
+  padding: 32px;
+  background: var(--card-bg);
 }
 
 .brand-row {
@@ -59,40 +134,21 @@ button {
 
 .brand-mark {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   place-items: center;
-  border-radius: 8px;
+  border-radius: var(--radius-menu);
   color: #ffffff;
-  background: #0f5d65;
+  background: var(--primary);
 }
 
-.eyebrow {
-  margin: 0 0 4px;
-  color: #68716e;
-  font-size: 0.76rem;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: uppercase;
+.brand-name {
+  color: var(--heading);
+  font-size: 1.6rem;
+  font-weight: 800;
 }
 
-h1,
-h2,
-p {
-  margin-top: 0;
-}
-
-h1 {
-  margin-bottom: 0;
-  font-size: clamp(1.55rem, 4vw, 2.3rem);
-  line-height: 1.1;
-}
-
-h2 {
-  margin-bottom: 0;
-  font-size: 1.25rem;
-}
-
+/* ---------- Ô nhập (cao 37.6px, bo 4px, viền #DCE7F1) ---------- */
 .login-form,
 .employee-form {
   display: grid;
@@ -102,20 +158,21 @@ h2 {
 
 label {
   display: grid;
-  gap: 7px;
-  color: #33403c;
-  font-size: 0.9rem;
-  font-weight: 700;
+  gap: 6px;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 input,
 select,
 textarea {
   width: 100%;
-  border: 1px solid #c9d3ce;
-  border-radius: 6px;
-  padding: 11px 12px;
-  color: #17211e;
+  min-height: var(--control-height);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-control);
+  padding: 6px 12px;
+  color: #212529;
   background: #ffffff;
   outline: none;
 }
@@ -123,102 +180,231 @@ textarea {
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: #0f6f78;
-  box-shadow: 0 0 0 3px rgba(15, 111, 120, 0.14);
+  border-color: #a1afdf;
+  box-shadow: 0 0 0 0.25rem rgba(67, 94, 190, 0.25);
 }
 
+/* ---------- Nút (bo 4px, padding 6px × 12px, chữ 16px) ---------- */
 .primary-button,
 .icon-text-button,
 .ghost-button,
+.danger-button,
 .icon-button {
   display: inline-flex;
-  min-height: 42px;
+  min-height: var(--control-height);
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 0;
-  border-radius: 6px;
-  padding: 0 14px;
-  font-weight: 800;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  padding: 6px 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 
+/* Primary: hành động chính (Lưu, Thêm) */
 .primary-button {
   color: #ffffff;
-  background: #0f6f78;
+  background: var(--primary);
 }
 
-.primary-button:disabled {
+.primary-button:hover {
+  background: var(--primary-hover);
+}
+
+/* Outline primary: hành động phụ (Hủy, Quay lại, Lọc) */
+.icon-text-button,
+.ghost-button {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: transparent;
+}
+
+.icon-text-button:hover,
+.ghost-button:hover {
+  color: #ffffff;
+  background: var(--primary);
+}
+
+/* Danger: Xoá / Vô hiệu hóa */
+.danger-button {
+  color: #ffffff;
+  background: var(--danger);
+}
+
+.danger-button:hover {
+  background: #bb2d3b;
+}
+
+.primary-button:disabled,
+.danger-button:disabled,
+.ghost-button:disabled {
   cursor: wait;
   opacity: 0.65;
 }
 
-.icon-text-button,
-.ghost-button,
+/* Nút thao tác trong bảng: xem (primary nhạt), sửa (xanh lá nhạt), xoá (đỏ nhạt) */
 .icon-button {
-  border: 1px solid #cad6d1;
-  color: #20312d;
-  background: #ffffff;
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+  color: var(--primary);
+  background: var(--primary-light);
 }
 
-.icon-button {
-  width: 38px;
-  min-height: 38px;
-  padding: 0;
+.icon-button:hover {
+  color: #ffffff;
+  background: var(--primary);
+}
+
+.icon-button.success {
+  color: var(--success);
+  background: var(--success-light);
+}
+
+.icon-button.success:hover {
+  color: #ffffff;
+  background: var(--success);
 }
 
 .icon-button.danger {
-  color: #b42318;
+  color: var(--danger);
+  background: var(--danger-light);
+}
+
+.icon-button.danger:hover {
+  color: #ffffff;
+  background: var(--danger);
+}
+
+.link-button {
+  border: 0;
+  padding: 0;
+  color: var(--heading);
+  background: none;
+  font-weight: 700;
+  text-align: left;
+}
+
+.link-button:hover {
+  color: var(--primary);
+  text-decoration: underline;
 }
 
 .form-error {
   margin: 0;
-  border-radius: 6px;
-  padding: 11px 12px;
-  color: #8a1f17;
-  background: #ffe8e4;
+  border: 1px solid #f5c2c7;
+  border-radius: var(--radius-control);
+  padding: 10px 12px;
+  color: #842029;
+  background: var(--danger-light);
 }
 
+/* ---------- Khung trang: menu trái rộng 300px, nền trắng ---------- */
 .app-shell {
   display: grid;
   min-height: 100vh;
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
 }
 
 .sidebar {
-  padding: 24px 18px;
-  color: #f5fbf8;
-  background: #1b2c28;
+  position: sticky;
+  top: 0;
+  display: flex;
+  height: 100vh;
+  flex-direction: column;
+  padding: 32px 24px 24px;
+  background: var(--card-bg);
 }
 
-.sidebar .eyebrow {
-  color: #a7bab4;
+.menu-label {
+  margin: 32px 0 8px;
+  padding: 0 16px;
+  color: #25396f;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 nav {
   display: grid;
-  gap: 8px;
-  margin-top: 28px;
+  gap: 4px;
 }
 
+/* Mục menu: bo 8px, padding 11.2px × 16px, đang chọn nền Primary */
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  border-radius: 6px;
-  padding: 12px;
-  color: #d9e6e1;
+  gap: 12px;
+  border-radius: var(--radius-menu);
+  padding: 11.2px 16px;
+  color: var(--heading);
+  font-weight: 700;
   text-decoration: none;
+  transition: background-color 0.15s;
 }
 
-.nav-item.active,
 .nav-item:hover {
-  color: #ffffff;
-  background: #28443e;
+  background: #f0f1f5;
 }
 
+.nav-item.active {
+  color: #ffffff;
+  background: var(--primary);
+}
+
+.sidebar-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.sidebar-user {
+  min-width: 0;
+  flex: 1;
+}
+
+.sidebar-user strong,
+.sidebar-user span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-user strong {
+  color: var(--heading);
+  font-size: 0.95rem;
+}
+
+.sidebar-user span {
+  font-size: 0.85rem;
+}
+
+.logout-button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--text);
+  background: transparent;
+}
+
+.logout-button:hover {
+  color: var(--danger);
+  background: var(--danger-light);
+}
+
+/* Vùng nội dung: padding 32px */
 .workspace {
   min-width: 0;
-  padding: 24px;
+  padding: 32px;
 }
 
 .topbar,
@@ -236,49 +422,79 @@ nav {
   gap: 16px;
 }
 
+.topbar {
+  margin-bottom: 28px;
+}
+
+/* ---------- Thẻ số liệu: icon 48×48 bo 8px, số 700 #25396F ---------- */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin: 24px 0;
+  gap: 24px;
+  margin-bottom: 28px;
 }
 
 .stat-card,
 .content-panel {
-  border: 1px solid #d7dfdc;
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 12px 30px rgba(35, 51, 47, 0.06);
+  border-radius: var(--radius-card);
+  background: var(--card-bg);
 }
 
 .stat-card {
-  display: grid;
-  gap: 8px;
-  min-height: 128px;
-  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
 }
 
-.stat-card svg {
-  color: #0f6f78;
+.stat-icon {
+  display: grid;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: var(--radius-menu);
+  color: #ffffff;
+  background: var(--accent-purple);
+}
+
+.stat-icon.blue {
+  background: var(--accent-blue);
+}
+
+.stat-icon.green {
+  background: var(--accent-green);
+}
+
+.stat-icon.red {
+  background: var(--accent-red);
 }
 
 .stat-card span {
-  color: #62706c;
-  font-size: 0.9rem;
+  display: block;
+  color: #7c8db5;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .stat-card strong {
-  font-size: 1.5rem;
+  display: block;
+  color: var(--heading);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
+/* ---------- Thẻ (card): nền trắng, bo 11.2px, không đổ bóng ---------- */
 .content-panel {
-  padding: 20px;
+  padding: 24px;
 }
 
 .toolbar {
   flex-wrap: wrap;
-  gap: 10px;
-  margin: 18px 0;
+  gap: 12px;
+  margin: 20px 0;
 }
 
 .search-field {
@@ -291,7 +507,11 @@ nav {
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: #65736f;
+  color: #9aa7b5;
+}
+
+.search-field input {
+  padding-left: 38px;
 }
 
 .toolbar select {
@@ -299,22 +519,18 @@ nav {
   min-width: 180px;
 }
 
-.search-field input {
-  padding-left: 38px;
-}
-
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .employee-form {
-  border: 1px solid #d7dfdc;
-  border-radius: 8px;
-  margin-bottom: 18px;
-  padding: 16px;
-  background: #f8faf9;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-menu);
+  margin-bottom: 20px;
+  padding: 20px;
+  background: #fbfcff;
 }
 
 .form-actions {
@@ -322,6 +538,7 @@ nav {
   gap: 10px;
 }
 
+/* ---------- Bảng: chữ 16px, ô padding 20.8px, tiêu đề cột 700, kẻ ngang #DEE2E6 ---------- */
 .table-wrap {
   overflow-x: auto;
 }
@@ -334,83 +551,108 @@ table {
 
 th,
 td {
-  border-bottom: 1px solid #e5ebe8;
-  padding: 14px 12px;
+  border-bottom: 1px solid var(--border);
+  padding: 16px 20.8px;
   text-align: left;
   vertical-align: middle;
 }
 
 th {
-  color: #5f6d69;
-  font-size: 0.78rem;
-  text-transform: uppercase;
+  color: var(--text);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+td {
+  color: var(--text);
+}
+
+td strong {
+  color: var(--heading);
 }
 
 td span {
   display: block;
-  margin-top: 4px;
-  color: #687571;
-  font-size: 0.86rem;
+  margin-top: 2px;
+  color: #8a97a8;
+  font-size: 0.85rem;
 }
 
-.status-pill {
-  display: inline-flex;
-  width: max-content;
-  border-radius: 999px;
-  padding: 5px 9px;
-  font-size: 0.78rem;
-  font-weight: 800;
-}
-
-.status-active {
-  color: #0a5b3f;
-  background: #dcf7ea;
-}
-
-.status-on_leave {
-  color: #805400;
-  background: #fff0c2;
-}
-
-.status-resigned,
-.status-terminated {
-  color: #8a1f17;
-  background: #ffe1dc;
-}
-
-.row-actions {
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-/* Bảng ít cột (phòng ban, chức vụ) không cần rộng như bảng nhân viên */
 table.compact-table {
   min-width: 560px;
 }
 
 .compact-table th:nth-child(3),
 .compact-table td:nth-child(3) {
-  width: 130px;
+  width: 140px;
 }
 
 table.positions-table {
   min-width: 760px;
 }
 
+.row-actions {
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.muted-cell {
+  color: #a3b0bf;
+  font-style: italic;
+}
+
+/* ---------- Badge: bo 4px, chữ 13.6px ---------- */
+.status-pill,
+.count-pill,
+.code-tag {
+  display: inline-flex;
+  width: max-content;
+  align-items: center;
+  border-radius: var(--radius-control);
+  padding: 4.76px 8.84px;
+  font-size: 13.6px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Trạng thái nhân sự: Đang làm = Success, Nghỉ phép = Warning (chữ đen), Đã nghỉ = Secondary, Chấm dứt = Danger */
+.status-active {
+  color: #ffffff;
+  background: var(--success);
+}
+
+.status-on_leave {
+  color: #000000;
+  background: var(--warning);
+}
+
+.status-resigned {
+  color: #ffffff;
+  background: var(--secondary);
+}
+
+.status-terminated {
+  color: #ffffff;
+  background: var(--danger);
+}
+
 .status-inactive {
-  color: #5f6d69;
-  background: #e8ecea;
+  color: var(--secondary-light-text);
+  background: var(--secondary-light);
+}
+
+.count-pill {
+  min-width: 32px;
+  justify-content: center;
+  color: var(--primary-light-text);
+  background: var(--primary-light);
 }
 
 .code-tag {
-  border-radius: 4px;
-  padding: 3px 6px;
-  color: #20312d;
-  background: #eef2ef;
+  color: var(--secondary-light-text);
+  background: var(--secondary-light);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.82rem;
-  font-weight: 700;
-  white-space: nowrap;
 }
 
 .checkbox-field {
@@ -418,65 +660,38 @@ table.positions-table {
   align-items: center;
   gap: 10px;
   align-self: end;
-  min-height: 42px;
+  min-height: var(--control-height);
 }
 
 .checkbox-field input {
   width: 18px;
+  min-height: 18px;
   height: 18px;
   margin: 0;
-  accent-color: #0f6f78;
+  accent-color: var(--primary);
 }
 
-.muted-cell {
-  color: #9aa5a1;
-  font-style: italic;
-}
-
-.count-pill {
-  display: inline-flex;
-  min-width: 32px;
-  justify-content: center;
-  border-radius: 999px;
-  padding: 4px 10px;
-  color: #0f5d65;
-  background: #e1f1f2;
-  font-weight: 800;
-}
-
-.link-button {
-  border: 0;
-  padding: 0;
-  color: #0f5d65;
-  background: none;
-  font-weight: 800;
-  text-align: left;
-}
-
-.link-button:hover {
-  text-decoration: underline;
-}
-
-.danger-button {
-  display: inline-flex;
-  min-height: 42px;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-radius: 6px;
-  padding: 0 14px;
+/* ---------- Avatar chữ cái đầu ---------- */
+.avatar {
+  display: grid;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border-radius: 50%;
   color: #ffffff;
-  background: #b42318;
-  font-weight: 800;
+  background: var(--accent-purple);
+  font-size: 1.3rem;
+  font-weight: 700;
 }
 
-.danger-button:disabled,
-.ghost-button:disabled {
-  cursor: wait;
-  opacity: 0.65;
+.avatar.small {
+  width: 40px;
+  height: 40px;
+  font-size: 0.95rem;
 }
 
-/* Hộp thoại (xác nhận xóa, chi tiết nhân viên) */
+/* ---------- Hộp thoại ---------- */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -484,17 +699,17 @@ table.positions-table {
   display: grid;
   place-items: center;
   padding: 16px;
-  background: rgba(16, 28, 25, 0.48);
+  background: rgba(37, 57, 111, 0.45);
 }
 
 .modal {
   width: min(100%, 440px);
   max-height: calc(100vh - 32px);
   overflow-y: auto;
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   padding: 24px;
-  background: #ffffff;
-  box-shadow: 0 24px 80px rgba(18, 31, 35, 0.28);
+  background: var(--card-bg);
+  box-shadow: 0 16px 48px rgba(37, 57, 111, 0.2);
 }
 
 .modal .form-actions {
@@ -503,19 +718,19 @@ table.positions-table {
 
 .confirm-dialog p {
   margin: 10px 0 0;
-  color: #4d5a56;
+  color: var(--text);
   line-height: 1.5;
 }
 
 .confirm-icon {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   place-items: center;
   margin-bottom: 14px;
-  border-radius: 50%;
-  color: #b42318;
-  background: #ffe8e4;
+  border-radius: var(--radius-menu);
+  color: var(--danger);
+  background: var(--danger-light);
 }
 
 .employee-detail {
@@ -527,24 +742,11 @@ table.positions-table {
   align-items: center;
   gap: 14px;
   padding-bottom: 18px;
-  border-bottom: 1px solid #e5ebe8;
+  border-bottom: 1px solid var(--border);
 }
 
 .detail-header h2 {
   margin-bottom: 8px;
-}
-
-.avatar {
-  display: grid;
-  flex: none;
-  width: 56px;
-  height: 56px;
-  place-items: center;
-  border-radius: 50%;
-  color: #ffffff;
-  background: #0f6f78;
-  font-size: 1.4rem;
-  font-weight: 800;
 }
 
 .close-button {
@@ -554,9 +756,7 @@ table.positions-table {
 
 .detail-section h3 {
   margin: 20px 0 10px;
-  color: #5f6d69;
-  font-size: 0.78rem;
-  text-transform: uppercase;
+  font-size: 1rem;
 }
 
 .detail-grid {
@@ -567,45 +767,46 @@ table.positions-table {
 }
 
 .detail-grid dt {
-  color: #687571;
-  font-size: 0.82rem;
+  color: var(--text);
+  font-size: 0.85rem;
 }
 
 .detail-grid dd {
-  margin: 3px 0 0;
+  margin: 2px 0 0;
+  color: var(--heading);
   font-weight: 700;
   overflow-wrap: anywhere;
 }
 
 .detail-grid dd.muted {
-  color: #9aa5a1;
+  color: #a3b0bf;
   font-weight: 400;
   font-style: italic;
 }
 
-/* Thông báo toast */
+/* ---------- Thông báo toast ---------- */
 .toast {
   position: fixed;
-  right: 20px;
-  bottom: 20px;
+  right: 24px;
+  bottom: 24px;
   z-index: 30;
   display: flex;
   align-items: center;
   gap: 10px;
   max-width: min(calc(100vw - 32px), 420px);
-  border-radius: 8px;
+  border-radius: var(--radius-menu);
   padding: 12px 14px;
   color: #ffffff;
-  box-shadow: 0 12px 30px rgba(18, 31, 35, 0.25);
+  box-shadow: 0 12px 30px rgba(37, 57, 111, 0.25);
   animation: toast-in 0.2s ease-out;
 }
 
 .toast-success {
-  background: #0a5b3f;
+  background: var(--success);
 }
 
 .toast-error {
-  background: #8a1f17;
+  background: var(--danger);
 }
 
 .toast-close {
@@ -625,25 +826,38 @@ table.positions-table {
   }
 }
 
+/* ---------- Màn hình nhỏ ---------- */
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 1fr;
   }
 
   .sidebar {
-    position: sticky;
-    top: 0;
     z-index: 5;
-    display: flex;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    padding: 14px;
+    gap: 12px;
+    padding: 12px 16px;
+    box-shadow: 0 1px 0 var(--border);
+  }
+
+  .menu-label,
+  .sidebar-user {
+    display: none;
   }
 
   nav {
     display: flex;
-    margin-top: 0;
+    order: 3;
+    width: 100%;
     overflow-x: auto;
   }
 
@@ -651,8 +865,10 @@ table.positions-table {
     white-space: nowrap;
   }
 
-  .stats-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .sidebar-footer {
+    margin: 0 0 0 auto;
+    border-top: 0;
+    padding-top: 0;
   }
 
   .topbar {
