@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, clearSession, getStoredUser, getToken, setSession, setUnauthorizedHandler } from './api.js';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
 import DepartmentsPanel from './components/DepartmentsPanel.jsx';
+import PositionsPanel from './components/PositionsPanel.jsx';
 import EmployeeDetail from './components/EmployeeDetail.jsx';
 import Toast from './components/Toast.jsx';
 import { formatMoney, statusLabels, toDateInputValue } from './format.js';
@@ -22,8 +23,11 @@ import { formatMoney, statusLabels, toDateInputValue } from './format.js';
 // Chỉ các vai trò này được xóa nhân viên (khớp với backend).
 const DELETE_ROLES = ['ADMIN', 'HR_MANAGER'];
 
+const VIEWS = ['employees', 'departments', 'positions'];
+
 function viewFromHash() {
-  return window.location.hash === '#departments' ? 'departments' : 'employees';
+  const view = window.location.hash.slice(1);
+  return VIEWS.includes(view) ? view : 'employees';
 }
 
 const emptyEmployee = {
@@ -281,7 +285,7 @@ function Dashboard({ user, onLogout }) {
   }, [loadData]);
 
   useEffect(() => {
-    // Menu bên trái đổi trang qua #employees / #departments trên URL.
+    // Menu bên trái đổi trang qua #employees / #departments / #positions trên URL.
     function handleHashChange() {
       setView(viewFromHash());
     }
@@ -369,6 +373,10 @@ function Dashboard({ user, onLogout }) {
           <a className={`nav-item${view === 'departments' ? ' active' : ''}`} href="#departments">
             <Building2 size={18} aria-hidden="true" />
             Phòng ban
+          </a>
+          <a className={`nav-item${view === 'positions' ? ' active' : ''}`} href="#positions">
+            <BriefcaseBusiness size={18} aria-hidden="true" />
+            Chức vụ
           </a>
         </nav>
       </aside>
@@ -522,7 +530,7 @@ function Dashboard({ user, onLogout }) {
               </table>
             </div>
           </section>
-        ) : (
+        ) : view === 'departments' ? (
           <DepartmentsPanel
             user={user}
             departments={departments}
@@ -530,6 +538,8 @@ function Dashboard({ user, onLogout }) {
             onChanged={loadData}
             showToast={showToast}
           />
+        ) : (
+          <PositionsPanel user={user} departments={departments} showToast={showToast} />
         )}
       </section>
 

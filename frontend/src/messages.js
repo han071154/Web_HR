@@ -10,6 +10,8 @@ const exactMessages = {
   'Employee code already exists': 'Mã nhân viên đã tồn tại. Vui lòng dùng mã khác.',
   'Employee email already exists': 'Email đã được sử dụng. Vui lòng dùng email khác.',
   'Department name already exists': 'Tên phòng ban đã tồn tại. Vui lòng dùng tên khác.',
+  'Position not found': 'Không tìm thấy chức vụ.',
+  'Position code already exists': 'Mã chức vụ đã tồn tại. Vui lòng dùng mã khác.',
   'Related record does not exist or is still in use': 'Dữ liệu liên quan không tồn tại hoặc đang được sử dụng.',
   'Invalid identifier or database value': 'Dữ liệu gửi lên không hợp lệ.',
   'Internal server error': 'Hệ thống đang gặp lỗi. Vui lòng thử lại sau.'
@@ -21,7 +23,9 @@ const fieldLabels = {
   email: 'Email',
   password: 'Mật khẩu',
   name: 'Tên',
+  code: 'Mã',
   description: 'Mô tả',
+  isActive: 'Trạng thái sử dụng',
   phone: 'Số điện thoại',
   gender: 'Giới tính',
   dateOfBirth: 'Ngày sinh',

@@ -91,6 +91,21 @@ export const api = {
     request(`/departments/${id}`, {
       method: 'DELETE'
     }),
+  positions: () => request('/positions'),
+  createPosition: (position) =>
+    request('/positions', {
+      method: 'POST',
+      body: JSON.stringify(position)
+    }),
+  updatePosition: (id, position) =>
+    request(`/positions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(position)
+    }),
+  deletePosition: (id) =>
+    request(`/positions/${id}`, {
+      method: 'DELETE'
+    }),
   employees: (params = {}) => {
     const search = new URLSearchParams(params);
     return request(`/employees?${search.toString()}`);
