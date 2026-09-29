@@ -1,0 +1,63 @@
+// Nhãn tiếng Việt và hàm định dạng dùng chung cho các màn hình nhân sự.
+
+export const statusLabels = {
+  ACTIVE: 'Đang làm',
+  ON_LEAVE: 'Nghỉ phép',
+  RESIGNED: 'Đã nghỉ',
+  TERMINATED: 'Chấm dứt'
+};
+
+export const genderLabels = {
+  MALE: 'Nam',
+  FEMALE: 'Nữ',
+  OTHER: 'Khác'
+};
+
+export const employmentTypeLabels = {
+  FULL_TIME: 'Toàn thời gian',
+  PART_TIME: 'Bán thời gian',
+  CONTRACT: 'Hợp đồng',
+  INTERN: 'Thực tập'
+};
+
+export function formatMoney(value) {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0
+  }).format(value || 0);
+}
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+// Đổi ngày từ API sang Date theo giờ máy người dùng.
+// API có thể trả "1998-03-12" hoặc "1998-03-11T17:00:00.000Z" (đã lệch múi giờ UTC+7).
+function toLocalDate(value) {
+  if (DATE_ONLY.test(value)) {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+
+  return new Date(value);
+}
+
+export function formatDate(value) {
+  if (!value) {
+    return '';
+  }
+
+  return toLocalDate(value).toLocaleDateString('vi-VN');
+}
+
+// Giá trị cho <input type="date">: luôn là "YYYY-MM-DD" theo giờ địa phương.
+export function toDateInputValue(value) {
+  if (!value) {
+    return '';
+  }
+
+  const date = toLocalDate(value);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${date.getFullYear()}-${month}-${day}`;
+}

@@ -12,7 +12,14 @@ import {
   Users
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, clearSession, getStoredUser, getToken, setSession } from './api.js';
+import { api, clearSession, getStoredUser, getToken, setSession, setUnauthorizedHandler } from './api.js';
+import ConfirmDialog from './components/ConfirmDialog.jsx';
+import EmployeeDetail from './components/EmployeeDetail.jsx';
+import Toast from './components/Toast.jsx';
+import { formatMoney, statusLabels, toDateInputValue } from './format.js';
+
+// Chỉ các vai trò này được xóa nhân viên (khớp với backend).
+const DELETE_ROLES = ['ADMIN', 'HR_MANAGER'];
 
 const emptyEmployee = {
   employeeCode: '',
@@ -29,21 +36,6 @@ const emptyEmployee = {
   baseSalary: 0,
   address: ''
 };
-
-const statusLabels = {
-  ACTIVE: 'Đang làm',
-  ON_LEAVE: 'Nghỉ phép',
-  RESIGNED: 'Đã nghỉ',
-  TERMINATED: 'Chấm dứt'
-};
-
-function formatMoney(value) {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0
-  }).format(value || 0);
-}
 
 function Login({ onLogin }) {
   const [email, setEmail] = useState('admin@webhr.local');
@@ -100,11 +92,23 @@ function Login({ onLogin }) {
   );
 }
 
+function toFormState(employee) {
+  if (!employee) {
+    return emptyEmployee;
+  }
+
+  return {
+    ...employee,
+    dateOfBirth: toDateInputValue(employee.dateOfBirth),
+    hireDate: toDateInputValue(employee.hireDate)
+  };
+}
+
 function EmployeeForm({ departments, employee, onSubmit, onCancel }) {
-  const [form, setForm] = useState(employee || emptyEmployee);
+  const [form, setForm] = useState(() => toFormState(employee));
 
   useEffect(() => {
-    setForm(employee || emptyEmployee);
+    setForm(toFormState(employee));
   }, [employee]);
 
   function updateField(field, value) {
@@ -161,7 +165,7 @@ function EmployeeForm({ departments, employee, onSubmit, onCancel }) {
         </label>
         <label>
           Ngày vào làm
-          <input value={form.hireDate?.slice(0, 10) || ''} onChange={(event) => updateField('hireDate', event.target.value)} type="date" required />
+          <input value={form.hireDate || ''} onChange={(event) => updateField('hireDate', event.target.value)} type="date" required />
         </label>
         <label>
           Lương cơ bản
@@ -196,7 +200,7 @@ function EmployeeForm({ departments, employee, onSubmit, onCancel }) {
         </label>
         <label>
           Ngày sinh
-          <input value={form.dateOfBirth?.slice(0, 10) || ''} onChange={(event) => updateField('dateOfBirth', event.target.value)} type="date" />
+          <input value={form.dateOfBirth || ''} onChange={(event) => updateField('dateOfBirth', event.target.value)} type="date" />
         </label>
       </div>
       <label>
@@ -225,6 +229,16 @@ function Dashboard({ user, onLogout }) {
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [viewingEmployee, setViewingEmployee] = useState(null);
+  const [deletingEmployee, setDeletingEmployee] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [toast, setToast] = useState(null);
+  const canDelete = DELETE_ROLES.includes(user?.role);
+
+  const showToast = useCallback((type, message) => {
+    setToast({ id: Date.now(), type, message });
+  }, []);
+  const closeToast = useCallback(() => setToast(null), []);
 
   const stats = useMemo(() => {
     const active = employees.filter((employee) => employee.status === 'ACTIVE').length;
@@ -266,8 +280,10 @@ function Dashboard({ user, onLogout }) {
     try {
       if (employee.id) {
         await api.updateEmployee(employee.id, employee);
+        showToast('success', `Đã cập nhật hồ sơ ${employee.fullName}.`);
       } else {
         await api.createEmployee(employee);
+        showToast('success', `Đã thêm nhân viên ${employee.fullName}.`);
       }
 
       setShowForm(false);
@@ -278,16 +294,28 @@ function Dashboard({ user, onLogout }) {
     }
   }
 
-  async function removeEmployee(id) {
-    setError('');
+  async function confirmDelete() {
+    const employee = deletingEmployee;
+    setDeleting(true);
 
     try {
-      await api.deleteEmployee(id);
+      await api.deleteEmployee(employee.id);
+      showToast('success', `Đã xóa nhân viên ${employee.fullName}.`);
       await loadData();
     } catch (err) {
-      setError(err.message);
+      showToast('error', err.message);
+    } finally {
+      setDeleting(false);
+      setDeletingEmployee(null);
     }
   }
+
+  const cancelDelete = useCallback(() => {
+    if (!deleting) {
+      setDeletingEmployee(null);
+    }
+  }, [deleting]);
+  const closeDetail = useCallback(() => setViewingEmployee(null), []);
 
   function beginCreate() {
     setEditingEmployee(null);
@@ -295,6 +323,7 @@ function Dashboard({ user, onLogout }) {
   }
 
   function beginEdit(employee) {
+    setViewingEmployee(null);
     setEditingEmployee(employee);
     setShowForm(true);
   }
@@ -435,7 +464,14 @@ function Dashboard({ user, onLogout }) {
                     <tr key={employee.id}>
                       <td>{employee.employeeCode}</td>
                       <td>
-                        <strong>{employee.fullName}</strong>
+                        <button
+                          type="button"
+                          className="link-button"
+                          onClick={() => setViewingEmployee(employee)}
+                          title="Xem chi tiết"
+                        >
+                          {employee.fullName}
+                        </button>
                         <span>{employee.email}</span>
                       </td>
                       <td>{employee.departmentName || 'Chưa phân phòng'}</td>
@@ -451,9 +487,11 @@ function Dashboard({ user, onLogout }) {
                           <button type="button" className="icon-button" onClick={() => beginEdit(employee)} title="Sửa">
                             <UserRoundPen size={17} aria-hidden="true" />
                           </button>
-                          <button type="button" className="icon-button danger" onClick={() => removeEmployee(employee.id)} title="Xóa">
-                            <Trash2 size={17} aria-hidden="true" />
-                          </button>
+                          {canDelete && (
+                            <button type="button" className="icon-button danger" onClick={() => setDeletingEmployee(employee)} title="Xóa">
+                              <Trash2 size={17} aria-hidden="true" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -468,12 +506,35 @@ function Dashboard({ user, onLogout }) {
           </div>
         </section>
       </section>
+
+      {viewingEmployee && (
+        <EmployeeDetail employee={viewingEmployee} onEdit={beginEdit} onClose={closeDetail} />
+      )}
+
+      {deletingEmployee && (
+        <ConfirmDialog
+          title="Xóa nhân viên?"
+          message={`Hồ sơ của ${deletingEmployee.fullName} (${deletingEmployee.employeeCode}) sẽ bị xóa vĩnh viễn và không thể khôi phục.`}
+          confirmLabel="Xóa nhân viên"
+          busy={deleting}
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
+        />
+      )}
+
+      <Toast toast={toast} onClose={closeToast} />
     </main>
   );
 }
 
 export default function App() {
   const [user, setUser] = useState(() => (getToken() ? getStoredUser() : null));
+
+  useEffect(() => {
+    // Khi API báo token hết hạn thì quay về màn hình đăng nhập.
+    setUnauthorizedHandler(() => setUser(null));
+    return () => setUnauthorizedHandler(null);
+  }, []);
 
   if (!user) {
     return <Login onLogin={setUser} />;

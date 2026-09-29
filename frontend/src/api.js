@@ -1,4 +1,12 @@
+import { networkErrorMessage, toVietnameseError } from './messages.js';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+
+let unauthorizedHandler = null;
+
+export function setUnauthorizedHandler(handler) {
+  unauthorizedHandler = handler;
+}
 
 export function getToken() {
   return localStorage.getItem('web_hr_token');
@@ -30,19 +38,33 @@ async function request(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers
-  });
+  let response;
+
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers
+    });
+  } catch {
+    throw new Error(networkErrorMessage);
+  }
 
   if (response.status === 204) {
     return null;
   }
 
-  const payload = await response.json();
+  const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(payload.message || 'Request failed');
+    // Token hết hạn khi đang dùng: xóa phiên và đưa người dùng về trang đăng nhập.
+    if (response.status === 401 && path !== '/auth/login') {
+      clearSession();
+      unauthorizedHandler?.();
+    }
+
+    const error = new Error(toVietnameseError(response.status, payload));
+    error.status = response.status;
+    throw error;
   }
 
   return payload;

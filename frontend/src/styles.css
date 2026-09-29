@@ -377,6 +377,187 @@ td span {
   justify-content: flex-end;
 }
 
+.link-button {
+  border: 0;
+  padding: 0;
+  color: #0f5d65;
+  background: none;
+  font-weight: 800;
+  text-align: left;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.danger-button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 14px;
+  color: #ffffff;
+  background: #b42318;
+  font-weight: 800;
+}
+
+.danger-button:disabled,
+.ghost-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+/* Hộp thoại (xác nhận xóa, chi tiết nhân viên) */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(16, 28, 25, 0.48);
+}
+
+.modal {
+  width: min(100%, 440px);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  border-radius: 8px;
+  padding: 24px;
+  background: #ffffff;
+  box-shadow: 0 24px 80px rgba(18, 31, 35, 0.28);
+}
+
+.modal .form-actions {
+  margin-top: 22px;
+}
+
+.confirm-dialog p {
+  margin: 10px 0 0;
+  color: #4d5a56;
+  line-height: 1.5;
+}
+
+.confirm-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  margin-bottom: 14px;
+  border-radius: 50%;
+  color: #b42318;
+  background: #ffe8e4;
+}
+
+.employee-detail {
+  width: min(100%, 640px);
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e5ebe8;
+}
+
+.detail-header h2 {
+  margin-bottom: 8px;
+}
+
+.avatar {
+  display: grid;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border-radius: 50%;
+  color: #ffffff;
+  background: #0f6f78;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.close-button {
+  margin-left: auto;
+  align-self: flex-start;
+}
+
+.detail-section h3 {
+  margin: 20px 0 10px;
+  color: #5f6d69;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+}
+
+.detail-grid dt {
+  color: #687571;
+  font-size: 0.82rem;
+}
+
+.detail-grid dd {
+  margin: 3px 0 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.detail-grid dd.muted {
+  color: #9aa5a1;
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* Thông báo toast */
+.toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(calc(100vw - 32px), 420px);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: #ffffff;
+  box-shadow: 0 12px 30px rgba(18, 31, 35, 0.25);
+  animation: toast-in 0.2s ease-out;
+}
+
+.toast-success {
+  background: #0a5b3f;
+}
+
+.toast-error {
+  background: #8a1f17;
+}
+
+.toast-close {
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 2px;
+  color: inherit;
+  background: none;
+  opacity: 0.8;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
 @media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -424,8 +605,15 @@ td span {
   }
 
   .stats-grid,
-  .form-grid {
+  .form-grid,
+  .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .toast {
+    right: 16px;
+    left: 16px;
+    bottom: 16px;
   }
 
   .toolbar > *,
