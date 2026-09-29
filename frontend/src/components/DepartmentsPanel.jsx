@@ -179,7 +179,7 @@ export default function DepartmentsPanel({ user, departments, loading, onChanged
       )}
 
       <div className="table-wrap">
-        <table className="compact-table">
+        <table className="compact-table responsive-table">
           <thead>
             <tr>
               <th>Tên phòng ban</th>
@@ -196,17 +196,17 @@ export default function DepartmentsPanel({ user, departments, loading, onChanged
             ) : filtered.length ? (
               filtered.map((department) => (
                 <tr key={department.id}>
-                  <td>
+                  <td className="cell-main">
                     <strong>{department.name}</strong>
                   </td>
-                  <td className={department.description ? '' : 'muted-cell'}>
+                  <td data-label="Mô tả" className={department.description ? '' : 'muted-cell'}>
                     {department.description || 'Chưa có mô tả'}
                   </td>
-                  <td>
+                  <td data-label="Số nhân viên">
                     <span className="count-pill">{department.employeeCount ?? 0}</span>
                   </td>
                   {canManage && (
-                    <td>
+                    <td className="cell-actions">
                       <div className="row-actions">
                         <button
                           type="button"

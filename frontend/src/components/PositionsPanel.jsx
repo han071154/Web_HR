@@ -263,7 +263,7 @@ export default function PositionsPanel({ user, departments, showToast }) {
       )}
 
       <div className="table-wrap">
-        <table className="positions-table">
+        <table className="positions-table responsive-table">
           <thead>
             <tr>
               <th>Mã</th>
@@ -282,25 +282,25 @@ export default function PositionsPanel({ user, departments, showToast }) {
             ) : filtered.length ? (
               filtered.map((position) => (
                 <tr key={position.id}>
-                  <td>
+                  <td data-label="Mã">
                     <code className="code-tag">{position.code}</code>
                   </td>
-                  <td>
+                  <td className="cell-main">
                     <strong>{position.name}</strong>
                   </td>
-                  <td className={position.departmentName ? '' : 'muted-cell'}>
+                  <td data-label="Phòng ban" className={position.departmentName ? '' : 'muted-cell'}>
                     {position.departmentName || 'Dùng chung'}
                   </td>
-                  <td className={position.description ? '' : 'muted-cell'}>
+                  <td data-label="Mô tả" className={position.description ? '' : 'muted-cell'}>
                     {position.description || 'Chưa có mô tả'}
                   </td>
-                  <td>
+                  <td data-label="Trạng thái">
                     <span className={`status-pill ${position.isActive ? 'status-active' : 'status-inactive'}`}>
                       {position.isActive ? 'Đang sử dụng' : 'Ngừng sử dụng'}
                     </span>
                   </td>
                   {canManage && (
-                    <td>
+                    <td className="cell-actions">
                       <div className="row-actions">
                         <button
                           type="button"

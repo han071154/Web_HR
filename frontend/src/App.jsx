@@ -491,7 +491,7 @@ function Dashboard({ user, onLogout }) {
             )}
 
             <div className="table-wrap">
-              <table>
+              <table className="responsive-table">
                 <thead>
                   <tr>
                     <th>Mã</th>
@@ -511,8 +511,8 @@ function Dashboard({ user, onLogout }) {
                   ) : employees.length ? (
                     employees.map((employee) => (
                       <tr key={employee.id}>
-                        <td>{employee.employeeCode}</td>
-                        <td>
+                        <td data-label="Mã">{employee.employeeCode}</td>
+                        <td className="cell-main">
                           <button
                             type="button"
                             className="link-button"
@@ -523,15 +523,15 @@ function Dashboard({ user, onLogout }) {
                           </button>
                           <span>{employee.email}</span>
                         </td>
-                        <td>{employee.departmentName || 'Chưa phân phòng'}</td>
-                        <td>{employee.position}</td>
-                        <td>
+                        <td data-label="Phòng ban">{employee.departmentName || 'Chưa phân phòng'}</td>
+                        <td data-label="Chức danh">{employee.position}</td>
+                        <td data-label="Trạng thái">
                           <span className={`status-pill status-${employee.status.toLowerCase()}`}>
                             {statusLabels[employee.status] || employee.status}
                           </span>
                         </td>
-                        <td>{formatMoney(employee.baseSalary)}</td>
-                        <td>
+                        <td data-label="Lương">{formatMoney(employee.baseSalary)}</td>
+                        <td className="cell-actions">
                           <div className="row-actions">
                             <button type="button" className="icon-button success" onClick={() => beginEdit(employee)} title="Sửa">
                               <UserRoundPen size={17} aria-hidden="true" />
