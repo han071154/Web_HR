@@ -51,6 +51,16 @@ Default login:
 - Email: `admin@webhr.local`
 - Password: `admin123`
 
+Test role accounts:
+
+- HR Manager: `manager@webhr.local` / `manager123`
+- HR Staff: `staff@webhr.local` / `staff123`
+
+Backend database settings are read from `backend/.env`. Copy `backend/.env.example`
+and update `DATABASE_URL` when PostgreSQL runs outside the provided Docker Compose setup.
+
+API reference: [docs/API.md](docs/API.md)
+
 ## Project Structure
 
 ```text

@@ -1,6 +1,12 @@
 import express from 'express';
 import { z } from 'zod';
 import { query } from '../db.js';
+import {
+  avatarUpload,
+  getAvatarPath,
+  getAvatarUrl,
+  removeAvatarFile
+} from '../middleware/avatarUpload.js';
 import { requireRole } from '../middleware/auth.js';
 import { httpError } from '../utils/httpError.js';
 
@@ -24,7 +30,7 @@ const employeeSchema = z.object({
 
 const updateEmployeeSchema = employeeSchema.partial();
 
-function mapEmployee(row) {
+function mapEmployee(row, req) {
   return {
     id: row.id,
     employeeCode: row.employee_code,
@@ -41,6 +47,7 @@ function mapEmployee(row) {
     hireDate: row.hire_date,
     baseSalary: Number(row.base_salary),
     address: row.address,
+    avatarUrl: getAvatarUrl(req, row.avatar_url),
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -78,7 +85,7 @@ router.get('/', async (req, res, next) => {
       values
     );
 
-    res.json({ data: result.rows.map(mapEmployee) });
+    res.json({ data: result.rows.map((row) => mapEmployee(row, req)) });
   } catch (error) {
     next(error);
   }
@@ -93,7 +100,7 @@ router.get('/:id', async (req, res, next) => {
       throw httpError(404, 'Employee not found');
     }
 
-    res.json({ data: mapEmployee(employee) });
+    res.json({ data: mapEmployee(employee, req) });
   } catch (error) {
     next(error);
   }
@@ -128,7 +135,7 @@ router.post('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res
     );
     const created = await query(`${selectEmployeeSql} WHERE e.id = $1`, [result.rows[0].id]);
 
-    res.status(201).json({ data: mapEmployee(created.rows[0]) });
+    res.status(201).json({ data: mapEmployee(created.rows[0], req) });
   } catch (error) {
     next(error);
   }
@@ -144,19 +151,19 @@ router.put('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, r
     }
 
     const merged = {
-      employeeCode: body.employeeCode ?? current.rows[0].employee_code,
-      fullName: body.fullName ?? current.rows[0].full_name,
-      email: body.email ?? current.rows[0].email,
-      phone: body.phone ?? current.rows[0].phone,
-      gender: body.gender ?? current.rows[0].gender,
-      dateOfBirth: body.dateOfBirth ?? current.rows[0].date_of_birth,
-      departmentId: body.departmentId ?? current.rows[0].department_id,
-      position: body.position ?? current.rows[0].position,
-      employmentType: body.employmentType ?? current.rows[0].employment_type,
-      status: body.status ?? current.rows[0].status,
-      hireDate: body.hireDate ?? current.rows[0].hire_date,
-      baseSalary: body.baseSalary ?? current.rows[0].base_salary,
-      address: body.address ?? current.rows[0].address
+      employeeCode: Object.hasOwn(body, 'employeeCode') ? body.employeeCode : current.rows[0].employee_code,
+      fullName: Object.hasOwn(body, 'fullName') ? body.fullName : current.rows[0].full_name,
+      email: Object.hasOwn(body, 'email') ? body.email : current.rows[0].email,
+      phone: Object.hasOwn(body, 'phone') ? body.phone : current.rows[0].phone,
+      gender: Object.hasOwn(body, 'gender') ? body.gender : current.rows[0].gender,
+      dateOfBirth: Object.hasOwn(body, 'dateOfBirth') ? body.dateOfBirth : current.rows[0].date_of_birth,
+      departmentId: Object.hasOwn(body, 'departmentId') ? body.departmentId : current.rows[0].department_id,
+      position: Object.hasOwn(body, 'position') ? body.position : current.rows[0].position,
+      employmentType: Object.hasOwn(body, 'employmentType') ? body.employmentType : current.rows[0].employment_type,
+      status: Object.hasOwn(body, 'status') ? body.status : current.rows[0].status,
+      hireDate: Object.hasOwn(body, 'hireDate') ? body.hireDate : current.rows[0].hire_date,
+      baseSalary: Object.hasOwn(body, 'baseSalary') ? body.baseSalary : current.rows[0].base_salary,
+      address: Object.hasOwn(body, 'address') ? body.address : current.rows[0].address
     };
 
     await query(
@@ -196,20 +203,88 @@ router.put('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, r
 
     const updated = await query(`${selectEmployeeSql} WHERE e.id = $1`, [req.params.id]);
 
-    res.json({ data: mapEmployee(updated.rows[0]) });
+    res.json({ data: mapEmployee(updated.rows[0], req) });
   } catch (error) {
     next(error);
   }
 });
 
+router.post(
+  '/:id/avatar',
+  requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'),
+  async (req, _res, next) => {
+    try {
+      const current = await query('SELECT id, avatar_url FROM employees WHERE id = $1', [req.params.id]);
+
+      if (!current.rows[0]) {
+        throw httpError(404, 'Employee not found');
+      }
+
+      req.currentAvatarPath = current.rows[0].avatar_url;
+      next();
+    } catch (error) {
+      next(error);
+    }
+  },
+  avatarUpload,
+  async (req, res, next) => {
+    if (!req.file) {
+      return next(httpError(400, 'Avatar file is required in the avatar field'));
+    }
+
+    const avatarPath = getAvatarPath(req.file.filename);
+
+    try {
+      await query(
+        'UPDATE employees SET avatar_url = $1, updated_at = NOW() WHERE id = $2',
+        [avatarPath, req.params.id]
+      );
+      await removeAvatarFile(req.currentAvatarPath);
+      const updated = await query(`${selectEmployeeSql} WHERE e.id = $1`, [req.params.id]);
+
+      return res.json({ data: mapEmployee(updated.rows[0], req) });
+    } catch (error) {
+      await removeAvatarFile(avatarPath);
+      return next(error);
+    }
+  }
+);
+
+router.delete(
+  '/:id/avatar',
+  requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'),
+  async (req, res, next) => {
+    try {
+      const current = await query('SELECT avatar_url FROM employees WHERE id = $1', [req.params.id]);
+
+      if (!current.rows[0]) {
+        throw httpError(404, 'Employee not found');
+      }
+
+      await query(
+        'UPDATE employees SET avatar_url = NULL, updated_at = NOW() WHERE id = $1',
+        [req.params.id]
+      );
+      await removeAvatarFile(current.rows[0].avatar_url);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 router.delete('/:id', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
   try {
-    const result = await query('DELETE FROM employees WHERE id = $1 RETURNING id', [req.params.id]);
+    const result = await query(
+      'DELETE FROM employees WHERE id = $1 RETURNING id, avatar_url',
+      [req.params.id]
+    );
 
     if (!result.rows[0]) {
       throw httpError(404, 'Employee not found');
     }
 
+    await removeAvatarFile(result.rows[0].avatar_url);
     res.status(204).send();
   } catch (error) {
     next(error);
