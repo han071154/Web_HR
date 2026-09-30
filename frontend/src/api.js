@@ -8,30 +8,39 @@ export function setUnauthorizedHandler(handler) {
   unauthorizedHandler = handler;
 }
 
+const TOKEN_KEY = 'web_hr_token';
+const USER_KEY = 'web_hr_user';
+
+// "Ghi nhớ đăng nhập": lưu phiên vào localStorage (giữ sau khi tắt trình duyệt),
+// không ghi nhớ thì lưu vào sessionStorage (mất khi đóng tab).
 export function getToken() {
-  return localStorage.getItem('web_hr_token');
+  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
 }
 
-export function setSession(session) {
-  localStorage.setItem('web_hr_token', session.token);
-  localStorage.setItem('web_hr_user', JSON.stringify(session.user));
+export function setSession(session, remember = true) {
+  clearSession();
+  const storage = remember ? localStorage : sessionStorage;
+  storage.setItem(TOKEN_KEY, session.token);
+  storage.setItem(USER_KEY, JSON.stringify(session.user));
 }
 
 export function clearSession() {
-  localStorage.removeItem('web_hr_token');
-  localStorage.removeItem('web_hr_user');
+  for (const storage of [localStorage, sessionStorage]) {
+    storage.removeItem(TOKEN_KEY);
+    storage.removeItem(USER_KEY);
+  }
 }
 
 export function getStoredUser() {
-  const value = localStorage.getItem('web_hr_user');
+  const value = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
   return value ? JSON.parse(value) : null;
 }
 
 async function request(path, options = {}) {
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers
-  };
+  // Gửi file (FormData) thì để trình duyệt tự đặt Content-Type kèm boundary.
+  const headers = options.body instanceof FormData
+    ? { ...options.headers }
+    : { 'Content-Type': 'application/json', ...options.headers };
   const token = getToken();
 
   if (token) {
@@ -123,5 +132,17 @@ export const api = {
   deleteEmployee: (id) =>
     request(`/employees/${id}`, {
       method: 'DELETE'
-    })
+    }),
+  uploadEmployeeAvatar: (id, file) => {
+    const body = new FormData();
+    body.append('avatar', file);
+    return request(`/employees/${id}/avatar`, {
+      method: 'POST',
+      body
+    });
+  },
+  contracts: (params = {}) => {
+    const search = new URLSearchParams(params);
+    return request(`/contracts?${search.toString()}`);
+  }
 };

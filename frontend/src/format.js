@@ -20,6 +20,20 @@ export const employmentTypeLabels = {
   INTERN: 'Thực tập'
 };
 
+export const contractTypeLabels = {
+  PROBATION: 'Thử việc',
+  FIXED_TERM: 'Xác định thời hạn',
+  INDEFINITE: 'Không thời hạn',
+  SEASONAL: 'Thời vụ'
+};
+
+export const contractStatusLabels = {
+  DRAFT: 'Nháp',
+  ACTIVE: 'Hiệu lực',
+  EXPIRED: 'Hết hạn',
+  TERMINATED: 'Đã chấm dứt'
+};
+
 export const roleLabels = {
   ADMIN: 'Quản trị viên',
   HR_MANAGER: 'Quản lý nhân sự',

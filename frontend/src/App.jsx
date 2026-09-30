@@ -1,27 +1,34 @@
 import {
   BriefcaseBusiness,
   Building2,
-  CircleDollarSign,
+  Download,
+  Eye,
   LogOut,
+  Pencil,
   Plus,
-  RefreshCw,
   Search,
-  ShieldCheck,
   Trash2,
-  UserRoundPen,
+  Upload,
   Users
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, clearSession, getStoredUser, getToken, setSession, setUnauthorizedHandler } from './api.js';
+import { api, clearSession, getStoredUser, getToken, setUnauthorizedHandler } from './api.js';
+import Avatar from './components/Avatar.jsx';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
 import DepartmentsPanel from './components/DepartmentsPanel.jsx';
-import PositionsPanel from './components/PositionsPanel.jsx';
 import EmployeeDetail from './components/EmployeeDetail.jsx';
+import EmployeeForm from './components/EmployeeForm.jsx';
+import LoginPage from './components/LoginPage.jsx';
+import Pagination from './components/Pagination.jsx';
+import PositionsPanel from './components/PositionsPanel.jsx';
 import Toast from './components/Toast.jsx';
-import { formatMoney, initials, roleLabels, statusLabels, toDateInputValue } from './format.js';
+import { roleLabels, statusLabels } from './format.js';
 
-// Chỉ các vai trò này được xóa nhân viên (khớp với backend).
+// Quyền khớp với backend: ai cũng thêm/sửa được, chỉ Admin và HR Manager được xóa.
+const EDIT_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
 const DELETE_ROLES = ['ADMIN', 'HR_MANAGER'];
+
+const PAGE_SIZE = 10;
 
 const VIEWS = ['employees', 'departments', 'positions'];
 
@@ -36,218 +43,73 @@ function viewFromHash() {
   return VIEWS.includes(view) ? view : 'employees';
 }
 
-const emptyEmployee = {
-  employeeCode: '',
-  fullName: '',
-  email: '',
-  phone: '',
-  gender: 'MALE',
-  dateOfBirth: '',
-  departmentId: '',
-  position: '',
-  employmentType: 'FULL_TIME',
-  status: 'ACTIVE',
-  hireDate: new Date().toISOString().slice(0, 10),
-  baseSalary: 0,
-  address: ''
-};
+// Bỏ dấu để tìm "nguyen" vẫn ra "Nguyễn".
+function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/gi, 'd')
+    .toLowerCase();
+}
 
-function Login({ onLogin }) {
-  const [email, setEmail] = useState('admin@webhr.local');
-  const [password, setPassword] = useState('admin123');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+// Gợi ý mã nhân viên kế tiếp: NV007 → NV008 (giữ tiền tố và số chữ số của mã lớn nhất).
+function nextEmployeeCode(employees) {
+  let prefix = 'NV';
+  let width = 3;
+  let max = 0;
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setError('');
-    setLoading(true);
+  for (const employee of employees) {
+    const match = /^([A-Za-z]+)(\d+)$/.exec(employee.employeeCode || '');
 
-    try {
-      const session = await api.login(email, password);
-      setSession(session);
-      onLogin(session.user);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    if (match && Number(match[2]) > max) {
+      [, prefix] = match;
+      width = match[2].length;
+      max = Number(match[2]);
     }
   }
 
-  return (
-    <main className="login-shell">
-      <section className="login-panel">
-        <div className="brand-row">
-          <div className="brand-mark">
-            <Users size={22} aria-hidden="true" />
-          </div>
-          <span className="brand-name">WebHR</span>
-        </div>
-        <h1 style={{ marginTop: 28 }}>Đăng nhập</h1>
-        <p className="page-subtitle">Dùng tài khoản được cấp để quản lý nhân sự và ca làm.</p>
-
-        <form onSubmit={handleSubmit} className="login-form">
-          <label>
-            Email
-            <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" required />
-          </label>
-          <label>
-            Mật khẩu
-            <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" required />
-          </label>
-          {error && <p className="form-error">{error}</p>}
-          <button type="submit" className="primary-button" disabled={loading}>
-            <ShieldCheck size={18} aria-hidden="true" />
-            {loading ? 'Đang đăng nhập' : 'Đăng nhập'}
-          </button>
-        </form>
-      </section>
-    </main>
-  );
+  return `${prefix}${String(max + 1).padStart(width, '0')}`;
 }
 
-function toFormState(employee) {
-  if (!employee) {
-    return emptyEmployee;
-  }
-
-  return {
-    ...employee,
-    dateOfBirth: toDateInputValue(employee.dateOfBirth),
-    hireDate: toDateInputValue(employee.hireDate)
-  };
-}
-
-function EmployeeForm({ departments, employee, onSubmit, onCancel }) {
-  const [form, setForm] = useState(() => toFormState(employee));
-
-  useEffect(() => {
-    setForm(toFormState(employee));
-  }, [employee]);
-
-  function updateField(field, value) {
-    setForm((current) => ({
-      ...current,
-      [field]: field === 'baseSalary' ? Number(value) : value
-    }));
-  }
-
-  function handleSubmit(event) {
-    event.preventDefault();
-    onSubmit({
-      ...form,
-      departmentId: form.departmentId || null,
-      phone: form.phone || null,
-      dateOfBirth: form.dateOfBirth || null,
-      address: form.address || null
-    });
-  }
-
+function Breadcrumb({ items }) {
   return (
-    <form className="employee-form" onSubmit={handleSubmit}>
-      <div className="form-grid">
-        <label>
-          Mã nhân viên
-          <input value={form.employeeCode} onChange={(event) => updateField('employeeCode', event.target.value)} required />
-        </label>
-        <label>
-          Họ tên
-          <input value={form.fullName} onChange={(event) => updateField('fullName', event.target.value)} required />
-        </label>
-        <label>
-          Email
-          <input value={form.email} onChange={(event) => updateField('email', event.target.value)} type="email" required />
-        </label>
-        <label>
-          Số điện thoại
-          <input value={form.phone || ''} onChange={(event) => updateField('phone', event.target.value)} />
-        </label>
-        <label>
-          Phòng ban
-          <select value={form.departmentId || ''} onChange={(event) => updateField('departmentId', event.target.value)}>
-            <option value="">Chưa phân phòng</option>
-            {departments.map((department) => (
-              <option value={department.id} key={department.id}>
-                {department.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Chức danh
-          <input value={form.position} onChange={(event) => updateField('position', event.target.value)} required />
-        </label>
-        <label>
-          Ngày vào làm
-          <input value={form.hireDate || ''} onChange={(event) => updateField('hireDate', event.target.value)} type="date" required />
-        </label>
-        <label>
-          Lương cơ bản
-          <input value={form.baseSalary} onChange={(event) => updateField('baseSalary', event.target.value)} type="number" min="0" required />
-        </label>
-        <label>
-          Giới tính
-          <select value={form.gender || 'MALE'} onChange={(event) => updateField('gender', event.target.value)}>
-            <option value="MALE">Nam</option>
-            <option value="FEMALE">Nữ</option>
-            <option value="OTHER">Khác</option>
-          </select>
-        </label>
-        <label>
-          Trạng thái
-          <select value={form.status} onChange={(event) => updateField('status', event.target.value)}>
-            {Object.entries(statusLabels).map(([value, label]) => (
-              <option value={value} key={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Loại hợp đồng
-          <select value={form.employmentType} onChange={(event) => updateField('employmentType', event.target.value)}>
-            <option value="FULL_TIME">Toàn thời gian</option>
-            <option value="PART_TIME">Bán thời gian</option>
-            <option value="CONTRACT">Hợp đồng</option>
-            <option value="INTERN">Thực tập</option>
-          </select>
-        </label>
-        <label>
-          Ngày sinh
-          <input value={form.dateOfBirth || ''} onChange={(event) => updateField('dateOfBirth', event.target.value)} type="date" />
-        </label>
-      </div>
-      <label>
-        Địa chỉ
-        <textarea value={form.address || ''} onChange={(event) => updateField('address', event.target.value)} rows="3" />
-      </label>
-      <div className="form-actions">
-        <button type="button" className="ghost-button" onClick={onCancel}>
-          Hủy
-        </button>
-        <button type="submit" className="primary-button">
-          <UserRoundPen size={18} aria-hidden="true" />
-          {employee?.id ? 'Cập nhật' : 'Thêm nhân viên'}
-        </button>
-      </div>
-    </form>
+    <nav className="breadcrumb" aria-label="Đường dẫn">
+      {items.map((item, index) => (
+        <span key={item.label}>
+          {index > 0 && <span className="breadcrumb-sep">/</span>}
+          {item.onClick ? (
+            <button type="button" onClick={item.onClick}>
+              {item.label}
+            </button>
+          ) : (
+            item.label
+          )}
+        </span>
+      ))}
+    </nav>
   );
 }
 
 function Dashboard({ user, onLogout }) {
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [positions, setPositions] = useState([]);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
-  const [editingEmployee, setEditingEmployee] = useState(null);
-  const [showForm, setShowForm] = useState(false);
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [positionFilter, setPositionFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [viewingEmployee, setViewingEmployee] = useState(null);
-  const [deletingEmployee, setDeletingEmployee] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+  // Màn hình con của mục Nhân sự: danh sách, chi tiết hoặc form.
+  const [screen, setScreen] = useState({ type: 'list' });
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
   const [toast, setToast] = useState(null);
   const [view, setView] = useState(viewFromHash);
+  const canEdit = EDIT_ROLES.includes(user?.role);
   const canDelete = DELETE_ROLES.includes(user?.role);
 
   const showToast = useCallback((type, message) => {
@@ -255,107 +117,379 @@ function Dashboard({ user, onLogout }) {
   }, []);
   const closeToast = useCallback(() => setToast(null), []);
 
-  const stats = useMemo(() => {
-    const active = employees.filter((employee) => employee.status === 'ACTIVE').length;
-    const payroll = employees.reduce((sum, employee) => sum + Number(employee.baseSalary || 0), 0);
-
-    return {
-      total: employees.length,
-      active,
-      departments: departments.length,
-      payroll
-    };
-  }, [departments.length, employees]);
-
-  const loadData = useCallback(async (nextFilters = { search, status }) => {
+  const loadData = useCallback(async () => {
     setError('');
     setLoading(true);
 
     try {
-      const [employeeResponse, departmentResponse] = await Promise.all([
-        api.employees(nextFilters),
-        api.departments()
+      const [employeeResponse, departmentResponse, positionResponse] = await Promise.all([
+        api.employees(),
+        api.departments(),
+        api.positions()
       ]);
       setEmployees(employeeResponse.data);
       setDepartments(departmentResponse.data);
+      setPositions(positionResponse.data);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [search, status]);
+  }, []);
 
+  // Tải lại mỗi khi đổi mục menu để thấy phòng ban / chức vụ mới sửa.
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, view]);
 
   useEffect(() => {
     // Menu bên trái đổi trang qua #employees / #departments / #positions trên URL.
     function handleHashChange() {
       setView(viewFromHash());
+      setScreen({ type: 'list' });
     }
 
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  async function saveEmployee(employee) {
-    setError('');
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [screen.type]);
 
-    try {
-      if (employee.id) {
-        await api.updateEmployee(employee.id, employee);
-        showToast('success', `Đã cập nhật hồ sơ ${employee.fullName}.`);
-      } else {
-        await api.createEmployee(employee);
-        showToast('success', `Đã thêm nhân viên ${employee.fullName}.`);
-      }
+  // Lọc ngay khi gõ / chọn, không cần bấm nút "Lọc".
+  const filteredEmployees = useMemo(() => {
+    const keyword = normalizeText(search.trim());
 
-      setShowForm(false);
-      setEditingEmployee(null);
-      await loadData();
-    } catch (err) {
-      setError(err.message);
+    return employees.filter((employee) => {
+      const matchesSearch =
+        !keyword ||
+        [employee.fullName, employee.employeeCode, employee.email].some((value) =>
+          normalizeText(value).includes(keyword)
+        );
+
+      return (
+        matchesSearch &&
+        (!departmentFilter || employee.departmentId === departmentFilter) &&
+        (!positionFilter || employee.position === positionFilter) &&
+        (!statusFilter || employee.status === statusFilter)
+      );
+    });
+  }, [employees, search, departmentFilter, positionFilter, statusFilter]);
+
+  // Đổi bộ lọc thì quay về trang 1.
+  useEffect(() => {
+    setPage(1);
+  }, [search, departmentFilter, positionFilter, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageEmployees = filteredEmployees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const positionNames = useMemo(() => {
+    const names = [...positions.map((position) => position.name), ...employees.map((employee) => employee.position)];
+    return [...new Set(names.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [positions, employees]);
+
+  const suggestedCode = useMemo(() => nextEmployeeCode(employees), [employees]);
+
+  function showList() {
+    setScreen({ type: 'list' });
+  }
+
+  function showDetail(employee) {
+    setScreen({ type: 'detail', employee });
+  }
+
+  function beginCreate() {
+    setFormError('');
+    setScreen({ type: 'form', employee: null });
+  }
+
+  function beginEdit(employee) {
+    setFormError('');
+    setScreen({ type: 'form', employee });
+  }
+
+  function cancelForm() {
+    if (screen.employee) {
+      showDetail(screen.employee);
+    } else {
+      showList();
     }
   }
 
-  async function confirmDelete() {
-    const employee = deletingEmployee;
-    setDeleting(true);
+  async function saveEmployee(data, avatarFile) {
+    setSaving(true);
+    setFormError('');
 
     try {
-      await api.deleteEmployee(employee.id);
-      showToast('success', `Đã xóa nhân viên ${employee.fullName}.`);
+      const payload = {
+        ...data,
+        departmentId: data.departmentId || null,
+        dateOfBirth: data.dateOfBirth || null
+      };
+      const response = data.id ? await api.updateEmployee(data.id, payload) : await api.createEmployee(payload);
+      let saved = response.data;
+      let avatarError = '';
+
+      if (avatarFile) {
+        try {
+          saved = (await api.uploadEmployeeAvatar(saved.id, avatarFile)).data;
+        } catch (err) {
+          avatarError = err.message;
+        }
+      }
+
+      if (avatarError) {
+        showToast('error', `Đã lưu hồ sơ nhưng chưa tải được ảnh: ${avatarError}`);
+      } else {
+        showToast('success', data.id ? `Đã cập nhật hồ sơ ${saved.fullName}.` : `Đã thêm nhân viên ${saved.fullName}.`);
+      }
+
+      showDetail(saved);
+      loadData();
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function runConfirmAction() {
+    const { type, employee } = confirmAction;
+    setConfirmBusy(true);
+
+    try {
+      if (type === 'delete') {
+        await api.deleteEmployee(employee.id);
+        showToast('success', `Đã xóa nhân viên ${employee.fullName}.`);
+        showList();
+      } else {
+        const response = await api.updateEmployee(employee.id, { status: 'RESIGNED' });
+        showToast('success', `Đã vô hiệu hóa hồ sơ ${employee.fullName}.`);
+        showDetail(response.data);
+      }
+
       await loadData();
     } catch (err) {
       showToast('error', err.message);
     } finally {
-      setDeleting(false);
-      setDeletingEmployee(null);
+      setConfirmBusy(false);
+      setConfirmAction(null);
     }
   }
 
-  const cancelDelete = useCallback(() => {
-    if (!deleting) {
-      setDeletingEmployee(null);
+  const cancelConfirm = useCallback(() => {
+    if (!confirmBusy) {
+      setConfirmAction(null);
     }
-  }, [deleting]);
-  const closeDetail = useCallback(() => setViewingEmployee(null), []);
-
-  function beginCreate() {
-    setEditingEmployee(null);
-    setShowForm(true);
-  }
-
-  function beginEdit(employee) {
-    setViewingEmployee(null);
-    setEditingEmployee(employee);
-    setShowForm(true);
-  }
+  }, [confirmBusy]);
 
   function handleLogout() {
     clearSession();
     onLogout();
+  }
+
+  const header = (() => {
+    if (view !== 'employees' || screen.type === 'list') {
+      return { title: pageTitles[view].title, subtitle: pageTitles[view].subtitle };
+    }
+
+    const listCrumbs = [{ label: 'Nhân sự', onClick: showList }, { label: 'Danh sách', onClick: showList }];
+
+    if (screen.type === 'detail') {
+      return {
+        title: 'Chi tiết nhân sự',
+        crumbs: [...listCrumbs, { label: screen.employee.employeeCode }]
+      };
+    }
+
+    if (screen.employee) {
+      return {
+        title: 'Sửa nhân sự',
+        crumbs: [
+          ...listCrumbs,
+          { label: screen.employee.employeeCode, onClick: () => showDetail(screen.employee) },
+          { label: 'Sửa' }
+        ]
+      };
+    }
+
+    return { title: 'Thêm nhân sự', crumbs: [...listCrumbs, { label: 'Thêm nhân sự' }] };
+  })();
+
+  function renderEmployees() {
+    if (screen.type === 'detail') {
+      return (
+        <EmployeeDetail
+          employee={screen.employee}
+          canDeactivate={canEdit}
+          onEdit={beginEdit}
+          onDeactivate={(employee) => setConfirmAction({ type: 'deactivate', employee })}
+        />
+      );
+    }
+
+    if (screen.type === 'form') {
+      return (
+        <EmployeeForm
+          employee={screen.employee}
+          departments={departments}
+          positions={positions}
+          suggestedCode={screen.employee ? '' : suggestedCode}
+          saving={saving}
+          error={formError}
+          onSubmit={saveEmployee}
+          onCancel={cancelForm}
+        />
+      );
+    }
+
+    return (
+      <>
+        <section className="content-panel toolbar-card">
+          <label className="search-field">
+            <Search size={18} aria-hidden="true" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Tìm theo mã, họ tên, email..."
+              aria-label="Tìm nhân sự"
+            />
+          </label>
+          <select value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)} aria-label="Lọc theo phòng ban">
+            <option value="">Phòng ban</option>
+            {departments.map((department) => (
+              <option value={department.id} key={department.id}>
+                {department.name}
+              </option>
+            ))}
+          </select>
+          <select value={positionFilter} onChange={(event) => setPositionFilter(event.target.value)} aria-label="Lọc theo chức vụ">
+            <option value="">Chức vụ</option>
+            {positionNames.map((name) => (
+              <option value={name} key={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Lọc theo trạng thái">
+            <option value="">Trạng thái</option>
+            {Object.entries(statusLabels).map(([value, label]) => (
+              <option value={value} key={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <div className="toolbar-actions">
+            {/* Import / Export Excel thuộc task HR-009, chưa có API nên tạm khóa. */}
+            <button type="button" className="icon-text-button square" disabled title="Nhập từ Excel (sắp có)" aria-label="Nhập từ Excel">
+              <Upload size={18} aria-hidden="true" />
+            </button>
+            <button type="button" className="icon-text-button square" disabled title="Xuất Excel (sắp có)" aria-label="Xuất Excel">
+              <Download size={18} aria-hidden="true" />
+            </button>
+            {canEdit && (
+              <button type="button" className="primary-button" onClick={beginCreate}>
+                <Plus size={18} aria-hidden="true" />
+                Thêm nhân sự
+              </button>
+            )}
+          </div>
+        </section>
+
+        <section className="content-panel table-card" id="employees">
+          {error && <p className="form-error">{error}</p>}
+
+          <div className="table-wrap">
+            <table className="responsive-table employees-table">
+              <thead>
+                <tr>
+                  <th>Nhân viên</th>
+                  <th>Mã NV</th>
+                  <th>Phòng ban</th>
+                  <th>Chức vụ</th>
+                  <th>Trạng thái</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && !employees.length ? (
+                  <tr>
+                    <td colSpan="6">Đang tải dữ liệu</td>
+                  </tr>
+                ) : pageEmployees.length ? (
+                  pageEmployees.map((employee) => (
+                    <tr key={employee.id}>
+                      <td className="cell-main">
+                        <div className="person-cell">
+                          <Avatar name={employee.fullName} src={employee.avatarUrl} size="small" />
+                          <div>
+                            <button
+                              type="button"
+                              className="link-button"
+                              onClick={() => showDetail(employee)}
+                              title="Xem chi tiết"
+                            >
+                              {employee.fullName}
+                            </button>
+                            <span>{employee.email}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td data-label="Mã NV">{employee.employeeCode}</td>
+                      <td data-label="Phòng ban">{employee.departmentName || 'Chưa phân phòng'}</td>
+                      <td data-label="Chức vụ">{employee.position}</td>
+                      <td data-label="Trạng thái">
+                        <span className={`status-pill status-${employee.status.toLowerCase()}`}>
+                          {statusLabels[employee.status] || employee.status}
+                        </span>
+                      </td>
+                      <td className="cell-actions">
+                        <div className="row-actions">
+                          <button type="button" className="icon-button" onClick={() => showDetail(employee)} title="Xem" aria-label="Xem">
+                            <Eye size={17} aria-hidden="true" />
+                          </button>
+                          {canEdit && (
+                            <button type="button" className="icon-button success" onClick={() => beginEdit(employee)} title="Sửa" aria-label="Sửa">
+                              <Pencil size={17} aria-hidden="true" />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              className="icon-button danger"
+                              onClick={() => setConfirmAction({ type: 'delete', employee })}
+                              title="Xóa"
+                              aria-label="Xóa"
+                            >
+                              <Trash2 size={17} aria-hidden="true" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="6">Chưa có nhân viên phù hợp</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <Pagination
+            page={currentPage}
+            pageSize={PAGE_SIZE}
+            total={filteredEmployees.length}
+            unit="nhân sự"
+            onChange={setPage}
+          />
+        </section>
+      </>
+    );
   }
 
   return (
@@ -369,7 +503,7 @@ function Dashboard({ user, onLogout }) {
         </div>
         <p className="menu-label">Menu</p>
         <nav>
-          <a className={`nav-item${view === 'employees' ? ' active' : ''}`} href="#employees">
+          <a className={`nav-item${view === 'employees' ? ' active' : ''}`} href="#employees" onClick={showList}>
             <Users size={18} aria-hidden="true" />
             Nhân sự
           </a>
@@ -383,9 +517,7 @@ function Dashboard({ user, onLogout }) {
           </a>
         </nav>
         <div className="sidebar-footer">
-          <div className="avatar small" aria-hidden="true">
-            {initials(user?.fullName || user?.email)}
-          </div>
+          <Avatar name={user?.fullName || user?.email} size="small" />
           <div className="sidebar-user">
             <strong>{user?.fullName || user?.email}</strong>
             <span>{roleLabels[user?.role] || user?.role}</span>
@@ -399,161 +531,13 @@ function Dashboard({ user, onLogout }) {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <h1>{pageTitles[view].title}</h1>
-            <p className="page-subtitle">{pageTitles[view].subtitle}</p>
+            <h1>{header.title}</h1>
+            {header.crumbs ? <Breadcrumb items={header.crumbs} /> : <p className="page-subtitle">{header.subtitle}</p>}
           </div>
         </header>
 
-        <section className="stats-grid">
-          <article className="stat-card">
-            <div className="stat-icon">
-              <Users size={22} aria-hidden="true" />
-            </div>
-            <div>
-              <span>Tổng nhân viên</span>
-              <strong>{stats.total}</strong>
-            </div>
-          </article>
-          <article className="stat-card">
-            <div className="stat-icon green">
-              <ShieldCheck size={22} aria-hidden="true" />
-            </div>
-            <div>
-              <span>Đang làm</span>
-              <strong>{stats.active}</strong>
-            </div>
-          </article>
-          <article className="stat-card">
-            <div className="stat-icon blue">
-              <Building2 size={22} aria-hidden="true" />
-            </div>
-            <div>
-              <span>Phòng ban</span>
-              <strong>{stats.departments}</strong>
-            </div>
-          </article>
-          <article className="stat-card">
-            <div className="stat-icon red">
-              <CircleDollarSign size={22} aria-hidden="true" />
-            </div>
-            <div>
-              <span>Quỹ lương</span>
-              <strong>{formatMoney(stats.payroll)}</strong>
-            </div>
-          </article>
-        </section>
-
         {view === 'employees' ? (
-          <section className="content-panel" id="employees">
-            <div className="section-header">
-              <h2>Hồ sơ nhân sự</h2>
-              <button type="button" className="primary-button" onClick={beginCreate}>
-                <Plus size={18} aria-hidden="true" />
-                Thêm nhân sự
-              </button>
-            </div>
-
-            <div className="toolbar">
-              <label className="search-field">
-                <Search size={18} aria-hidden="true" />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Tìm theo tên, mã, email"
-                />
-              </label>
-              <select value={status} onChange={(event) => setStatus(event.target.value)}>
-                <option value="">Tất cả trạng thái</option>
-                {Object.entries(statusLabels).map(([value, label]) => (
-                  <option value={value} key={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <button type="button" className="icon-text-button" onClick={() => loadData({ search, status })}>
-                <RefreshCw size={18} aria-hidden="true" />
-                Lọc
-              </button>
-            </div>
-
-            {error && <p className="form-error">{error}</p>}
-
-            {showForm && (
-              <EmployeeForm
-                departments={departments}
-                employee={editingEmployee}
-                onSubmit={saveEmployee}
-                onCancel={() => {
-                  setShowForm(false);
-                  setEditingEmployee(null);
-                }}
-              />
-            )}
-
-            <div className="table-wrap">
-              <table className="responsive-table">
-                <thead>
-                  <tr>
-                    <th>Mã</th>
-                    <th>Nhân viên</th>
-                    <th>Phòng ban</th>
-                    <th>Chức danh</th>
-                    <th>Trạng thái</th>
-                    <th>Lương</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan="7">Đang tải dữ liệu</td>
-                    </tr>
-                  ) : employees.length ? (
-                    employees.map((employee) => (
-                      <tr key={employee.id}>
-                        <td data-label="Mã">{employee.employeeCode}</td>
-                        <td className="cell-main">
-                          <button
-                            type="button"
-                            className="link-button"
-                            onClick={() => setViewingEmployee(employee)}
-                            title="Xem chi tiết"
-                          >
-                            {employee.fullName}
-                          </button>
-                          <span>{employee.email}</span>
-                        </td>
-                        <td data-label="Phòng ban">{employee.departmentName || 'Chưa phân phòng'}</td>
-                        <td data-label="Chức danh">{employee.position}</td>
-                        <td data-label="Trạng thái">
-                          <span className={`status-pill status-${employee.status.toLowerCase()}`}>
-                            {statusLabels[employee.status] || employee.status}
-                          </span>
-                        </td>
-                        <td data-label="Lương">{formatMoney(employee.baseSalary)}</td>
-                        <td className="cell-actions">
-                          <div className="row-actions">
-                            <button type="button" className="icon-button success" onClick={() => beginEdit(employee)} title="Sửa">
-                              <UserRoundPen size={17} aria-hidden="true" />
-                            </button>
-                            {canDelete && (
-                              <button type="button" className="icon-button danger" onClick={() => setDeletingEmployee(employee)} title="Xóa">
-                                <Trash2 size={17} aria-hidden="true" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="7">Chưa có nhân viên phù hợp</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
+          renderEmployees()
         ) : view === 'departments' ? (
           <DepartmentsPanel
             user={user}
@@ -567,18 +551,18 @@ function Dashboard({ user, onLogout }) {
         )}
       </section>
 
-      {viewingEmployee && (
-        <EmployeeDetail employee={viewingEmployee} onEdit={beginEdit} onClose={closeDetail} />
-      )}
-
-      {deletingEmployee && (
+      {confirmAction && (
         <ConfirmDialog
-          title="Xóa nhân viên?"
-          message={`Hồ sơ của ${deletingEmployee.fullName} (${deletingEmployee.employeeCode}) sẽ bị xóa vĩnh viễn và không thể khôi phục.`}
-          confirmLabel="Xóa nhân viên"
-          busy={deleting}
-          onConfirm={confirmDelete}
-          onCancel={cancelDelete}
+          title={confirmAction.type === 'delete' ? 'Xóa nhân viên?' : 'Vô hiệu hóa hồ sơ?'}
+          message={
+            confirmAction.type === 'delete'
+              ? `Hồ sơ của ${confirmAction.employee.fullName} (${confirmAction.employee.employeeCode}) sẽ bị xóa vĩnh viễn và không thể khôi phục.`
+              : `${confirmAction.employee.fullName} (${confirmAction.employee.employeeCode}) sẽ chuyển sang trạng thái "Đã nghỉ". Có thể sửa lại trạng thái sau.`
+          }
+          confirmLabel={confirmAction.type === 'delete' ? 'Xóa nhân viên' : 'Vô hiệu hóa'}
+          busy={confirmBusy}
+          onConfirm={runConfirmAction}
+          onCancel={cancelConfirm}
         />
       )}
 
@@ -597,7 +581,7 @@ export default function App() {
   }, []);
 
   if (!user) {
-    return <Login onLogin={setUser} />;
+    return <LoginPage onLogin={setUser} />;
   }
 
   return <Dashboard user={user} onLogout={() => setUser(null)} />;
