@@ -1243,6 +1243,823 @@ img.avatar {
   }
 }
 
+/* ---------- Trang tuyển dụng công khai (M-07a/b/c) ---------- */
+a.primary-button,
+a.ghost-button {
+  text-decoration: none;
+}
+
+.careers-shell {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+.careers-shell > main {
+  flex: 1;
+}
+
+.careers-container {
+  width: min(100% - 48px, 1200px);
+  margin: 0 auto;
+}
+
+.careers-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--card-bg);
+  box-shadow: 0 4px 16px rgba(37, 57, 111, 0.08);
+}
+
+.careers-header-inner {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  gap: 24px;
+}
+
+.careers-brand {
+  text-decoration: none;
+}
+
+.careers-brand .brand-name {
+  color: var(--primary);
+}
+
+.careers-nav {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  gap: 32px;
+}
+
+.careers-nav a {
+  position: relative;
+  padding: 22px 0;
+  color: var(--heading);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.careers-nav a:hover,
+.careers-nav a.active {
+  color: var(--primary);
+}
+
+.careers-nav a.active::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--primary);
+  content: "";
+}
+
+.careers-login {
+  font-weight: 700;
+}
+
+/* Phần đầu trang: nền xanh + vòng tròn trang trí giống màn đăng nhập */
+.careers-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 64px 0;
+  color: #ffffff;
+  background: var(--primary);
+}
+
+.careers-hero::before,
+.careers-hero::after {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  content: "";
+}
+
+.careers-hero::before {
+  top: -120px;
+  right: -60px;
+  width: 420px;
+  height: 420px;
+}
+
+.careers-hero::after {
+  bottom: -140px;
+  left: 45%;
+  width: 240px;
+  height: 240px;
+}
+
+.careers-hero-inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
+  align-items: center;
+  gap: 48px;
+}
+
+.careers-hero h1 {
+  color: #ffffff;
+  font-size: 2.6rem;
+}
+
+.careers-hero p {
+  max-width: 580px;
+  margin: 16px 0 28px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 1.1rem;
+}
+
+.careers-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.careers-hero-primary,
+.careers-hero-secondary {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  border: 1px solid #ffffff;
+  border-radius: var(--radius-control);
+  padding: 8px 24px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.careers-hero-primary {
+  color: var(--primary);
+  background: #ffffff;
+}
+
+.careers-hero-primary:hover {
+  background: var(--primary-light);
+}
+
+.careers-hero-secondary {
+  color: #ffffff;
+}
+
+.careers-hero-secondary:hover {
+  color: var(--primary);
+  background: #ffffff;
+}
+
+.careers-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  border-radius: var(--radius-card);
+  padding: 24px;
+  color: var(--text);
+  background: var(--card-bg);
+}
+
+.careers-stats > strong {
+  grid-column: 1 / -1;
+  color: var(--heading);
+  font-size: 1.1rem;
+}
+
+.careers-stats > div {
+  display: grid;
+  gap: 4px;
+}
+
+.careers-stats b {
+  margin-top: 8px;
+  color: var(--heading);
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.careers-stats span:last-child {
+  font-size: 0.9rem;
+}
+
+/* Ô biểu tượng màu (tím / xanh dương / xanh lá / đỏ) */
+.careers-icon {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  place-items: center;
+  border-radius: 10px;
+  color: #ffffff;
+}
+
+.careers-icon.large {
+  width: 48px;
+  height: 48px;
+}
+
+.careers-icon.purple {
+  background: var(--accent-purple);
+}
+
+.careers-icon.blue {
+  background: var(--accent-blue);
+}
+
+.careers-icon.green {
+  background: var(--accent-green);
+}
+
+.careers-icon.red {
+  background: var(--accent-red);
+}
+
+.careers-section {
+  padding-top: 48px;
+  scroll-margin-top: 72px;
+}
+
+.careers-section:last-child {
+  padding-bottom: 16px;
+}
+
+.careers-title {
+  font-size: 1.75rem;
+}
+
+.careers-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.about-grid,
+.job-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.about-card,
+.job-card,
+.careers-card,
+.careers-filters {
+  border-radius: var(--radius-card);
+  background: var(--card-bg);
+  box-shadow: 0 4px 16px rgba(37, 57, 111, 0.06);
+}
+
+.about-card {
+  padding: 24px;
+}
+
+.about-card > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.about-card h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.about-card p {
+  margin: 16px 0 0;
+}
+
+.careers-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 20px;
+  padding: 16px 24px;
+}
+
+.careers-filters .search-field {
+  min-width: 0;
+}
+
+.job-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px;
+}
+
+.job-card-head {
+  display: flex;
+  gap: 14px;
+}
+
+.job-card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
+.job-card h3 a {
+  color: var(--heading);
+  text-decoration: none;
+}
+
+.job-card h3 a:hover {
+  color: var(--primary);
+}
+
+.job-card-head p {
+  margin: 2px 0 0;
+  font-size: 0.9rem;
+}
+
+.job-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.job-tag {
+  border-radius: 999px;
+  padding: 3px 12px;
+  color: var(--primary);
+  background: var(--primary-light);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.job-tag.salary {
+  color: #0f5132;
+  background: var(--success-light);
+}
+
+.job-tag.warning {
+  color: #664d03;
+  background: #fff3cd;
+}
+
+.job-deadline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #8a97a8;
+  font-size: 0.9rem;
+}
+
+.job-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.careers-empty {
+  margin: 20px auto 0;
+  border-radius: var(--radius-card);
+  padding: 32px 24px;
+  background: var(--card-bg);
+  text-align: center;
+}
+
+.careers-result-count {
+  margin-top: 12px;
+}
+
+.careers-footer {
+  margin-top: 64px;
+  padding: 28px 0;
+  color: #c8d1e6;
+  background: var(--heading);
+}
+
+.careers-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 32px;
+}
+
+.careers-footer .brand-name {
+  color: #ffffff;
+}
+
+.careers-footer p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.careers-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.careers-contact li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.careers-contact a {
+  color: inherit;
+}
+
+/* Trang con: chi tiết tin, form ứng tuyển */
+.careers-page {
+  padding-top: 24px;
+}
+
+.careers-page .breadcrumb {
+  margin: 0 0 16px;
+}
+
+.breadcrumb a {
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.careers-card {
+  padding: 28px;
+}
+
+.careers-message {
+  display: grid;
+  max-width: 560px;
+  justify-items: start;
+  gap: 16px;
+  margin: 24px auto 0;
+}
+
+.job-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: start;
+  gap: 28px;
+}
+
+.job-detail-main h1 {
+  font-size: 2rem;
+}
+
+.job-detail-main > .job-tags {
+  margin: 14px 0 24px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 20px;
+}
+
+.job-closed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.job-section + .job-section {
+  margin-top: 24px;
+}
+
+.job-bullets {
+  margin: 10px 0 0;
+  padding-left: 20px;
+}
+
+.job-bullets li + li {
+  margin-top: 4px;
+}
+
+.job-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.job-detail-actions a {
+  min-width: 180px;
+}
+
+.job-detail-side {
+  display: grid;
+  gap: 24px;
+}
+
+.job-facts {
+  display: grid;
+  gap: 18px;
+  margin: 20px 0 24px;
+  padding: 0;
+  list-style: none;
+}
+
+.job-facts li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.job-facts small,
+.other-jobs small {
+  display: block;
+  color: #8a97a8;
+  font-size: 0.85rem;
+}
+
+.job-facts strong {
+  color: var(--heading);
+}
+
+.careers-block-button {
+  width: 100%;
+  min-height: 46px;
+  font-weight: 700;
+}
+
+.careers-card .field-hint {
+  margin: 10px 0 0;
+}
+
+.other-jobs {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.other-jobs li {
+  padding: 12px 0;
+}
+
+.other-jobs li + li {
+  border-top: 1px solid var(--border);
+}
+
+.other-jobs a {
+  color: var(--heading);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.other-jobs a:hover {
+  color: var(--primary);
+}
+
+/* Form ứng tuyển */
+.apply-card {
+  display: grid;
+  max-width: 560px;
+  gap: 18px;
+  margin: 0 auto;
+}
+
+.apply-card h1 {
+  font-size: 1.6rem;
+}
+
+.apply-card .page-subtitle {
+  margin-top: -14px;
+}
+
+.apply-eyebrow {
+  margin: 0 0 -14px;
+  color: #8a97a8;
+  font-size: 0.9rem;
+}
+
+.apply-card label > span,
+.apply-label {
+  color: var(--heading);
+  font-weight: 700;
+}
+
+.apply-card textarea {
+  resize: vertical;
+}
+
+.apply-field {
+  display: grid;
+  gap: 6px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.cv-dropzone {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  border: 1.5px dashed var(--primary);
+  border-radius: var(--radius-menu);
+  padding: 20px;
+  color: var(--primary);
+  background: var(--primary-light);
+  cursor: pointer;
+  font-weight: 400;
+  text-align: center;
+}
+
+.cv-dropzone:hover,
+.cv-dropzone.dragging,
+.visually-hidden:focus-visible + .cv-dropzone {
+  background: #dce9ff;
+}
+
+.cv-dropzone small {
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.cv-file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-menu);
+  padding: 12px 14px;
+  color: var(--primary);
+}
+
+.cv-file > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.cv-file strong {
+  display: block;
+  overflow: hidden;
+  color: var(--heading);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cv-file small {
+  color: var(--text);
+}
+
+.cv-dropzone.invalid,
+.cv-file.invalid {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: #fdf3f4;
+}
+
+.apply-success {
+  justify-items: center;
+  text-align: center;
+}
+
+.apply-success-icon {
+  display: grid;
+  width: 88px;
+  height: 88px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--success);
+  background: var(--success-light);
+}
+
+.apply-success p {
+  margin: 0;
+}
+
+.apply-summary {
+  display: grid;
+  width: 100%;
+  gap: 12px;
+  margin: 4px 0;
+  border-radius: var(--radius-menu);
+  padding: 16px 18px;
+  background: var(--page-bg);
+}
+
+.apply-summary div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.apply-summary dt {
+  color: var(--text);
+}
+
+.apply-summary dd {
+  margin: 0;
+  color: var(--heading);
+  font-weight: 700;
+  text-align: right;
+}
+
+.login-careers {
+  margin: 24px 0 0;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.login-careers a {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+  .careers-hero-inner,
+  .job-detail {
+    grid-template-columns: 1fr;
+  }
+
+  .careers-stats {
+    max-width: 520px;
+  }
+
+  .about-grid,
+  .job-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .careers-container {
+    width: min(100% - 32px, 1200px);
+  }
+
+  .careers-header-inner {
+    flex-wrap: wrap;
+    gap: 0 16px;
+    padding-top: 10px;
+  }
+
+  /* Nút đăng nhập giữ gọn bên phải logo (style chung cho nút rộng 100% trên điện thoại) */
+  .careers-header .careers-login {
+    width: auto;
+    margin-left: auto;
+    font-size: 0.9rem;
+  }
+
+  /* Menu xuống dòng riêng, trải đều bề ngang */
+  .careers-nav {
+    order: 3;
+    flex-basis: 100%;
+    justify-content: space-around;
+    gap: 8px;
+  }
+
+  .careers-nav a {
+    padding: 10px 0;
+  }
+
+  .careers-hero {
+    padding: 40px 0;
+  }
+
+  .careers-hero h1 {
+    font-size: 2rem;
+  }
+
+  .about-grid,
+  .job-grid,
+  .careers-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .careers-filters {
+    padding: 16px;
+  }
+
+  .careers-card {
+    padding: 20px;
+  }
+
+  .careers-section {
+    scroll-margin-top: 112px;
+  }
+}
+
+@media (max-width: 420px) {
+  .careers-brand .brand-name {
+    display: none;
+  }
+
+  .careers-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 /* ---------- Màn hình nhỏ ---------- */
 @media (max-width: 1200px) {
   .detail-top {

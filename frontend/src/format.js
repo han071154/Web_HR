@@ -20,6 +20,14 @@ export const employmentTypeLabels = {
   INTERN: 'Thực tập'
 };
 
+// Hình thức làm việc ghi trên tin tuyển dụng (có thêm "Theo ca" cho vị trí xoay ca).
+export const jobTypeLabels = {
+  FULL_TIME: 'Toàn thời gian',
+  PART_TIME: 'Bán thời gian',
+  SHIFT: 'Theo ca',
+  INTERN: 'Thực tập'
+};
+
 export const contractTypeLabels = {
   PROBATION: 'Thử việc',
   FIXED_TERM: 'Xác định thời hạn',
@@ -39,6 +47,15 @@ export const roleLabels = {
   HR_MANAGER: 'Quản lý nhân sự',
   HR_STAFF: 'Nhân viên nhân sự'
 };
+
+// Bỏ dấu để tìm "nguyen" vẫn ra "Nguyễn".
+export function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/gi, 'd')
+    .toLowerCase();
+}
 
 // Chữ cái đầu cho avatar: chữ đầu của họ + chữ đầu của tên (Trần Thị Bình → TB).
 export function initials(name) {
@@ -93,4 +110,36 @@ export function toDateInputValue(value) {
   const day = String(date.getDate()).padStart(2, '0');
 
   return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function formatMillion(value) {
+  return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(value / 1000000);
+}
+
+// Mức lương trên tin tuyển dụng: 10000000–15000000 → "10–15 triệu", không có → "Thỏa thuận".
+export function formatSalaryRange(min, max) {
+  if (min && max) {
+    return min === max ? `${formatMillion(min)} triệu` : `${formatMillion(min)}–${formatMillion(max)} triệu`;
+  }
+
+  if (min) {
+    return `Từ ${formatMillion(min)} triệu`;
+  }
+
+  if (max) {
+    return `Đến ${formatMillion(max)} triệu`;
+  }
+
+  return 'Thỏa thuận';
+}
+
+// Số ngày còn lại tới hạn nộp (hôm nay = 0), null nếu tin không có hạn.
+export function daysUntil(value) {
+  if (!value) {
+    return null;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((toLocalDate(value) - today) / 86400000);
 }

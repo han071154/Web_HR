@@ -14,6 +14,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, clearSession, getStoredUser, getToken, setUnauthorizedHandler } from './api.js';
 import Avatar from './components/Avatar.jsx';
+import CareersPage from './components/CareersPage.jsx';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
 import DepartmentsPanel from './components/DepartmentsPanel.jsx';
 import EmployeeDetail from './components/EmployeeDetail.jsx';
@@ -22,7 +23,7 @@ import LoginPage from './components/LoginPage.jsx';
 import Pagination from './components/Pagination.jsx';
 import PositionsPanel from './components/PositionsPanel.jsx';
 import Toast from './components/Toast.jsx';
-import { roleLabels, statusLabels } from './format.js';
+import { normalizeText, roleLabels, statusLabels } from './format.js';
 
 // Quyền khớp với backend: ai cũng thêm/sửa được, chỉ Admin và HR Manager được xóa.
 const EDIT_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
@@ -41,15 +42,6 @@ const pageTitles = {
 function viewFromHash() {
   const view = window.location.hash.slice(1);
   return VIEWS.includes(view) ? view : 'employees';
-}
-
-// Bỏ dấu để tìm "nguyen" vẫn ra "Nguyễn".
-function normalizeText(value) {
-  return String(value || '')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/đ/gi, 'd')
-    .toLowerCase();
 }
 
 // Gợi ý mã nhân viên kế tiếp: NV007 → NV008 (giữ tiền tố và số chữ số của mã lớn nhất).
@@ -571,8 +563,14 @@ function Dashboard({ user, onLogout }) {
   );
 }
 
+// Trang tuyển dụng công khai: #/..., hoặc trang trống khi chưa đăng nhập.
+function isCareersHash(hash, user) {
+  return hash.startsWith('#/') || (!user && (hash === '' || hash === '#'));
+}
+
 export default function App() {
   const [user, setUser] = useState(() => (getToken() ? getStoredUser() : null));
+  const [hash, setHash] = useState(window.location.hash);
 
   useEffect(() => {
     // Khi API báo token hết hạn thì quay về màn hình đăng nhập.
@@ -580,6 +578,20 @@ export default function App() {
     return () => setUnauthorizedHandler(null);
   }, []);
 
+  useEffect(() => {
+    function handleHashChange() {
+      setHash(window.location.hash);
+    }
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  if (isCareersHash(hash, user)) {
+    return <CareersPage hash={hash} user={user} />;
+  }
+
+  // Chưa đăng nhập mà mở #login, #employees... (hoặc vừa hết phiên) thì hiện màn đăng nhập.
   if (!user) {
     return <LoginPage onLogin={setUser} />;
   }

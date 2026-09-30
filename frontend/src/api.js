@@ -141,6 +141,22 @@ export const api = {
       body
     });
   },
+  // Trang tuyển dụng công khai (không cần đăng nhập).
+  publicJobs: () => request('/public/jobs'),
+  publicJob: (id) => request(`/public/jobs/${id}`),
+  applyJob: (id, application, cvFile) => {
+    const body = new FormData();
+
+    for (const [key, value] of Object.entries(application)) {
+      body.append(key, value);
+    }
+
+    body.append('cv', cvFile);
+    return request(`/public/jobs/${id}/applications`, {
+      method: 'POST',
+      body
+    });
+  },
   contracts: (params = {}) => {
     const search = new URLSearchParams(params);
     return request(`/contracts?${search.toString()}`);

@@ -14,7 +14,14 @@ const exactMessages = {
   'Position code already exists': 'Mã chức vụ đã tồn tại. Vui lòng dùng mã khác.',
   'Related record does not exist or is still in use': 'Dữ liệu liên quan không tồn tại hoặc đang được sử dụng.',
   'Invalid identifier or database value': 'Dữ liệu gửi lên không hợp lệ.',
-  'Internal server error': 'Hệ thống đang gặp lỗi. Vui lòng thử lại sau.'
+  'Internal server error': 'Hệ thống đang gặp lỗi. Vui lòng thử lại sau.',
+  'Job posting not found': 'Không tìm thấy tin tuyển dụng.',
+  'Job posting is closed': 'Tin tuyển dụng đã hết hạn nhận hồ sơ.',
+  'You have already applied for this job': 'Bạn đã nộp hồ sơ cho vị trí này và hồ sơ đang được xét.',
+  'CV file is required': 'Vui lòng đính kèm CV.',
+  'CV must be a PDF file': 'CV phải là file PDF.',
+  'CV must not exceed 5 MB': 'CV không được lớn hơn 5 MB.',
+  'Too many applications, please try again later': 'Bạn đã nộp quá nhiều hồ sơ. Vui lòng thử lại sau.'
 };
 
 const fieldLabels = {
@@ -35,7 +42,9 @@ const fieldLabels = {
   status: 'Trạng thái',
   hireDate: 'Ngày vào làm',
   baseSalary: 'Lương cơ bản',
-  address: 'Địa chỉ'
+  address: 'Địa chỉ',
+  coverLetter: 'Thư giới thiệu',
+  consent: 'Đồng ý xử lý hồ sơ'
 };
 
 const statusMessages = {
@@ -43,7 +52,8 @@ const statusMessages = {
   401: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
   403: 'Bạn không có quyền thực hiện thao tác này.',
   404: 'Không tìm thấy dữ liệu yêu cầu.',
-  409: 'Dữ liệu bị trùng với bản ghi đã có.'
+  409: 'Dữ liệu bị trùng với bản ghi đã có.',
+  429: 'Bạn thao tác quá nhiều lần. Vui lòng thử lại sau.'
 };
 
 function translateDuplicate(message) {

@@ -42,7 +42,8 @@ npm run db:setup
 npm run dev
 ```
 
-Frontend: http://localhost:5173
+Frontend: http://localhost:5173 (the public careers page opens first; staff sign in at
+http://localhost:5173/#login)
 
 Backend health check: http://localhost:4000/api/health
 

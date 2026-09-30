@@ -119,6 +119,10 @@ export default function LoginPage({ onLogin }) {
               <p className="login-hint">Vui lòng liên hệ quản trị viên để được cấp lại mật khẩu.</p>
             )}
           </form>
+
+          <p className="login-careers">
+            Chưa phải nhân viên? <a href="#/viec-lam">Xem việc làm đang tuyển</a>
+          </p>
         </div>
 
         <p className="login-footer">© 2026 WebHR · Nhóm 3, LV24-006</p>
