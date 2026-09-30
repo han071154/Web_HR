@@ -2,7 +2,7 @@
 
 Base URL: `http://localhost:4000/api`
 
-All routes except login and health require `Authorization: Bearer <token>`.
+All routes except login, health and `/public/*` require `Authorization: Bearer <token>`.
 Successful resource responses use `{ "data": ... }`. PostgreSQL `DATE` fields are
 returned as `YYYY-MM-DD` strings.
 
@@ -121,6 +121,61 @@ await fetch(`${API_URL}/employees/${employeeId}/avatar`, {
 
 Do not set `Content-Type` manually for `FormData`; the browser adds the boundary.
 
+## Public recruitment (no login)
+
+Used by the public careers page (`/#/viec-lam`). No `Authorization` header is needed.
+Only job postings with status `OPEN` and a deadline that has not passed are listed.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/public/jobs` | Open job postings. Query: `search` (title), `departmentId`, `employmentType` |
+| GET | `/public/jobs/:id` | Job detail. Closed or expired jobs return `isOpen: false`; drafts return `404` |
+| POST | `/public/jobs/:id/applications` | Submit an application (`multipart/form-data`) |
+
+Job employment types: `FULL_TIME`, `PART_TIME`, `SHIFT`, `INTERN`.
+`salaryMin`/`salaryMax` are `null` when the salary is negotiable.
+
+Application form fields:
+
+| Field | Rule |
+| --- | --- |
+| `fullName` | Required, 2–160 characters |
+| `email` | Required, valid email (stored in lowercase; used as the login email if hired) |
+| `phone` | Required, 10 digits starting with `0` (spaces, dots and dashes are removed) |
+| `coverLetter` | Optional, up to 3000 characters |
+| `consent` | Required, must be `true` |
+| `cv` | Required file, real PDF (checked by content), up to 5 MB |
+
+Success returns `201`:
+
+```json
+{
+  "data": {
+    "applicationCode": "HS-000123",
+    "status": "NEW",
+    "jobId": "uuid",
+    "jobTitle": "Nhân viên Kế toán",
+    "fullName": "Nguyễn Văn An",
+    "email": "an.nv@gmail.com",
+    "createdAt": "2026-09-30T08:00:00.000Z"
+  }
+}
+```
+
+| Case | Status | Message |
+| --- | --- | --- |
+| Invalid field | 400 | `Validation error` (+ `details`) |
+| No CV file | 400 | `CV file is required` |
+| CV is not a PDF | 400 | `CV must be a PDF file` |
+| CV larger than 5 MB | 413 | `CV must not exceed 5 MB` |
+| Job does not exist or is a draft | 404 | `Job posting not found` |
+| Job closed or past deadline | 409 | `Job posting is closed` |
+| Same email already has an application in progress for this job | 409 | `You have already applied for this job` |
+| More than 10 applications per hour from one IP | 429 | `Too many applications, please try again later` |
+
+An email can apply again for the same job only after the previous application was `REJECTED`.
+CV files are stored in `backend/storage/cvs` (`CV_UPLOAD_DIR`), which is not served publicly.
+
 ## Error behavior
 
 - Validation errors return `400`.
@@ -128,7 +183,8 @@ Do not set `Content-Type` manually for `FormData`; the browser adds the boundary
 - Insufficient role permissions return `403`.
 - Missing records return `404`.
 - Duplicate employee codes/emails and other unique values return `409`.
-- Oversized avatar files return `413`.
+- Oversized avatar or CV files return `413`.
+- Too many public applications from one IP return `429`.
 
 ## Local verification
 

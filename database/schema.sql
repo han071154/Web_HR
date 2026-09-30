@@ -77,3 +77,53 @@ CREATE INDEX IF NOT EXISTS idx_employees_full_name ON employees(full_name);
 CREATE INDEX IF NOT EXISTS idx_positions_department_id ON positions(department_id);
 CREATE INDEX IF NOT EXISTS idx_contracts_employee_id ON employment_contracts(employee_id);
 CREATE INDEX IF NOT EXISTS idx_contracts_status ON employment_contracts(status);
+
+-- Tuyển dụng: tin tuyển dụng công khai và hồ sơ ứng viên nộp từ trang /#/viec-lam.
+CREATE TABLE IF NOT EXISTS job_postings (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  code VARCHAR(40) NOT NULL UNIQUE,
+  title VARCHAR(160) NOT NULL,
+  department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+  employment_type VARCHAR(40) NOT NULL DEFAULT 'FULL_TIME',
+  quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  salary_min NUMERIC(14, 2),
+  salary_max NUMERIC(14, 2),
+  experience VARCHAR(120),
+  location VARCHAR(255),
+  working_time VARCHAR(255),
+  description TEXT NOT NULL,
+  requirements TEXT,
+  benefits TEXT,
+  deadline DATE,
+  status VARCHAR(20) NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'OPEN', 'CLOSED')),
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS applications (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  application_no BIGSERIAL NOT NULL UNIQUE,
+  job_posting_id UUID NOT NULL REFERENCES job_postings(id) ON DELETE RESTRICT,
+  full_name VARCHAR(160) NOT NULL,
+  email VARCHAR(160) NOT NULL,
+  phone VARCHAR(40) NOT NULL,
+  cv_path TEXT NOT NULL,
+  cv_original_name VARCHAR(255),
+  cover_letter TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'NEW'
+    CHECK (status IN ('NEW', 'REVIEWING', 'INTERVIEW', 'HIRED', 'REJECTED')),
+  note TEXT,
+  interview_at TIMESTAMPTZ,
+  employee_id UUID REFERENCES employees(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_job_postings_status ON job_postings(status);
+CREATE INDEX IF NOT EXISTS idx_applications_job_posting_id ON applications(job_posting_id);
+CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
+-- Một email chỉ có một hồ sơ đang xử lý cho mỗi tin; bị trượt thì được nộp lại.
+CREATE UNIQUE INDEX IF NOT EXISTS applications_active_email_job_key
+  ON applications (job_posting_id, LOWER(email))
+  WHERE status <> 'REJECTED';

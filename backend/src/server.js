@@ -10,6 +10,7 @@ import contractRoutes from './routes/contracts.routes.js';
 import departmentRoutes from './routes/departments.routes.js';
 import employeeRoutes from './routes/employees.routes.js';
 import positionRoutes from './routes/positions.routes.js';
+import publicJobRoutes from './routes/publicJobs.routes.js';
 
 const app = express();
 
@@ -29,6 +30,8 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+// Trang tuyển dụng công khai: xem tin và nộp hồ sơ không cần đăng nhập.
+app.use('/api/public/jobs', publicJobRoutes);
 app.use('/api/departments', requireAuth, departmentRoutes);
 app.use('/api/employees', requireAuth, employeeRoutes);
 app.use('/api/positions', requireAuth, positionRoutes);
@@ -44,7 +47,8 @@ app.use((error, _req, res, _next) => {
     employees_employee_code_key: 'Employee code already exists',
     employees_email_key: 'Employee email already exists',
     positions_code_key: 'Position code already exists',
-    employment_contracts_contract_number_key: 'Contract number already exists'
+    employment_contracts_contract_number_key: 'Contract number already exists',
+    applications_active_email_job_key: 'You have already applied for this job'
   };
   const isValidationError = error.name === 'ZodError';
   const isDuplicate = error.code === '23505';
@@ -67,7 +71,9 @@ app.use((error, _req, res, _next) => {
         : isInvalidDatabaseValue
           ? 'Invalid identifier or database value'
           : isFileTooLarge
-            ? `Avatar must not exceed ${config.avatarMaxSizeMb} MB`
+            ? error.field === 'cv'
+              ? `CV must not exceed ${config.cvMaxSizeMb} MB`
+              : `Avatar must not exceed ${config.avatarMaxSizeMb} MB`
             : error.message || 'Internal server error';
 
   res.status(status).json({
