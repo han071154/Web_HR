@@ -16,7 +16,7 @@
 | HR-012 | La DevOps, toi muon deploy backend va frontend tu GitHub Actions. | High | Todo |
 | HR-013 | La HR, toi muon quan ly danh muc chuc vu va gan chuc vu cho nhan vien. | Medium | Done |
 | HR-014 | La HR, toi muon tai anh dai dien cho ho so nhan vien. | Low | Done |
-| HR-015 | La HR, toi muon quan ly hop dong lao dong cua nhan vien. | Medium | In Progress (da co API va xem tren trang chi tiet; chua co man them/sua) |
+| HR-015 | La HR, toi muon quan ly hop dong lao dong cua nhan vien. | Medium | Done |
 | HR-016 | La ung vien, toi muon xem cac tin tuyen dung dang mo ma khong can dang nhap. | High | Done |
 | HR-017 | La ung vien, toi muon nop ho so kem CV PDF cho mot vi tri. | High | Done |
 | HR-018 | La HR, toi muon tao, sua, dong tin tuyen dung. | High | Done |

@@ -137,6 +137,15 @@ Contract statuses: `DRAFT`, `ACTIVE`, `EXPIRED`, `TERMINATED`.
 
 `endDate`, `signedDate`, and `notes` accept `null`.
 
+Rules:
+
+- `INDEFINITE` contracts must not have an `endDate`; `PROBATION`, `FIXED_TERM` and `SEASONAL`
+  contracts require one (`400 Validation error` on `endDate`).
+- `endDate` must be on or after `startDate`.
+- An employee can only have one `ACTIVE` contract. Creating or updating another one returns
+  `409 Employee already has an active contract`; set the old contract to `EXPIRED` or
+  `TERMINATED` first.
+
 ## Employee avatars
 
 Upload an image with `multipart/form-data`. The form field name must be `avatar`.

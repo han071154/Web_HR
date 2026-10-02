@@ -20,10 +20,11 @@ Chi tiet tung API: xem [API.md](API.md).
 - Trang tuyen dung cong khai (`#/`, `#/viec-lam`, `#/viec-lam/<id>`, `#/viec-lam/<id>/ung-tuyen`):
   - Danh sach tin tuyen dung, tim kiem, loc theo phong ban va hinh thuc lam viec.
   - Chi tiet tin, nop ho so kem CV PDF.
-- Trang quan tri (`#login`, `#employees`, `#departments`, `#positions`, `#recruitment`):
+- Trang quan tri (`#login`, `#employees`, `#departments`, `#positions`, `#contracts`, `#recruitment`):
   - Dang nhap, ghi nho dang nhap, tu dang xuat khi token het han.
   - Nhan su: danh sach, tim kiem, loc, phan trang, chi tiet (kem hop dong), them/sua, vo hieu hoa, xoa, avatar.
   - Phong ban va chuc vu: them, sua, xoa.
+  - Hop dong: danh sach toan cong ty, nhac hop dong sap het han; them/sua/xoa ngay tren trang chi tiet nhan vien.
   - Tuyen dung: quan ly tin tuyen dung; xem ho so ung vien, tai CV, doi trang thai, hen phong van,
     tuyen ung vien thanh nhan vien.
 - File dung chung: `api.js` (goi API), `format.js` (nhan tieng Viet, dinh dang ngay/tien),
@@ -67,6 +68,7 @@ Chi tiet tung API: xem [API.md](API.md).
 - Quy tac du lieu:
   - Khong xoa duoc phong ban con nhan vien (API tra `409`).
   - `employees.position` luu ten chuc vu; doi ten chuc vu thi API cap nhat ten tren ho so nhan vien.
+  - Moi nhan vien chi co mot hop dong dang hieu luc; hop dong khong thoi han thi khong co ngay ket thuc.
   - Moi email chi co mot ho so dang xu ly cho moi tin tuyen dung (unique index, tru ho so `REJECTED`).
 
 ## Kiem thu
