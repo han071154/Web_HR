@@ -5,6 +5,7 @@ import Avatar from './Avatar.jsx';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^[0-9+().\s-]{8,20}$/;
+const ID_NUMBER_PATTERN = /^(\d{9}|\d{12})$/;
 const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const AVATAR_MAX_MB = 5;
 
@@ -15,7 +16,9 @@ const emptyEmployee = {
   phone: '',
   gender: '',
   dateOfBirth: '',
+  idNumber: '',
   departmentId: '',
+  managerId: '',
   positionId: '',
   position: '',
   employmentType: 'FULL_TIME',
@@ -34,7 +37,9 @@ function toFormState(employee, suggestedCode) {
     ...employee,
     phone: employee.phone || '',
     gender: employee.gender || '',
+    idNumber: employee.idNumber || '',
     departmentId: employee.departmentId || '',
+    managerId: employee.managerId || '',
     positionId: employee.positionId || '',
     address: employee.address || '',
     dateOfBirth: toDateInputValue(employee.dateOfBirth),
@@ -70,6 +75,11 @@ function validate(form) {
     errors.phone = 'Số điện thoại không hợp lệ';
   }
 
+  // CCCD không bắt buộc; có nhập thì phải là CMND 9 số hoặc CCCD 12 số.
+  if (form.idNumber.trim() && !ID_NUMBER_PATTERN.test(form.idNumber.trim())) {
+    errors.idNumber = 'CCCD gồm 12 chữ số (hoặc CMND 9 chữ số)';
+  }
+
   if (Number(form.baseSalary) < 0) {
     errors.baseSalary = 'Lương không được âm';
   }
@@ -78,7 +88,7 @@ function validate(form) {
 }
 
 // Form thêm / sửa nhân sự theo mockup M-03b.
-export default function EmployeeForm({ employee, departments, positions, suggestedCode, saving, error, onSubmit, onCancel }) {
+export default function EmployeeForm({ employee, employees = [], departments, positions, suggestedCode, saving, error, onSubmit, onCancel }) {
   const [form, setForm] = useState(() => toFormState(employee, suggestedCode));
   const [errors, setErrors] = useState({});
   const [avatarFile, setAvatarFile] = useState(null);
@@ -127,6 +137,17 @@ export default function EmployeeForm({ employee, departments, positions, suggest
 
     return options;
   }, [positions, form.departmentId, employee]);
+
+  // Quản lý trực tiếp: nhân viên đang làm, không phải chính mình (giữ quản lý cũ nếu người đó đã nghỉ).
+  const managerOptions = useMemo(
+    () =>
+      employees.filter(
+        (item) =>
+          item.id !== employee?.id &&
+          (item.status === 'ACTIVE' || item.status === 'ON_LEAVE' || item.id === employee?.managerId)
+      ),
+    [employees, employee]
+  );
 
   const positionValue = form.positionId || (form.position ? `name:${form.position}` : '');
 
@@ -195,7 +216,9 @@ export default function EmployeeForm({ employee, departments, positions, suggest
         phone: form.phone.trim(),
         baseSalary: Number(form.baseSalary) || 0,
         address: form.address.trim() || null,
-        positionId: form.positionId || null
+        positionId: form.positionId || null,
+        idNumber: form.idNumber.trim() || null,
+        managerId: form.managerId || null
       },
       avatarFile
     );
@@ -279,6 +302,11 @@ export default function EmployeeForm({ employee, departments, positions, suggest
           {fieldError('email')}
         </label>
         <label>
+          <span>CCCD</span>
+          <input {...fieldProps('idNumber')} inputMode="numeric" maxLength={12} placeholder="12 chữ số" />
+          {fieldError('idNumber')}
+        </label>
+        <label>
           <span>Phòng ban <em className="required">*</em></span>
           <select {...fieldProps('departmentId')}>
             <option value="">Chọn phòng ban</option>
@@ -312,6 +340,17 @@ export default function EmployeeForm({ employee, departments, positions, suggest
           <span>Ngày vào làm <em className="required">*</em></span>
           <input {...fieldProps('hireDate')} type="date" />
           {fieldError('hireDate')}
+        </label>
+        <label>
+          <span>Quản lý trực tiếp</span>
+          <select {...fieldProps('managerId')}>
+            <option value="">Không có</option>
+            {managerOptions.map((manager) => (
+              <option value={manager.id} key={manager.id}>
+                {manager.fullName} ({manager.employeeCode})
+              </option>
+            ))}
+          </select>
         </label>
         <label>
           <span>Trạng thái</span>

@@ -139,6 +139,7 @@ export const api = {
     request(`/employees/${id}`, {
       method: 'DELETE'
     }),
+  employeeHistory: (id) => request(`/employees/${id}/history`),
   uploadEmployeeAvatar: (id, file) => {
     const body = new FormData();
     body.append('avatar', file);
@@ -188,12 +189,15 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(changes)
     }),
-  hireApplication: (id, employee) =>
-    request(`/applications/${id}/hire`, {
+  // Chi tiết hồ sơ kèm lịch sử; mở lần đầu thì backend đánh dấu đã xem.
+  application: (id) => request(`/applications/${id}`),
+  convertApplication: (id, employee) =>
+    request(`/applications/${id}/convert`, {
       method: 'POST',
       body: JSON.stringify(employee)
     }),
-  applicationCv: (id) => request(`/applications/${id}/cv`, { blob: true }),
+  // inline = true để xem trước trong trang, false để tải xuống.
+  applicationCv: (id, inline = false) => request(`/applications/${id}/cv${inline ? '?inline=1' : ''}`, { blob: true }),
   contracts: (params = {}) => {
     const search = new URLSearchParams(params);
     return request(`/contracts?${search.toString()}`);

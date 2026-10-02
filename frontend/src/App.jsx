@@ -337,6 +337,7 @@ function Dashboard({ user, onLogout }) {
       return (
         <EmployeeForm
           employee={screen.employee}
+          employees={employees}
           departments={departments}
           positions={positions}
           suggestedCode={screen.employee ? '' : suggestedCode}

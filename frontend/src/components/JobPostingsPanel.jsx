@@ -1,215 +1,45 @@
-import { ExternalLink, Megaphone, Pencil, Plus, Search, Trash2 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { ExternalLink, Pencil, Plus, RotateCcw, Search, Trash2, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
-import { employmentTypeLabels, formatDate, formatSalaryRange, jobStatusLabels, normalizeText } from '../format.js';
+import { daysUntil, employmentTypeLabels, formatDate, jobStatusLabels, normalizeText } from '../format.js';
 import ConfirmDialog from './ConfirmDialog.jsx';
+import Pagination from './Pagination.jsx';
 
-// Quyền khớp với backend: HR nào cũng tạo/sửa tin, chỉ Admin và HR Manager được xóa.
+// Quyền khớp với backend: HR nào cũng đăng/sửa/đóng tin, chỉ Admin và HR Manager được xóa tin nháp.
 const EDIT_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
 const DELETE_ROLES = ['ADMIN', 'HR_MANAGER'];
+const PAGE_SIZE = 10;
 
-const emptyJob = {
-  code: '',
-  title: '',
-  departmentId: '',
-  employmentType: 'FULL_TIME',
-  quantity: 1,
-  salaryMin: '',
-  salaryMax: '',
-  experience: '',
-  location: '',
-  workingTime: '',
-  deadline: '',
-  status: 'DRAFT',
-  description: '',
-  requirements: '',
-  benefits: ''
+// Trạng thái hiển thị (M-08a): tin "Đang mở" mà đã quá hạn nộp thì hiện "Hết hạn".
+const DISPLAY_STATUSES = {
+  DRAFT: { label: jobStatusLabels.DRAFT, className: 'status-inactive' },
+  OPEN: { label: jobStatusLabels.OPEN, className: 'status-active' },
+  EXPIRED: { label: 'Hết hạn', className: 'status-on_leave' },
+  CLOSED: { label: jobStatusLabels.CLOSED, className: 'status-resigned' }
 };
 
-// Tin "Đang tuyển" nhưng đã quá hạn nộp thì hiện "Hết hạn" cho HR biết trang công khai không còn hiện tin.
-function jobStatus(job) {
-  if (job.status === 'OPEN' && !job.isOpen) {
-    return { label: 'Hết hạn', className: 'status-resigned' };
-  }
-
-  const className = { DRAFT: 'status-inactive', OPEN: 'status-active', CLOSED: 'status-resigned' }[job.status];
-  return { label: jobStatusLabels[job.status] || job.status, className };
+function displayStatus(job) {
+  return job.status === 'OPEN' && !job.isOpen ? 'EXPIRED' : job.status;
 }
 
-function toNumberOrNull(value) {
-  return value === '' || value === null ? null : Number(value);
-}
-
-function JobForm({ job, departments, onSubmit, onCancel }) {
-  const [form, setForm] = useState(() =>
-    Object.fromEntries(Object.entries(emptyJob).map(([field, value]) => [field, job?.[field] ?? value]))
-  );
-  const [saving, setSaving] = useState(false);
-
-  function updateField(field, value) {
-    setForm((current) => ({ ...current, [field]: value }));
-  }
-
-  function textProps(field, maxLength) {
-    return {
-      value: form[field] ?? '',
-      onChange: (event) => updateField(field, event.target.value),
-      maxLength
-    };
-  }
-
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setSaving(true);
-
-    try {
-      await onSubmit({
-        code: form.code.trim().toUpperCase(),
-        title: form.title.trim(),
-        departmentId: form.departmentId || null,
-        employmentType: form.employmentType,
-        quantity: Number(form.quantity),
-        salaryMin: toNumberOrNull(form.salaryMin),
-        salaryMax: toNumberOrNull(form.salaryMax),
-        experience: form.experience.trim() || null,
-        location: form.location.trim() || null,
-        workingTime: form.workingTime.trim() || null,
-        deadline: form.deadline || null,
-        status: form.status,
-        description: form.description.trim(),
-        requirements: form.requirements.trim() || null,
-        benefits: form.benefits.trim() || null
-      });
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <form className="employee-form panel-form" onSubmit={handleSubmit}>
-      <div className="form-grid">
-        <label>
-          Mã tin
-          <input {...textProps('code', 40)} placeholder="VD: JOB-ACC-02" minLength={2} required autoFocus />
-        </label>
-        <label>
-          Tiêu đề
-          <input {...textProps('title', 160)} placeholder="VD: Nhân viên Kế toán" minLength={2} required />
-        </label>
-        <label>
-          Phòng ban
-          <select value={form.departmentId} onChange={(event) => updateField('departmentId', event.target.value)}>
-            <option value="">Không thuộc phòng nào</option>
-            {departments.map((department) => (
-              <option value={department.id} key={department.id}>
-                {department.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Hình thức làm việc
-          <select value={form.employmentType} onChange={(event) => updateField('employmentType', event.target.value)}>
-            {Object.entries(employmentTypeLabels).map(([value, label]) => (
-              <option value={value} key={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Số lượng cần tuyển
-          <input
-            type="number"
-            min="1"
-            max="1000"
-            value={form.quantity}
-            onChange={(event) => updateField('quantity', event.target.value)}
-            required
-          />
-        </label>
-        <label>
-          Hạn nộp hồ sơ
-          <input type="date" value={form.deadline || ''} onChange={(event) => updateField('deadline', event.target.value)} />
-        </label>
-        <label>
-          Lương từ (VNĐ)
-          <input
-            type="number"
-            min="0"
-            step="500000"
-            value={form.salaryMin ?? ''}
-            onChange={(event) => updateField('salaryMin', event.target.value)}
-            placeholder="Để trống nếu thỏa thuận"
-          />
-        </label>
-        <label>
-          Lương đến (VNĐ)
-          <input
-            type="number"
-            min={form.salaryMin || 0}
-            step="500000"
-            value={form.salaryMax ?? ''}
-            onChange={(event) => updateField('salaryMax', event.target.value)}
-            placeholder="Để trống nếu thỏa thuận"
-          />
-        </label>
-        <label>
-          Kinh nghiệm
-          <input {...textProps('experience', 120)} placeholder="VD: Từ 1 năm" />
-        </label>
-        <label>
-          Trạng thái
-          <select value={form.status} onChange={(event) => updateField('status', event.target.value)}>
-            {Object.entries(jobStatusLabels).map(([value, label]) => (
-              <option value={value} key={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Địa điểm làm việc
-          <input {...textProps('location', 255)} />
-        </label>
-        <label>
-          Thời gian làm việc
-          <input {...textProps('workingTime', 255)} placeholder="VD: Thứ 2 – Thứ 6, 8:00 – 17:00" />
-        </label>
-      </div>
-      <label>
-        Mô tả công việc (mỗi ý một dòng)
-        <textarea {...textProps('description', 10000)} rows="4" minLength={10} required />
-      </label>
-      <label>
-        Yêu cầu ứng viên
-        <textarea {...textProps('requirements', 10000)} rows="3" />
-      </label>
-      <label>
-        Quyền lợi
-        <textarea {...textProps('benefits', 10000)} rows="3" />
-      </label>
-      <div className="form-actions">
-        <button type="button" className="ghost-button" onClick={onCancel} disabled={saving}>
-          Hủy
-        </button>
-        <button type="submit" className="primary-button" disabled={saving}>
-          <Megaphone size={18} aria-hidden="true" />
-          {job?.id ? 'Cập nhật' : 'Thêm tin'}
-        </button>
-      </div>
-    </form>
-  );
-}
-
-// Danh sách tin tuyển dụng phía HR. Bấm số hồ sơ để xem hồ sơ của tin đó.
-export default function JobPostingsPanel({ user, jobs, loading, departments, onChanged, onShowApplications, showToast }) {
+// Danh sách tin tuyển dụng phía HR (Figma M-08a).
+export default function JobPostingsPanel({
+  user,
+  jobs,
+  loading,
+  departments,
+  onChanged,
+  onCreate,
+  onEdit,
+  onShowApplications,
+  showToast
+}) {
   const [keyword, setKeyword] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [editing, setEditing] = useState(null);
-  const [error, setError] = useState('');
-  const [deleting, setDeleting] = useState(null);
-  const [deletingBusy, setDeletingBusy] = useState(false);
+  const [page, setPage] = useState(1);
+  const [confirm, setConfirm] = useState(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
   const canEdit = EDIT_ROLES.includes(user?.role);
   const canDelete = DELETE_ROLES.includes(user?.role);
 
@@ -219,158 +49,147 @@ export default function JobPostingsPanel({ user, jobs, loading, departments, onC
     return jobs.filter(
       (job) =>
         (!text || normalizeText(`${job.code} ${job.title}`).includes(text)) &&
-        (!statusFilter || job.status === statusFilter)
+        (!departmentFilter || job.departmentId === departmentFilter) &&
+        (!statusFilter || displayStatus(job) === statusFilter)
     );
-  }, [jobs, keyword, statusFilter]);
+  }, [jobs, keyword, departmentFilter, statusFilter]);
 
-  async function saveJob(values) {
-    setError('');
+  useEffect(() => {
+    setPage(1);
+  }, [keyword, departmentFilter, statusFilter]);
 
-    try {
-      if (editing?.id) {
-        await api.updateJob(editing.id, values);
-        showToast('success', `Đã cập nhật tin ${values.title}.`);
-      } else {
-        await api.createJob(values);
-        showToast('success', `Đã thêm tin ${values.title}.`);
-      }
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageJobs = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-      setEditing(null);
-      await onChanged();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  // Tin đã có hồ sơ thì API chặn xóa, nên báo luôn thay vì mở hộp xác nhận.
-  function requestDelete(job) {
-    if (job.applicationCount > 0) {
-      showToast('error', `Tin "${job.title}" đã có ${job.applicationCount} hồ sơ nên không xóa được. Hãy chuyển tin sang "Đã đóng".`);
+  // Mở lại tin: còn hạn thì mở luôn; hết hạn thì mở trang sửa để HR chọn hạn nộp mới.
+  async function reopen(job) {
+    if (job.deadline && daysUntil(job.deadline) < 0) {
+      showToast('error', `Tin "${job.title}" đã quá hạn nộp. Hãy chọn hạn nộp mới rồi bấm Đăng tin.`);
+      onEdit(job, { status: 'OPEN' });
       return;
     }
 
-    setDeleting(job);
+    try {
+      await api.updateJob(job.id, { status: 'OPEN' });
+      showToast('success', `Đã mở lại tin ${job.title}.`);
+      await onChanged();
+    } catch (err) {
+      showToast('error', err.message);
+    }
   }
 
-  async function confirmDelete() {
-    const job = deleting;
-    setDeletingBusy(true);
+  async function runConfirm() {
+    const { type, job } = confirm;
+    setConfirmBusy(true);
 
     try {
-      await api.deleteJob(job.id);
-      showToast('success', `Đã xóa tin ${job.title}.`);
+      if (type === 'close') {
+        await api.updateJob(job.id, { status: 'CLOSED' });
+        showToast('success', `Đã đóng tin ${job.title}.`);
+      } else {
+        await api.deleteJob(job.id);
+        showToast('success', `Đã xóa tin ${job.title}.`);
+      }
+
       await onChanged();
     } catch (err) {
       showToast('error', err.message);
     } finally {
-      setDeletingBusy(false);
-      setDeleting(null);
+      setConfirmBusy(false);
+      setConfirm(null);
     }
   }
 
-  const cancelDelete = useCallback(() => {
-    if (!deletingBusy) {
-      setDeleting(null);
+  const cancelConfirm = useCallback(() => {
+    if (!confirmBusy) {
+      setConfirm(null);
     }
-  }, [deletingBusy]);
+  }, [confirmBusy]);
 
   return (
     <section className="content-panel">
-      <div className="section-header">
-        <h2>Tin tuyển dụng</h2>
-        {canEdit && (
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() => {
-              setError('');
-              setEditing(emptyJob);
-            }}
-          >
-            <Plus size={18} aria-hidden="true" />
-            Thêm tin
-          </button>
-        )}
-      </div>
-
-      <div className="toolbar">
+      <div className="toolbar toolbar-top">
         <label className="search-field">
           <Search size={18} aria-hidden="true" />
-          <input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="Tìm theo mã, tiêu đề" />
+          <input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="Tìm theo mã, tên vị trí..." />
         </label>
-        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Lọc theo trạng thái">
-          <option value="">Tất cả trạng thái</option>
-          {Object.entries(jobStatusLabels).map(([value, label]) => (
-            <option value={value} key={value}>
-              {label}
+        <select value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)} aria-label="Lọc theo phòng ban">
+          <option value="">Phòng ban</option>
+          {departments.map((department) => (
+            <option value={department.id} key={department.id}>
+              {department.name}
             </option>
           ))}
         </select>
+        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Lọc theo trạng thái">
+          <option value="">Trạng thái</option>
+          {Object.entries(DISPLAY_STATUSES).map(([value, status]) => (
+            <option value={value} key={value}>
+              {status.label}
+            </option>
+          ))}
+        </select>
+        {canEdit && (
+          <button type="button" className="primary-button toolbar-push" onClick={onCreate}>
+            <Plus size={18} aria-hidden="true" />
+            Đăng tin mới
+          </button>
+        )}
       </div>
-
-      {error && <p className="form-error">{error}</p>}
-
-      {editing && (
-        <JobForm
-          key={editing.id || 'new'}
-          job={editing}
-          departments={departments}
-          onSubmit={saveJob}
-          onCancel={() => {
-            setEditing(null);
-            setError('');
-          }}
-        />
-      )}
 
       <div className="table-wrap">
         <table className="responsive-table jobs-table">
           <thead>
             <tr>
-              <th>Tin tuyển dụng</th>
+              <th>Vị trí</th>
+              <th>Phòng ban</th>
               <th>Hình thức</th>
-              <th>Mức lương</th>
+              <th>SL</th>
               <th>Hạn nộp</th>
-              <th>Trạng thái</th>
               <th>Hồ sơ</th>
-              <th></th>
+              <th>Trạng thái</th>
+              <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {loading && !jobs.length ? (
               <tr>
-                <td colSpan="7">Đang tải dữ liệu</td>
+                <td colSpan="8">Đang tải dữ liệu</td>
               </tr>
-            ) : filtered.length ? (
-              filtered.map((job) => {
-                const status = jobStatus(job);
+            ) : pageJobs.length ? (
+              pageJobs.map((job) => {
+                const status = displayStatus(job);
+                const pastDeadline = job.deadline && daysUntil(job.deadline) < 0;
 
                 return (
                   <tr key={job.id}>
                     <td className="cell-main">
                       <strong>{job.title}</strong>
-                      <span>
-                        {job.code} · {job.departmentName || 'Không thuộc phòng nào'} · Cần {job.quantity}
-                      </span>
+                      <span>{job.code}</span>
+                    </td>
+                    <td data-label="Phòng ban" className={job.departmentName ? '' : 'muted-cell'}>
+                      {job.departmentName || '—'}
                     </td>
                     <td data-label="Hình thức">{employmentTypeLabels[job.employmentType] || job.employmentType}</td>
-                    <td data-label="Mức lương">{formatSalaryRange(job.salaryMin, job.salaryMax)}</td>
-                    <td data-label="Hạn nộp" className={job.deadline ? '' : 'muted-cell'}>
-                      {formatDate(job.deadline) || 'Không giới hạn'}
-                    </td>
-                    <td data-label="Trạng thái">
-                      <span className={`status-pill ${status.className}`}>{status.label}</span>
+                    <td data-label="SL">{job.quantity}</td>
+                    <td data-label="Hạn nộp" className={pastDeadline && status !== 'CLOSED' ? 'text-danger' : ''}>
+                      {formatDate(job.deadline) || '—'}
                     </td>
                     <td data-label="Hồ sơ">
                       <button
                         type="button"
-                        className="link-button"
+                        className="count-pill count-button"
                         onClick={() => onShowApplications(job)}
                         title="Xem hồ sơ của tin này"
                       >
-                        {job.applicationCount} hồ sơ
+                        {job.applicationCount}
                       </button>
-                      {job.newApplicationCount > 0 && <span>{job.newApplicationCount} hồ sơ mới</span>}
+                    </td>
+                    <td data-label="Trạng thái">
+                      <span className={`status-pill ${DISPLAY_STATUSES[status].className}`}>
+                        {DISPLAY_STATUSES[status].label}
+                      </span>
                     </td>
                     <td className="cell-actions">
                       <div className="row-actions">
@@ -380,8 +199,8 @@ export default function JobPostingsPanel({ user, jobs, loading, departments, onC
                             href={`#/viec-lam/${job.id}`}
                             target="_blank"
                             rel="noreferrer"
-                            title="Xem trên trang việc làm"
-                            aria-label="Xem trên trang việc làm"
+                            title="Xem trên trang công khai"
+                            aria-label="Xem trên trang công khai"
                           >
                             <ExternalLink size={17} aria-hidden="true" />
                           </a>
@@ -390,23 +209,42 @@ export default function JobPostingsPanel({ user, jobs, loading, departments, onC
                           <button
                             type="button"
                             className="icon-button success"
-                            onClick={() => {
-                              setError('');
-                              setEditing(job);
-                            }}
+                            onClick={() => onEdit(job)}
                             title="Sửa"
                             aria-label="Sửa"
                           >
                             <Pencil size={17} aria-hidden="true" />
                           </button>
                         )}
-                        {canDelete && (
+                        {canEdit && status === 'OPEN' && (
                           <button
                             type="button"
                             className="icon-button danger"
-                            onClick={() => requestDelete(job)}
-                            title="Xóa"
-                            aria-label="Xóa"
+                            onClick={() => setConfirm({ type: 'close', job })}
+                            title="Đóng tin"
+                            aria-label="Đóng tin"
+                          >
+                            <X size={17} aria-hidden="true" />
+                          </button>
+                        )}
+                        {canEdit && (status === 'CLOSED' || status === 'EXPIRED') && (
+                          <button
+                            type="button"
+                            className="icon-button success"
+                            onClick={() => reopen(job)}
+                            title="Mở lại"
+                            aria-label="Mở lại"
+                          >
+                            <RotateCcw size={17} aria-hidden="true" />
+                          </button>
+                        )}
+                        {canDelete && status === 'DRAFT' && job.applicationCount === 0 && (
+                          <button
+                            type="button"
+                            className="icon-button danger"
+                            onClick={() => setConfirm({ type: 'delete', job })}
+                            title="Xóa tin nháp"
+                            aria-label="Xóa tin nháp"
                           >
                             <Trash2 size={17} aria-hidden="true" />
                           </button>
@@ -418,21 +256,27 @@ export default function JobPostingsPanel({ user, jobs, loading, departments, onC
               })
             ) : (
               <tr>
-                <td colSpan="7">{jobs.length ? 'Không có tin phù hợp' : 'Chưa có tin tuyển dụng nào'}</td>
+                <td colSpan="8">{jobs.length ? 'Không có tin phù hợp' : 'Chưa có tin tuyển dụng nào'}</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {deleting && (
+      <Pagination page={currentPage} pageSize={PAGE_SIZE} total={filtered.length} unit="tin" onChange={setPage} />
+
+      {confirm && (
         <ConfirmDialog
-          title="Xóa tin tuyển dụng?"
-          message={`Tin "${deleting.title}" (${deleting.code}) sẽ bị xóa vĩnh viễn.`}
-          confirmLabel="Xóa tin"
-          busy={deletingBusy}
-          onConfirm={confirmDelete}
-          onCancel={cancelDelete}
+          title={confirm.type === 'close' ? 'Đóng tin tuyển dụng?' : 'Xóa tin nháp?'}
+          message={
+            confirm.type === 'close'
+              ? `Tin "${confirm.job.title}" sẽ không còn hiện trên trang việc làm và ngừng nhận hồ sơ. Có thể mở lại sau.`
+              : `Tin nháp "${confirm.job.title}" (${confirm.job.code}) sẽ bị xóa vĩnh viễn.`
+          }
+          confirmLabel={confirm.type === 'close' ? 'Đóng tin' : 'Xóa tin'}
+          busy={confirmBusy}
+          onConfirm={runConfirm}
+          onCancel={cancelConfirm}
         />
       )}
     </section>

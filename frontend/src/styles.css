@@ -802,6 +802,79 @@ table.employees-table {
   align-items: start;
 }
 
+/* Hàng dưới trang chi tiết (M-03a): Hợp đồng bên trái, Lịch sử thay đổi bên phải */
+.detail-bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+/* Trang 2 cột (M-08b, M-08d): nội dung chính bên trái, các thẻ xử lý bên phải */
+.detail-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+.side-stack {
+  display: grid;
+  gap: 24px;
+}
+
+/* Lịch sử thay đổi: mốc thời gian dọc */
+.history-timeline {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-timeline li {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  padding-left: 22px;
+}
+
+.history-timeline li::before {
+  position: absolute;
+  top: 5px;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  content: '';
+}
+
+.history-timeline li:not(:last-child)::after {
+  position: absolute;
+  top: 18px;
+  bottom: -14px;
+  left: 4px;
+  width: 2px;
+  background: var(--border);
+  content: '';
+}
+
+.history-timeline strong {
+  color: var(--heading);
+}
+
+.history-change,
+.history-meta,
+.muted-text {
+  color: #8a97a8;
+  font-size: 0.85rem;
+}
+
+.history-change {
+  color: var(--text);
+}
+
 .profile-card {
   display: flex;
   flex-direction: column;
@@ -1115,15 +1188,15 @@ table.positions-table {
   background: var(--secondary-light);
 }
 
-/* Trạng thái hồ sơ ứng viên: Mới = Primary nhạt, Phỏng vấn = Primary (Đang xét dùng Warning, Trúng tuyển Success, Loại Danger) */
+/* Trạng thái hồ sơ ứng viên (M-08c): Mới nộp = Primary, Đang xét = Info (Phỏng vấn Warning, Đậu Success, Trượt Danger) */
 .status-new {
-  color: var(--primary-light-text);
-  background: var(--primary-light);
-}
-
-.status-interview {
   color: #ffffff;
   background: var(--primary);
+}
+
+.status-reviewing {
+  color: #000000;
+  background: var(--info);
 }
 
 .count-pill {
@@ -1270,12 +1343,20 @@ img.avatar {
   font-style: italic;
 }
 
-/* ---------- Tuyển dụng phía HR ---------- */
+/* ---------- Tuyển dụng phía HR (Figma M-08) ---------- */
+.tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
 .tab-bar {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 20px;
 }
 
 .tab-bar button {
@@ -1283,44 +1364,142 @@ img.avatar {
   align-items: center;
   gap: 8px;
   min-height: var(--control-height);
-  border: 1px solid var(--input-border);
-  border-radius: var(--radius-control);
-  padding: 6px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 6px 4px;
   color: var(--text);
-  background: var(--card-bg);
+  background: none;
   font-weight: 700;
 }
 
 .tab-bar button.active {
+  border-bottom-color: var(--primary);
+  color: var(--primary);
+}
+
+.tab-bar button.active .count-pill {
+  color: #ffffff;
+  background: var(--primary);
+}
+
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.recruitment-breadcrumb {
+  margin: -16px 0 16px;
+}
+
+.toolbar-top {
+  margin-top: 0;
+}
+
+.toolbar-push {
+  margin-left: auto;
+}
+
+.count-button {
+  border: 0;
+  cursor: pointer;
+}
+
+.count-button:hover {
+  color: #ffffff;
+  background: var(--primary);
+}
+
+.text-danger,
+td span.text-danger {
+  color: var(--danger);
+}
+
+/* Chip lọc trạng thái hồ sơ: Tất cả · Mới nộp · Đang xét · Phỏng vấn · Đậu · Trượt */
+.status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.status-chips button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--input-border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  color: var(--text);
+  background: var(--card-bg);
+  font-weight: 600;
+}
+
+.status-chips button.active {
   border-color: var(--primary);
   color: #ffffff;
   background: var(--primary);
 }
 
-.tab-bar button.active .count-pill {
+.chip-count {
+  min-width: 20px;
+  border-radius: 999px;
+  padding: 0 6px;
+  color: #ffffff;
+  background: var(--secondary);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.chip-count.chip-new {
+  background: var(--primary);
+}
+
+.chip-count.chip-reviewing {
+  color: #000000;
+  background: var(--info);
+}
+
+.chip-count.chip-interview {
+  color: #000000;
+  background: var(--warning);
+}
+
+.chip-count.chip-hired {
+  background: var(--success);
+}
+
+.chip-count.chip-rejected {
+  background: var(--danger);
+}
+
+.status-chips button.active .chip-count {
   color: var(--primary);
   background: #ffffff;
 }
 
-.panel-form,
-.application-detail,
-.hire-form,
-.process-form {
-  display: grid;
-  gap: 16px;
+/* Hồ sơ chưa xem: chấm xanh cạnh tên */
+.unread-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--primary);
+  vertical-align: middle;
 }
 
-.panel-form,
-.application-detail {
+.panel-form {
+  display: grid;
+  gap: 16px;
   margin-bottom: 20px;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   padding: 20px;
 }
 
-.panel-form h3,
-.application-detail h3,
-.hire-form h3 {
+.panel-form h3 {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1329,35 +1508,223 @@ img.avatar {
   color: var(--heading);
 }
 
-.application-detail .section-header {
-  align-items: flex-start;
+.panel-stack {
+  display: grid;
+  gap: 16px;
+  align-content: start;
 }
 
-.hire-form,
-.process-form {
-  border-top: 1px solid var(--border);
-  padding-top: 16px;
+.panel-stack h2,
+.panel-stack h3 {
+  margin: 0;
 }
 
-.application-actions {
-  justify-content: flex-start;
+.panel-stack h3 {
+  color: var(--heading);
+  font-size: 1rem;
 }
 
 .cover-letter {
+  margin: 0;
   font-weight: 400;
   white-space: pre-line;
 }
 
-.row-selected td {
-  background: var(--primary-light);
+/* Trang chi tiết hồ sơ (M-08d) */
+.applicant-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 16px;
+}
+
+.applicant-info {
+  flex: 1;
+  min-width: 200px;
+}
+
+.applicant-header h2 {
+  margin: 0;
+}
+
+.cv-file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 10px 12px;
+}
+
+.cv-file > svg {
+  color: var(--danger);
+}
+
+.cv-file > div {
+  display: grid;
+  flex: 1;
+  min-width: 160px;
+}
+
+.cv-file span {
+  color: #8a97a8;
+  font-size: 0.85rem;
+}
+
+.disabled-link {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.cv-preview {
+  width: 100%;
+  height: 620px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: #eef2f6;
+}
+
+/* Thanh tiến trình: Mới nộp → Đang xét → Phỏng vấn → Kết quả */
+.stepper {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stepper li {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  color: #8a97a8;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.stepper li:not(:first-child)::before {
+  position: absolute;
+  top: 13px;
+  right: 50%;
+  left: -50%;
+  height: 2px;
+  background: var(--border);
+  content: '';
+}
+
+.stepper li.done::before,
+.stepper li.current::before {
+  background: var(--success);
+}
+
+.stepper-dot {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  background: var(--card-bg);
+  font-weight: 700;
+}
+
+.stepper li.done .stepper-dot {
+  border-color: var(--success);
+  color: #ffffff;
+  background: var(--success);
+}
+
+.stepper li.current {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.stepper li.current .stepper-dot {
+  border-color: var(--primary);
+  color: #ffffff;
+  background: var(--primary);
+}
+
+.stepper.rejected li.current .stepper-dot {
+  border-color: var(--danger);
+  background: var(--danger);
+}
+
+/* Trang đăng tin (M-08b): chọn trạng thái bằng nút tròn */
+.radio-group {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.radio-group legend {
+  margin-bottom: 6px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+label.radio-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-weight: 400;
+}
+
+.radio-option input {
+  width: auto;
+  min-height: 0;
+  margin-top: 4px;
+}
+
+.radio-option span {
+  display: grid;
+}
+
+.radio-option strong {
+  color: var(--heading);
+}
+
+.radio-option small {
+  color: #8a97a8;
+}
+
+/* Hộp thoại chuyển thành nhân sự (M-08e) */
+.modal.convert-dialog {
+  display: grid;
+  width: min(100%, 640px);
+  gap: 14px;
+}
+
+.convert-dialog .section-header {
+  align-items: flex-start;
+}
+
+.convert-dialog h2 {
+  margin: 0;
+}
+
+.dialog-section {
+  margin: 4px 0 0;
+  color: #8a97a8;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 table.jobs-table {
-  min-width: 860px;
+  min-width: 900px;
 }
 
 table.applications-table {
-  min-width: 760px;
+  min-width: 900px;
 }
 
 /* ---------- Thông báo toast ---------- */
@@ -2221,7 +2588,9 @@ a.ghost-button {
 
 /* ---------- Màn hình nhỏ ---------- */
 @media (max-width: 1200px) {
-  .detail-top {
+  .detail-top,
+  .detail-bottom,
+  .detail-split {
     grid-template-columns: 1fr;
   }
 }

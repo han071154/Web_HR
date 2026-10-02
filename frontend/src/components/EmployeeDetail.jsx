@@ -14,6 +14,7 @@ import {
 import Avatar from './Avatar.jsx';
 import ConfirmDialog from './ConfirmDialog.jsx';
 import ContractForm from './ContractForm.jsx';
+import HistoryTimeline from './HistoryTimeline.jsx';
 
 const EMPTY = 'Chưa cập nhật';
 
@@ -49,6 +50,9 @@ export default function EmployeeDetail({
   const [contractFormError, setContractFormError] = useState('');
   const [deletingContract, setDeletingContract] = useState(null);
   const [deletingBusy, setDeletingBusy] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState('');
   const isWorking = employee.status === 'ACTIVE' || employee.status === 'ON_LEAVE';
   const showContractActions = canEditContracts || canDeleteContracts;
 
@@ -79,6 +83,35 @@ export default function EmployeeDetail({
       ignore = true;
     };
   }, [employee.id, contractsVersion]);
+
+  // Lịch sử thay đổi: tải lại khi hồ sơ vừa được sửa (updatedAt đổi) hoặc hợp đồng thay đổi.
+  useEffect(() => {
+    let ignore = false;
+    setHistoryLoading(true);
+    setHistoryError('');
+
+    api
+      .employeeHistory(employee.id)
+      .then((response) => {
+        if (!ignore) {
+          setHistory(response.data);
+        }
+      })
+      .catch((err) => {
+        if (!ignore) {
+          setHistoryError(err.message);
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setHistoryLoading(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [employee.id, employee.updatedAt, contractsVersion]);
 
   function openContractForm(contract) {
     setContractFormError('');
@@ -180,6 +213,7 @@ export default function EmployeeDetail({
               ['Giới tính', genderLabels[employee.gender]],
               ['Số điện thoại', employee.phone],
               ['Email', employee.email],
+              ['CCCD', employee.idNumber],
               ['Địa chỉ', employee.address]
             ]}
           />
@@ -189,6 +223,7 @@ export default function EmployeeDetail({
             rows={[
               ['Phòng ban', employee.departmentName],
               ['Chức vụ', employee.position],
+              ['Quản lý trực tiếp', employee.managerName],
               ['Ngày vào làm', formatDate(employee.hireDate)],
               ['Hình thức làm việc', employmentTypeLabels[employee.employmentType]],
               ['Lương cơ bản', formatMoney(employee.baseSalary)]
@@ -197,108 +232,115 @@ export default function EmployeeDetail({
         </section>
       </div>
 
-      <section className="content-panel">
-        <div className="section-header">
-          <h2>Hợp đồng</h2>
-          {canEditContracts && (
-            <button type="button" className="primary-button" onClick={() => openContractForm({})}>
-              <Plus size={18} aria-hidden="true" />
-              Thêm hợp đồng
-            </button>
+      <div className="detail-bottom">
+        <section className="content-panel">
+          <div className="section-header">
+            <h2>Hợp đồng</h2>
+            {canEditContracts && (
+              <button type="button" className="primary-button" onClick={() => openContractForm({})}>
+                <Plus size={18} aria-hidden="true" />
+                Thêm hợp đồng
+              </button>
+            )}
+          </div>
+          {contractsError && <p className="form-error">{contractsError}</p>}
+
+          {editingContract && (
+            <ContractForm
+              key={editingContract.id || 'new'}
+              contract={editingContract.id ? editingContract : null}
+              employee={employee}
+              error={contractFormError}
+              onSubmit={saveContract}
+              onCancel={() => setEditingContract(null)}
+            />
           )}
-        </div>
-        {contractsError && <p className="form-error">{contractsError}</p>}
 
-        {editingContract && (
-          <ContractForm
-            key={editingContract.id || 'new'}
-            contract={editingContract.id ? editingContract : null}
-            employee={employee}
-            error={contractFormError}
-            onSubmit={saveContract}
-            onCancel={() => setEditingContract(null)}
-          />
-        )}
-
-        <div className="table-wrap">
-          <table className="responsive-table compact-table contracts-table">
-            <thead>
-              <tr>
-                <th>Loại hợp đồng</th>
-                <th>Số hợp đồng</th>
-                <th>Từ ngày</th>
-                <th>Đến ngày</th>
-                <th>Mức lương</th>
-                <th>Trạng thái</th>
-                {showContractActions && <th></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {contractsLoading ? (
+          <div className="table-wrap">
+            <table className="responsive-table compact-table contracts-table">
+              <thead>
                 <tr>
-                  <td colSpan="7">Đang tải hợp đồng</td>
+                  <th>Loại hợp đồng</th>
+                  <th>Số hợp đồng</th>
+                  <th>Từ ngày</th>
+                  <th>Đến ngày</th>
+                  <th>Mức lương</th>
+                  <th>Trạng thái</th>
+                  {showContractActions && <th></th>}
                 </tr>
-              ) : contracts.length ? (
-                contracts.map((contract) => {
-                  const deadline = contractDeadline(contract);
+              </thead>
+              <tbody>
+                {contractsLoading ? (
+                  <tr>
+                    <td colSpan="7">Đang tải hợp đồng</td>
+                  </tr>
+                ) : contracts.length ? (
+                  contracts.map((contract) => {
+                    const deadline = contractDeadline(contract);
 
-                  return (
-                    <tr key={contract.id}>
-                      <td className="cell-main">
-                        <strong>{contractTypeLabels[contract.contractType] || contract.contractType}</strong>
-                      </td>
-                      <td data-label="Số hợp đồng">{contract.contractNumber}</td>
-                      <td data-label="Từ ngày">{formatDate(contract.startDate)}</td>
-                      <td data-label="Đến ngày">
-                        {formatDate(contract.endDate) || '—'}
-                        {deadline && <span className={`deadline-note ${deadline.level}`}>{deadline.text}</span>}
-                      </td>
-                      <td data-label="Mức lương">{formatMoney(contract.salary)}</td>
-                      <td data-label="Trạng thái">
-                        <span className={`status-pill ${contractStatusClass[contract.status] || 'status-inactive'}`}>
-                          {contractStatusLabels[contract.status] || contract.status}
-                        </span>
-                      </td>
-                      {showContractActions && (
-                        <td className="cell-actions">
-                          <div className="row-actions">
-                            {canEditContracts && (
-                              <button
-                                type="button"
-                                className="icon-button success"
-                                onClick={() => openContractForm(contract)}
-                                title="Sửa"
-                                aria-label="Sửa"
-                              >
-                                <Pencil size={17} aria-hidden="true" />
-                              </button>
-                            )}
-                            {canDeleteContracts && (
-                              <button
-                                type="button"
-                                className="icon-button danger"
-                                onClick={() => setDeletingContract(contract)}
-                                title="Xóa"
-                                aria-label="Xóa"
-                              >
-                                <Trash2 size={17} aria-hidden="true" />
-                              </button>
-                            )}
-                          </div>
+                    return (
+                      <tr key={contract.id}>
+                        <td className="cell-main">
+                          <strong>{contractTypeLabels[contract.contractType] || contract.contractType}</strong>
                         </td>
-                      )}
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan="7">Chưa có hợp đồng</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                        <td data-label="Số hợp đồng">{contract.contractNumber}</td>
+                        <td data-label="Từ ngày">{formatDate(contract.startDate)}</td>
+                        <td data-label="Đến ngày">
+                          {formatDate(contract.endDate) || '—'}
+                          {deadline && <span className={`deadline-note ${deadline.level}`}>{deadline.text}</span>}
+                        </td>
+                        <td data-label="Mức lương">{formatMoney(contract.salary)}</td>
+                        <td data-label="Trạng thái">
+                          <span className={`status-pill ${contractStatusClass[contract.status] || 'status-inactive'}`}>
+                            {contractStatusLabels[contract.status] || contract.status}
+                          </span>
+                        </td>
+                        {showContractActions && (
+                          <td className="cell-actions">
+                            <div className="row-actions">
+                              {canEditContracts && (
+                                <button
+                                  type="button"
+                                  className="icon-button success"
+                                  onClick={() => openContractForm(contract)}
+                                  title="Sửa"
+                                  aria-label="Sửa"
+                                >
+                                  <Pencil size={17} aria-hidden="true" />
+                                </button>
+                              )}
+                              {canDeleteContracts && (
+                                <button
+                                  type="button"
+                                  className="icon-button danger"
+                                  onClick={() => setDeletingContract(contract)}
+                                  title="Xóa"
+                                  aria-label="Xóa"
+                                >
+                                  <Trash2 size={17} aria-hidden="true" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan="7">Chưa có hợp đồng</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="content-panel">
+          <h2>Lịch sử thay đổi</h2>
+          <HistoryTimeline entries={history} loading={historyLoading} error={historyError} />
+        </section>
+      </div>
 
       {deletingContract && (
         <ConfirmDialog

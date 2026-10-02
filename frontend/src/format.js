@@ -25,17 +25,26 @@ export const employmentTypeLabels = {
 
 export const jobStatusLabels = {
   DRAFT: 'Nháp',
-  OPEN: 'Đang tuyển',
+  OPEN: 'Đang mở',
   CLOSED: 'Đã đóng'
 };
 
-// Thứ tự xử lý hồ sơ ứng viên: Mới → Đang xét → Phỏng vấn → Trúng tuyển / Loại.
+// Thứ tự xử lý hồ sơ ứng viên (Figma M-08c): Mới nộp → Đang xét → Phỏng vấn → Đậu / Trượt.
 export const applicationStatusLabels = {
-  NEW: 'Mới',
+  NEW: 'Mới nộp',
   REVIEWING: 'Đang xét',
   INTERVIEW: 'Phỏng vấn',
-  HIRED: 'Trúng tuyển',
-  REJECTED: 'Loại'
+  HIRED: 'Đậu',
+  REJECTED: 'Trượt'
+};
+
+// Màu badge theo trạng thái hồ sơ (Figma M-08c).
+export const applicationStatusClass = {
+  NEW: 'status-new',
+  REVIEWING: 'status-reviewing',
+  INTERVIEW: 'status-on_leave',
+  HIRED: 'status-active',
+  REJECTED: 'status-terminated'
 };
 
 export const contractTypeLabels = {

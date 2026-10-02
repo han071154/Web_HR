@@ -33,9 +33,13 @@ const exactMessages = {
   'Job posting still has applications': 'Tin đã có hồ sơ ứng tuyển nên không xóa được. Hãy chuyển tin sang "Đã đóng".',
   'Application not found': 'Không tìm thấy hồ sơ ứng viên.',
   'CV file not found': 'Không tìm thấy file CV trên máy chủ.',
-  'Hired application status cannot be changed': 'Hồ sơ đã trúng tuyển nên không đổi trạng thái được.',
-  'Application has already been hired': 'Hồ sơ này đã được tuyển thành nhân viên.',
-  'Rejected application cannot be hired': 'Hồ sơ đã bị loại nên không tuyển được. Hãy đổi trạng thái trước.'
+  'Converted application status cannot be changed': 'Hồ sơ đã chuyển thành nhân sự nên không đổi trạng thái được.',
+  'Application has already been converted': 'Hồ sơ này đã được chuyển thành nhân sự.',
+  'Only passed applications can be converted': 'Chỉ hồ sơ ở trạng thái "Đậu" mới chuyển thành nhân sự được.',
+  'Interview time is required for interview status': 'Vui lòng chọn lịch phỏng vấn.',
+  'Deadline must be today or later to open a job posting': 'Hạn nộp hồ sơ phải từ hôm nay trở đi.',
+  'ID number already exists': 'Số CCCD đã được dùng cho nhân viên khác.',
+  'An employee cannot be their own manager': 'Nhân viên không thể là quản lý trực tiếp của chính mình.'
 };
 
 // Giới hạn dung lượng lấy từ cấu hình backend nên số MB có thể thay đổi.
@@ -83,7 +87,10 @@ const fieldLabels = {
   benefits: 'Quyền lợi',
   deadline: 'Hạn nộp',
   note: 'Ghi chú',
-  interviewAt: 'Lịch phỏng vấn'
+  interviewAt: 'Lịch phỏng vấn',
+  idNumber: 'CCCD',
+  managerId: 'Quản lý trực tiếp',
+  contractEndDate: 'Ngày kết thúc hợp đồng'
 };
 
 const statusMessages = {
