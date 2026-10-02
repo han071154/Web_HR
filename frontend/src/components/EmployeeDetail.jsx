@@ -1,6 +1,7 @@
-import { Hash, Mail, Pencil, Phone, UserX } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Hash, Mail, Pencil, Phone, Plus, Trash2, UserX } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { contractDeadline, contractStatusClass } from '../contracts.js';
 import {
   contractStatusLabels,
   contractTypeLabels,
@@ -11,16 +12,10 @@ import {
   statusLabels
 } from '../format.js';
 import Avatar from './Avatar.jsx';
+import ConfirmDialog from './ConfirmDialog.jsx';
+import ContractForm from './ContractForm.jsx';
 
 const EMPTY = 'Chưa cập nhật';
-
-// Trạng thái hợp đồng → màu badge (Hiệu lực xanh, Hết hạn xám...).
-const contractStatusClass = {
-  DRAFT: 'status-inactive',
-  ACTIVE: 'status-active',
-  EXPIRED: 'status-resigned',
-  TERMINATED: 'status-terminated'
-};
 
 function InfoGrid({ rows }) {
   return (
@@ -36,11 +31,26 @@ function InfoGrid({ rows }) {
 }
 
 // Trang chi tiết hồ sơ một nhân viên theo mockup M-03a.
-export default function EmployeeDetail({ employee, canDeactivate, onEdit, onDeactivate }) {
+export default function EmployeeDetail({
+  employee,
+  canDeactivate,
+  canEditContracts,
+  canDeleteContracts,
+  onEdit,
+  onDeactivate,
+  showToast
+}) {
   const [contracts, setContracts] = useState([]);
   const [contractsLoading, setContractsLoading] = useState(true);
   const [contractsError, setContractsError] = useState('');
+  // Tăng số này để tải lại danh sách hợp đồng sau khi thêm/sửa/xóa.
+  const [contractsVersion, setContractsVersion] = useState(0);
+  const [editingContract, setEditingContract] = useState(null);
+  const [contractFormError, setContractFormError] = useState('');
+  const [deletingContract, setDeletingContract] = useState(null);
+  const [deletingBusy, setDeletingBusy] = useState(false);
   const isWorking = employee.status === 'ACTIVE' || employee.status === 'ON_LEAVE';
+  const showContractActions = canEditContracts || canDeleteContracts;
 
   useEffect(() => {
     let ignore = false;
@@ -68,7 +78,53 @@ export default function EmployeeDetail({ employee, canDeactivate, onEdit, onDeac
     return () => {
       ignore = true;
     };
-  }, [employee.id]);
+  }, [employee.id, contractsVersion]);
+
+  function openContractForm(contract) {
+    setContractFormError('');
+    setEditingContract(contract);
+  }
+
+  async function saveContract(values) {
+    setContractFormError('');
+
+    try {
+      if (editingContract?.id) {
+        await api.updateContract(editingContract.id, values);
+        showToast('success', `Đã cập nhật hợp đồng ${values.contractNumber}.`);
+      } else {
+        await api.createContract(values);
+        showToast('success', `Đã thêm hợp đồng ${values.contractNumber}.`);
+      }
+
+      setEditingContract(null);
+      setContractsVersion((version) => version + 1);
+    } catch (err) {
+      setContractFormError(err.message);
+    }
+  }
+
+  async function confirmDeleteContract() {
+    const contract = deletingContract;
+    setDeletingBusy(true);
+
+    try {
+      await api.deleteContract(contract.id);
+      showToast('success', `Đã xóa hợp đồng ${contract.contractNumber}.`);
+      setContractsVersion((version) => version + 1);
+    } catch (err) {
+      showToast('error', err.message);
+    } finally {
+      setDeletingBusy(false);
+      setDeletingContract(null);
+    }
+  }
+
+  const cancelDeleteContract = useCallback(() => {
+    if (!deletingBusy) {
+      setDeletingContract(null);
+    }
+  }, [deletingBusy]);
 
   const jobLine = [employee.position, employee.departmentName].filter(Boolean).join(' · ');
 
@@ -142,8 +198,28 @@ export default function EmployeeDetail({ employee, canDeactivate, onEdit, onDeac
       </div>
 
       <section className="content-panel">
-        <h2>Hợp đồng</h2>
+        <div className="section-header">
+          <h2>Hợp đồng</h2>
+          {canEditContracts && (
+            <button type="button" className="primary-button" onClick={() => openContractForm({})}>
+              <Plus size={18} aria-hidden="true" />
+              Thêm hợp đồng
+            </button>
+          )}
+        </div>
         {contractsError && <p className="form-error">{contractsError}</p>}
+
+        {editingContract && (
+          <ContractForm
+            key={editingContract.id || 'new'}
+            contract={editingContract.id ? editingContract : null}
+            employee={employee}
+            error={contractFormError}
+            onSubmit={saveContract}
+            onCancel={() => setEditingContract(null)}
+          />
+        )}
+
         <div className="table-wrap">
           <table className="responsive-table compact-table contracts-table">
             <thead>
@@ -152,39 +228,88 @@ export default function EmployeeDetail({ employee, canDeactivate, onEdit, onDeac
                 <th>Số hợp đồng</th>
                 <th>Từ ngày</th>
                 <th>Đến ngày</th>
+                <th>Mức lương</th>
                 <th>Trạng thái</th>
+                {showContractActions && <th></th>}
               </tr>
             </thead>
             <tbody>
               {contractsLoading ? (
                 <tr>
-                  <td colSpan="5">Đang tải hợp đồng</td>
+                  <td colSpan="7">Đang tải hợp đồng</td>
                 </tr>
               ) : contracts.length ? (
-                contracts.map((contract) => (
-                  <tr key={contract.id}>
-                    <td className="cell-main">
-                      <strong>{contractTypeLabels[contract.contractType] || contract.contractType}</strong>
-                    </td>
-                    <td data-label="Số hợp đồng">{contract.contractNumber}</td>
-                    <td data-label="Từ ngày">{formatDate(contract.startDate)}</td>
-                    <td data-label="Đến ngày">{formatDate(contract.endDate) || '—'}</td>
-                    <td data-label="Trạng thái">
-                      <span className={`status-pill ${contractStatusClass[contract.status] || 'status-inactive'}`}>
-                        {contractStatusLabels[contract.status] || contract.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))
+                contracts.map((contract) => {
+                  const deadline = contractDeadline(contract);
+
+                  return (
+                    <tr key={contract.id}>
+                      <td className="cell-main">
+                        <strong>{contractTypeLabels[contract.contractType] || contract.contractType}</strong>
+                      </td>
+                      <td data-label="Số hợp đồng">{contract.contractNumber}</td>
+                      <td data-label="Từ ngày">{formatDate(contract.startDate)}</td>
+                      <td data-label="Đến ngày">
+                        {formatDate(contract.endDate) || '—'}
+                        {deadline && <span className={`deadline-note ${deadline.level}`}>{deadline.text}</span>}
+                      </td>
+                      <td data-label="Mức lương">{formatMoney(contract.salary)}</td>
+                      <td data-label="Trạng thái">
+                        <span className={`status-pill ${contractStatusClass[contract.status] || 'status-inactive'}`}>
+                          {contractStatusLabels[contract.status] || contract.status}
+                        </span>
+                      </td>
+                      {showContractActions && (
+                        <td className="cell-actions">
+                          <div className="row-actions">
+                            {canEditContracts && (
+                              <button
+                                type="button"
+                                className="icon-button success"
+                                onClick={() => openContractForm(contract)}
+                                title="Sửa"
+                                aria-label="Sửa"
+                              >
+                                <Pencil size={17} aria-hidden="true" />
+                              </button>
+                            )}
+                            {canDeleteContracts && (
+                              <button
+                                type="button"
+                                className="icon-button danger"
+                                onClick={() => setDeletingContract(contract)}
+                                title="Xóa"
+                                aria-label="Xóa"
+                              >
+                                <Trash2 size={17} aria-hidden="true" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan="5">Chưa có hợp đồng</td>
+                  <td colSpan="7">Chưa có hợp đồng</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
       </section>
+
+      {deletingContract && (
+        <ConfirmDialog
+          title="Xóa hợp đồng?"
+          message={`Hợp đồng ${deletingContract.contractNumber} sẽ bị xóa vĩnh viễn. Nếu hợp đồng đã kết thúc, nên chuyển sang "Hết hạn" hoặc "Đã chấm dứt" để giữ lịch sử.`}
+          confirmLabel="Xóa hợp đồng"
+          busy={deletingBusy}
+          onConfirm={confirmDeleteContract}
+          onCancel={cancelDeleteContract}
+        />
+      )}
     </div>
   );
 }

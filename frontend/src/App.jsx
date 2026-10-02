@@ -3,6 +3,7 @@ import {
   Building2,
   ClipboardList,
   Download,
+  FileText,
   Eye,
   LogOut,
   Pencil,
@@ -17,6 +18,7 @@ import { api, clearSession, getStoredUser, getToken, setUnauthorizedHandler } fr
 import Avatar from './components/Avatar.jsx';
 import CareersPage from './components/CareersPage.jsx';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
+import ContractsPanel from './components/ContractsPanel.jsx';
 import DepartmentsPanel from './components/DepartmentsPanel.jsx';
 import EmployeeDetail from './components/EmployeeDetail.jsx';
 import EmployeeForm from './components/EmployeeForm.jsx';
@@ -25,6 +27,7 @@ import Pagination from './components/Pagination.jsx';
 import PositionsPanel from './components/PositionsPanel.jsx';
 import RecruitmentPanel from './components/RecruitmentPanel.jsx';
 import Toast from './components/Toast.jsx';
+import { CONTRACT_DELETE_ROLES, CONTRACT_EDIT_ROLES } from './contracts.js';
 import { normalizeText, roleLabels, statusLabels } from './format.js';
 
 // Quyền khớp với backend: ai cũng thêm/sửa được, chỉ Admin và HR Manager được xóa.
@@ -33,12 +36,13 @@ const DELETE_ROLES = ['ADMIN', 'HR_MANAGER'];
 
 const PAGE_SIZE = 10;
 
-const VIEWS = ['employees', 'departments', 'positions', 'recruitment'];
+const VIEWS = ['employees', 'departments', 'positions', 'contracts', 'recruitment'];
 
 const pageTitles = {
   employees: { title: 'Danh sách nhân sự', subtitle: 'Quản lý hồ sơ nhân viên của công ty' },
   departments: { title: 'Phòng ban', subtitle: 'Quản lý danh mục phòng ban' },
   positions: { title: 'Chức vụ', subtitle: 'Quản lý danh mục chức vụ' },
+  contracts: { title: 'Hợp đồng', subtitle: 'Quản lý hợp đồng lao động của nhân viên' },
   recruitment: { title: 'Tuyển dụng', subtitle: 'Quản lý tin tuyển dụng và hồ sơ ứng viên' }
 };
 
@@ -320,8 +324,11 @@ function Dashboard({ user, onLogout }) {
         <EmployeeDetail
           employee={screen.employee}
           canDeactivate={canEdit}
+          canEditContracts={CONTRACT_EDIT_ROLES.includes(user?.role)}
+          canDeleteContracts={CONTRACT_DELETE_ROLES.includes(user?.role)}
           onEdit={beginEdit}
           onDeactivate={(employee) => setConfirmAction({ type: 'deactivate', employee })}
+          showToast={showToast}
         />
       );
     }
@@ -510,6 +517,10 @@ function Dashboard({ user, onLogout }) {
             <BriefcaseBusiness size={18} aria-hidden="true" />
             Chức vụ
           </a>
+          <a className={`nav-item${view === 'contracts' ? ' active' : ''}`} href="#contracts">
+            <FileText size={18} aria-hidden="true" />
+            Hợp đồng
+          </a>
           <a className={`nav-item${view === 'recruitment' ? ' active' : ''}`} href="#recruitment">
             <ClipboardList size={18} aria-hidden="true" />
             Tuyển dụng
@@ -547,6 +558,8 @@ function Dashboard({ user, onLogout }) {
           />
         ) : view === 'positions' ? (
           <PositionsPanel user={user} departments={departments} showToast={showToast} />
+        ) : view === 'contracts' ? (
+          <ContractsPanel user={user} employees={employees} showToast={showToast} />
         ) : (
           <RecruitmentPanel
             user={user}

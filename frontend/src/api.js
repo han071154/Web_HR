@@ -197,5 +197,19 @@ export const api = {
   contracts: (params = {}) => {
     const search = new URLSearchParams(params);
     return request(`/contracts?${search.toString()}`);
-  }
+  },
+  createContract: (contract) =>
+    request('/contracts', {
+      method: 'POST',
+      body: JSON.stringify(contract)
+    }),
+  updateContract: (id, contract) =>
+    request(`/contracts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(contract)
+    }),
+  deleteContract: (id) =>
+    request(`/contracts/${id}`, {
+      method: 'DELETE'
+    })
 };

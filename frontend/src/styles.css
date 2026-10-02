@@ -874,7 +874,65 @@ table.employees-table {
 }
 
 table.contracts-table {
-  min-width: 640px;
+  min-width: 760px;
+}
+
+table.contracts-list-table {
+  min-width: 900px;
+}
+
+/* Nhắc hạn hợp đồng: sắp hết hạn = cam, đã quá hạn = đỏ */
+td span.deadline-note {
+  font-weight: 700;
+}
+
+td span.deadline-note.soon {
+  color: #b35c00;
+}
+
+td span.deadline-note.overdue {
+  color: var(--danger);
+}
+
+.attention-banner {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  border: 1px solid #ffe69c;
+  border-radius: var(--radius-control);
+  padding: 10px 14px;
+  color: #664d03;
+  background: #fff3cd;
+  font-weight: 600;
+  text-align: left;
+}
+
+.attention-banner:hover {
+  border-color: var(--warning);
+}
+
+/* Nút gợi ý thời hạn hợp đồng: 2 tháng, 12 tháng... */
+.duration-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.duration-presets button {
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-control);
+  padding: 2px 10px;
+  color: var(--primary);
+  background: var(--primary-light);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.duration-presets button:hover {
+  color: #ffffff;
+  background: var(--primary);
 }
 
 /* ---------- Form thêm / sửa nhân sự (M-03b) ---------- */
@@ -1260,6 +1318,7 @@ img.avatar {
   padding: 20px;
 }
 
+.panel-form h3,
 .application-detail h3,
 .hire-form h3 {
   display: flex;

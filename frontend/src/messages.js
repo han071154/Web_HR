@@ -25,6 +25,8 @@ const exactMessages = {
   'Too many applications, please try again later': 'Bạn đã nộp quá nhiều hồ sơ. Vui lòng thử lại sau.',
   'Employment contract not found': 'Không tìm thấy hợp đồng.',
   'Contract number already exists': 'Số hợp đồng đã tồn tại. Vui lòng dùng số khác.',
+  'Employee already has an active contract':
+    'Nhân viên đang có một hợp đồng hiệu lực. Hãy chuyển hợp đồng đó sang "Hết hạn" hoặc "Đã chấm dứt" trước.',
   'Avatar file is required in the avatar field': 'Vui lòng chọn ảnh đại diện.',
   'Avatar must be a JPEG, PNG, or WebP image': 'Ảnh đại diện phải là file JPG, PNG hoặc WebP.',
   'Job posting code already exists': 'Mã tin tuyển dụng đã tồn tại. Vui lòng dùng mã khác.',
