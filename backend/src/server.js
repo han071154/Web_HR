@@ -50,6 +50,7 @@ app.use((error, _req, res, _next) => {
     departments_name_key: 'Department name already exists',
     employees_employee_code_key: 'Employee code already exists',
     employees_email_key: 'Employee email already exists',
+    employees_id_number_key: 'ID number already exists',
     positions_code_key: 'Position code already exists',
     employment_contracts_contract_number_key: 'Contract number already exists',
     applications_active_email_job_key: 'You have already applied for this job',

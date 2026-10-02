@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { query } from '../db.js';
 import { cvUpload, isPdfFile, removeCvFile } from '../middleware/cvUpload.js';
 import { applicationCode } from '../utils/applicationCode.js';
+import { logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
 
 // API công khai cho trang tuyển dụng: không cần đăng nhập.
@@ -170,10 +171,11 @@ router.post('/:id/applications', cvUpload, async (req, res, next) => {
     const result = await query(
       `INSERT INTO applications (job_posting_id, full_name, email, phone, cv_path, cv_original_name, cover_letter)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING application_no, status, created_at`,
+       RETURNING id, application_no, status, created_at`,
       [job.id, body.fullName, body.email, body.phone, req.file.filename, originalName, body.coverLetter || null]
     );
     const created = result.rows[0];
+    await logAudit({ entityType: 'APPLICATION', entityId: created.id, action: 'SUBMITTED', actorName: body.fullName });
 
     applyHistory.get(req.ip).push(Date.now());
 

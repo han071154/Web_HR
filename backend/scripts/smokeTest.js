@@ -124,10 +124,11 @@ async function recruitmentChecks(suffix) {
       form: applicationForm({ ...validFields, email: email.toUpperCase() }, pdf)
     });
   } finally {
-    const removed = await query('DELETE FROM applications WHERE email = $1 RETURNING cv_path', [email]);
+    const removed = await query('DELETE FROM applications WHERE email = $1 RETURNING id, cv_path', [email]);
 
     for (const row of removed.rows) {
       await removeCvFile(row.cv_path);
+      await query('DELETE FROM audit_logs WHERE entity_id = $1', [row.id]);
     }
   }
 }
@@ -209,25 +210,55 @@ async function hrRecruitmentChecks({ managerToken, staffToken }, suffix) {
     });
     assert.equal(interview.data.note, 'CV phù hợp');
     assert.equal(new Date(interview.data.interviewAt).toISOString(), '2026-10-10T02:00:00.000Z');
+    // Phỏng vấn bắt buộc có lịch hẹn.
     await request(`/applications/${applicationId}`, {
       token: staffToken,
       method: 'PATCH',
       expected: 400,
-      body: { status: 'HIRED' }
+      body: { status: 'INTERVIEW', interviewAt: null }
     });
 
     await request(`/jobs/${jobId}`, { token: staffToken, method: 'DELETE', expected: 403 });
     await request(`/jobs/${jobId}`, { token: managerToken, method: 'DELETE', expected: 409 });
 
-    const hired = await request(`/applications/${applicationId}/hire`, {
+    const convertBody = {
+      employeeCode: `HIRE-${suffix}`,
+      hireDate: '2026-10-15',
+      baseSalary: 9000000,
+      contractType: 'PROBATION',
+      contractEndDate: '2026-12-14'
+    };
+
+    // Chưa "Đậu" thì chưa chuyển thành nhân sự được.
+    await request(`/applications/${applicationId}/convert`, {
+      token: staffToken,
+      method: 'POST',
+      expected: 409,
+      body: convertBody
+    });
+    const passed = await request(`/applications/${applicationId}`, {
+      token: staffToken,
+      method: 'PATCH',
+      body: { status: 'HIRED' }
+    });
+    assert.equal(passed.data.status, 'HIRED');
+    assert.equal(passed.data.employeeId, null);
+    await request(`/applications/${applicationId}/convert`, {
+      token: staffToken,
+      method: 'POST',
+      expected: 400,
+      body: { ...convertBody, contractEndDate: null }
+    });
+
+    const converted = await request(`/applications/${applicationId}/convert`, {
       token: staffToken,
       method: 'POST',
       expected: 201,
-      body: { employeeCode: `HIRE-${suffix}`, hireDate: '2026-10-15', baseSalary: 9000000 }
+      body: convertBody
     });
-    assert.equal(hired.data.status, 'HIRED');
-    assert.equal(hired.data.employeeCode, `HIRE-${suffix}`);
-    employeeId = hired.data.employeeId;
+    assert.equal(converted.data.status, 'HIRED');
+    assert.equal(converted.data.employeeCode, `HIRE-${suffix}`);
+    employeeId = converted.data.employeeId;
 
     const employee = await request(`/employees/${employeeId}`, { token: staffToken });
     assert.equal(employee.data.email, email);
@@ -235,12 +266,19 @@ async function hrRecruitmentChecks({ managerToken, staffToken }, suffix) {
     assert.equal(employee.data.position, `Nhân viên Kho Smoke ${suffix}`);
     assert.equal(employee.data.employmentType, 'SHIFT');
     assert.equal(employee.data.hireDate, '2026-10-15');
+    assert.equal(employee.data.baseSalary, 9000000);
 
-    await request(`/applications/${applicationId}/hire`, {
+    const firstContract = await request(`/contracts?employeeId=${employeeId}`, { token: staffToken });
+    assert.equal(firstContract.data.length, 1);
+    assert.equal(firstContract.data[0].contractType, 'PROBATION');
+    assert.equal(firstContract.data[0].status, 'ACTIVE');
+    assert.equal(firstContract.data[0].endDate, '2026-12-14');
+
+    await request(`/applications/${applicationId}/convert`, {
       token: staffToken,
       method: 'POST',
       expected: 409,
-      body: { employeeCode: `HIRE2-${suffix}`, hireDate: '2026-10-15' }
+      body: { ...convertBody, employeeCode: `HIRE2-${suffix}` }
     });
     await request(`/applications/${applicationId}`, {
       token: staffToken,
@@ -249,17 +287,38 @@ async function hrRecruitmentChecks({ managerToken, staffToken }, suffix) {
       body: { status: 'REJECTED' }
     });
 
+    // Mở chi tiết thì hồ sơ được đánh dấu đã xem và có lịch sử xử lý.
+    const detail = await request(`/applications/${applicationId}`, { token: staffToken });
+    assert.ok(detail.data.viewedAt);
+    const actions = detail.data.history.map((item) => item.action);
+    for (const action of ['SUBMITTED', 'STATUS_CHANGED', 'INTERVIEW_SCHEDULED', 'NOTE_UPDATED', 'CONVERTED']) {
+      assert.ok(actions.includes(action), `Application history is missing ${action}`);
+    }
+
+    const employeeHistory = await request(`/employees/${employeeId}/history`, { token: staffToken });
+    assert.deepEqual(employeeHistory.data.map((item) => item.action).sort(), ['CONTRACT_ADDED', 'CREATED']);
+
     const jobAfter = await request(`/jobs/${jobId}`, { token: staffToken });
     assert.equal(jobAfter.data.applicationCount, 1);
+
+    // Đăng tin với hạn nộp đã qua thì bị chặn.
+    await request(`/jobs/${jobId}`, {
+      token: staffToken,
+      method: 'PUT',
+      expected: 400,
+      body: { status: 'OPEN', deadline: '2020-01-01' }
+    });
   } finally {
-    const removed = await query('DELETE FROM applications WHERE email = $1 RETURNING cv_path', [email]);
+    const removed = await query('DELETE FROM applications WHERE email = $1 RETURNING id, cv_path', [email]);
 
     for (const row of removed.rows) {
       await removeCvFile(row.cv_path);
+      await query('DELETE FROM audit_logs WHERE entity_id = $1', [row.id]);
     }
 
     if (employeeId) {
       await query('DELETE FROM employees WHERE id = $1', [employeeId]);
+      await query('DELETE FROM audit_logs WHERE entity_id = $1', [employeeId]);
     }
 
     if (jobId) {
@@ -275,6 +334,7 @@ async function main() {
     login('staff@webhr.local', 'staff123')
   ]);
   const suffix = Date.now().toString().slice(-8);
+  const startedAt = new Date();
   let departmentId;
   let positionId;
   let linkedEmployeeId;
@@ -417,6 +477,32 @@ async function main() {
     const renamedEmployee = await request(`/employees/${linkedEmployeeId}`, { token: staffToken });
     assert.equal(renamedEmployee.data.position, `QA Lead ${suffix}`);
 
+    // CCCD 12 số, quản lý trực tiếp, và lịch sử thay đổi của hồ sơ.
+    const idNumber = `0790${suffix}`;
+    const managed = await request(`/employees/${linkedEmployeeId}`, {
+      token: staffToken,
+      method: 'PUT',
+      body: { idNumber, managerId: employee.id }
+    });
+    assert.equal(managed.data.idNumber, idNumber);
+    assert.equal(managed.data.managerName, employee.fullName);
+    await request(`/employees/${linkedEmployeeId}`, {
+      token: staffToken,
+      method: 'PUT',
+      expected: 400,
+      body: { idNumber: '12345' }
+    });
+    await request(`/employees/${linkedEmployeeId}`, {
+      token: staffToken,
+      method: 'PUT',
+      expected: 400,
+      body: { managerId: linkedEmployeeId }
+    });
+    const history = await request(`/employees/${linkedEmployeeId}/history`, { token: staffToken });
+    assert.equal(history.data[0].action, 'UPDATED');
+    assert.deepEqual(Object.keys(history.data[0].details.fields).sort(), ['idNumber', 'managerName']);
+    assert.equal(history.data.at(-1).action, 'CREATED');
+
     await request('/employees', {
       token: staffToken,
       method: 'POST',
@@ -555,6 +641,9 @@ async function main() {
         expected: 204
       }).catch(() => undefined);
     }
+
+    // Smoke test sửa tạm nhân viên mẫu rồi trả lại; xóa nhật ký sinh ra để lịch sử thật không bị lẫn.
+    await query("DELETE FROM audit_logs WHERE entity_type = 'EMPLOYEE' AND created_at >= $1", [startedAt]);
   }
 }
 

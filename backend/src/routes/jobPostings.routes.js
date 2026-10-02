@@ -83,6 +83,19 @@ function mapJob(row) {
   };
 }
 
+// Đăng tin (OPEN) với hạn nộp đã qua thì trang công khai không hiện tin, nên chặn ngay khi lưu.
+async function ensureDeadlineNotPassed(job) {
+  if (job.status !== 'OPEN' || !job.deadline) {
+    return;
+  }
+
+  const today = await query('SELECT CURRENT_DATE::text AS today');
+
+  if (job.deadline < today.rows[0].today) {
+    throw httpError(400, 'Deadline must be today or later to open a job posting');
+  }
+}
+
 async function findJob(id) {
   const result = await query(`${jobSelectSql} WHERE j.id = $1 GROUP BY j.id, d.name`, [id]);
   return result.rows[0];
@@ -162,6 +175,7 @@ router.get('/:id', async (req, res, next) => {
 router.post('/', requireRole(...HR_ROLES), async (req, res, next) => {
   try {
     const job = jobSchema.parse(req.body);
+    await ensureDeadlineNotPassed(job);
     const result = await query(
       `INSERT INTO job_postings (
         code, title, department_id, employment_type, quantity, salary_min, salary_max,
@@ -207,6 +221,11 @@ router.put('/:id', requireRole(...HR_ROLES), async (req, res, next) => {
       deadline: pick('deadline', 'deadline'),
       status: pick('status', 'status')
     });
+
+    // Chỉ kiểm tra khi mở tin hoặc đổi hạn nộp, để tin cũ đã hết hạn vẫn sửa được nội dung khác.
+    if (row.status !== 'OPEN' || job.deadline !== row.deadline) {
+      await ensureDeadlineNotPassed(job);
+    }
 
     await query(
       `UPDATE job_postings

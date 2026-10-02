@@ -137,3 +137,31 @@ CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
 CREATE UNIQUE INDEX IF NOT EXISTS applications_active_email_job_key
   ON applications (job_posting_id, LOWER(email))
   WHERE status <> 'REJECTED';
+
+-- M-03a: số CCCD và quản lý trực tiếp của nhân viên.
+ALTER TABLE employees
+  ADD COLUMN IF NOT EXISTS id_number VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES employees(id) ON DELETE SET NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS employees_id_number_key
+  ON employees (id_number)
+  WHERE id_number IS NOT NULL;
+
+-- M-08c: thời điểm HR mở xem hồ sơ lần đầu (NULL = hồ sơ chưa xem, hiện chấm xanh).
+ALTER TABLE applications
+  ADD COLUMN IF NOT EXISTS viewed_at TIMESTAMPTZ;
+
+-- Nhật ký thay đổi (thẻ "Lịch sử" ở M-03a và M-08d): ai làm gì, lúc nào.
+-- details lưu chi tiết dạng JSON, ví dụ {"fields": {"phone": {"from": "...", "to": "..."}}}.
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  entity_type VARCHAR(40) NOT NULL,
+  entity_id UUID NOT NULL,
+  action VARCHAR(40) NOT NULL,
+  details JSONB NOT NULL DEFAULT '{}'::jsonb,
+  actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  actor_name VARCHAR(160),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs (entity_type, entity_id, created_at DESC);

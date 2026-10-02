@@ -2,6 +2,7 @@ import express from 'express';
 import { z } from 'zod';
 import { query } from '../db.js';
 import { requireRole } from '../middleware/auth.js';
+import { diffFields, logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
 
 const router = express.Router();
@@ -166,6 +167,13 @@ router.post('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res
       ]
     );
     const created = await query(`${contractSelectSql} WHERE c.id = $1`, [result.rows[0].id]);
+    await logAudit({
+      entityType: 'EMPLOYEE',
+      entityId: body.employeeId,
+      action: 'CONTRACT_ADDED',
+      details: { contractNumber: body.contractNumber, contractType: body.contractType },
+      user: req.user
+    });
 
     res.status(201).json({ data: mapContract(created.rows[0]) });
   } catch (error) {
@@ -223,6 +231,26 @@ router.put('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, r
       ]
     );
     const updated = await query(`${contractSelectSql} WHERE c.id = $1`, [req.params.id]);
+    const before = mapContract({ ...row, employee_code: null, employee_name: null });
+    const changes = diffFields(before, mapContract(updated.rows[0]), [
+      'contractNumber',
+      'contractType',
+      'startDate',
+      'endDate',
+      'signedDate',
+      'salary',
+      'status'
+    ]);
+
+    if (Object.keys(changes).length) {
+      await logAudit({
+        entityType: 'EMPLOYEE',
+        entityId: contract.employeeId,
+        action: 'CONTRACT_UPDATED',
+        details: { contractNumber: contract.contractNumber, fields: changes },
+        user: req.user
+      });
+    }
 
     res.json({ data: mapContract(updated.rows[0]) });
   } catch (error) {
@@ -233,13 +261,21 @@ router.put('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, r
 router.delete('/:id', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
   try {
     const result = await query(
-      'DELETE FROM employment_contracts WHERE id = $1 RETURNING id',
+      'DELETE FROM employment_contracts WHERE id = $1 RETURNING id, employee_id, contract_number',
       [req.params.id]
     );
 
     if (!result.rows[0]) {
       throw httpError(404, 'Employment contract not found');
     }
+
+    await logAudit({
+      entityType: 'EMPLOYEE',
+      entityId: result.rows[0].employee_id,
+      action: 'CONTRACT_DELETED',
+      details: { contractNumber: result.rows[0].contract_number },
+      user: req.user
+    });
 
     res.status(204).send();
   } catch (error) {
