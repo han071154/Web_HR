@@ -20,10 +20,12 @@ Chi tiet tung API: xem [API.md](API.md).
 - Trang tuyen dung cong khai (`#/`, `#/viec-lam`, `#/viec-lam/<id>`, `#/viec-lam/<id>/ung-tuyen`):
   - Danh sach tin tuyen dung, tim kiem, loc theo phong ban va hinh thuc lam viec.
   - Chi tiet tin, nop ho so kem CV PDF.
-- Trang quan tri (`#login`, `#employees`, `#departments`, `#positions`):
+- Trang quan tri (`#login`, `#employees`, `#departments`, `#positions`, `#recruitment`):
   - Dang nhap, ghi nho dang nhap, tu dang xuat khi token het han.
   - Nhan su: danh sach, tim kiem, loc, phan trang, chi tiet (kem hop dong), them/sua, vo hieu hoa, xoa, avatar.
   - Phong ban va chuc vu: them, sua, xoa.
+  - Tuyen dung: quan ly tin tuyen dung; xem ho so ung vien, tai CV, doi trang thai, hen phong van,
+    tuyen ung vien thanh nhan vien.
 - File dung chung: `api.js` (goi API), `format.js` (nhan tieng Viet, dinh dang ngay/tien),
   `messages.js` (dich loi tu backend sang tieng Viet).
 
@@ -41,6 +43,8 @@ Chi tiet tung API: xem [API.md](API.md).
 | Nhan vien | `/employees`, `/employees/:id/avatar` | Co |
 | Hop dong lao dong | `/contracts` | Co |
 | Tuyen dung cong khai | `/public/jobs`, `/public/jobs/:id/applications` | Khong |
+| Quan ly tin tuyen dung | `/jobs` | Co |
+| Ho so ung vien | `/applications`, `/applications/:id/cv`, `/applications/:id/hire` | Co |
 
 - Vai tro: `ADMIN`, `HR_MANAGER`, `HR_STAFF` (middleware `requireAuth`, `requireRole`).
 - Danh sach hinh thuc lam viec dung chung: `backend/src/constants.js`.

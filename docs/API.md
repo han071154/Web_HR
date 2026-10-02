@@ -220,6 +220,96 @@ Success returns `201`:
 An email can apply again for the same job only after the previous application was `REJECTED`.
 CV files are stored in `backend/storage/cvs` (`CV_UPLOAD_DIR`), which is not served publicly.
 
+## Job postings (HR)
+
+Manage the postings shown on the public careers page. Only `OPEN` postings whose deadline has
+not passed appear publicly.
+
+| Method | Path | Roles |
+| --- | --- | --- |
+| GET | `/jobs?search=&status=&departmentId=` | Any authenticated role |
+| GET | `/jobs/:id` | Any authenticated role |
+| POST | `/jobs` | ADMIN, HR_MANAGER, HR_STAFF |
+| PUT | `/jobs/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| DELETE | `/jobs/:id` | ADMIN, HR_MANAGER |
+
+Create fields (`PUT` accepts any subset):
+
+```json
+{
+  "code": "JOB-ACC-02",
+  "title": "Nhân viên Kế toán",
+  "departmentId": "department-uuid-or-null",
+  "employmentType": "FULL_TIME",
+  "quantity": 2,
+  "salaryMin": 10000000,
+  "salaryMax": 15000000,
+  "experience": "Từ 1 năm",
+  "location": "123 Nguyễn Văn Linh, Quận 7",
+  "workingTime": "Thứ 2 – Thứ 6, 8:00 – 17:00",
+  "description": "At least 10 characters, one item per line",
+  "requirements": "Optional",
+  "benefits": "Optional",
+  "deadline": "2026-10-31",
+  "status": "DRAFT"
+}
+```
+
+- `code` is stored in uppercase and must be unique (`409 Job posting code already exists`).
+- `status`: `DRAFT`, `OPEN`, `CLOSED`. `salaryMin`/`salaryMax`/`deadline` accept `null`;
+  `salaryMax` must be greater than or equal to `salaryMin`.
+- Responses add `isOpen`, `applicationCount` and `newApplicationCount`.
+- A posting that already has applications cannot be deleted: `409 Job posting still has applications`.
+  Set `status` to `CLOSED` instead.
+
+## Applications (HR)
+
+| Method | Path | Roles |
+| --- | --- | --- |
+| GET | `/applications?jobId=&status=&search=` | Any authenticated role |
+| GET | `/applications/:id` | Any authenticated role |
+| GET | `/applications/:id/cv` | Any authenticated role (returns the PDF file) |
+| PATCH | `/applications/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| POST | `/applications/:id/hire` | ADMIN, HR_MANAGER, HR_STAFF |
+
+`search` matches name, email, phone or application code (`HS-000123` or `123`).
+
+Statuses: `NEW` → `REVIEWING` → `INTERVIEW` → `HIRED` or `REJECTED`.
+
+`PATCH` fields (all optional):
+
+```json
+{
+  "status": "INTERVIEW",
+  "interviewAt": "2026-10-10T09:00:00+07:00",
+  "note": "CV phù hợp, hẹn phỏng vấn vòng 1"
+}
+```
+
+- `status` accepts `NEW`, `REVIEWING`, `INTERVIEW`, `REJECTED`. `HIRED` is only set by `/hire`.
+- `interviewAt` must include a time zone (ISO 8601). `note` and `interviewAt` accept `null`.
+- A hired application cannot change status (`409 Hired application status cannot be changed`).
+
+`POST /applications/:id/hire` creates an employee from the application (name, email, phone) and
+marks the application `HIRED` in one transaction:
+
+```json
+{
+  "employeeCode": "NV010",
+  "hireDate": "2026-10-15",
+  "baseSalary": 9000000,
+  "departmentId": "optional, defaults to the job's department",
+  "positionId": "optional, defaults to the job title as position name",
+  "employmentType": "optional, defaults to the job's employment type"
+}
+```
+
+| Case | Status | Message |
+| --- | --- | --- |
+| Application already hired | 409 | `Application has already been hired` |
+| Application rejected | 409 | `Rejected application cannot be hired` |
+| Employee code or email already used | 409 | `Employee code already exists` / `Employee email already exists` |
+
 ## Error behavior
 
 - Validation errors return `400`.
