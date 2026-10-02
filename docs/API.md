@@ -46,6 +46,7 @@ A department that still has employees cannot be deleted: `DELETE` returns `409`
 | --- | --- | --- |
 | GET | `/employees?search=&status=` | Any authenticated role |
 | GET | `/employees/:id` | Any authenticated role |
+| GET | `/employees/:id/history` | Any authenticated role |
 | POST | `/employees` | ADMIN, HR_MANAGER, HR_STAFF |
 | PUT | `/employees/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | DELETE | `/employees/:id` | ADMIN, HR_MANAGER |
@@ -60,7 +61,9 @@ Create fields (`PUT` accepts any subset):
   "phone": "0901234567",
   "gender": "MALE",
   "dateOfBirth": "2000-05-20",
+  "idNumber": "079200001234",
   "departmentId": "department-uuid-or-null",
+  "managerId": "employee-uuid-or-null",
   "positionId": "position-uuid-or-null",
   "position": "Backend Developer",
   "employmentType": "FULL_TIME",
@@ -76,6 +79,28 @@ Create fields (`PUT` accepts any subset):
 - Renaming a position updates `position` on every employee linked to it. Deleting a position keeps
   the name on employees and sets their `positionId` to `null`.
 - Sending only a different `position` text on `PUT` unlinks the employee from the catalog.
+- `idNumber` (CCCD) is optional, 9 or 12 digits and unique (`409 ID number already exists`).
+- `managerId` is the direct manager (another employee, `400` if it is the employee itself).
+  Responses include `managerName`.
+
+`GET /employees/:id/history` returns the change history, newest first (up to 50):
+
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "action": "UPDATED",
+      "details": { "fields": { "phone": { "from": "0901000002", "to": "0912345678" } } },
+      "actorName": "Web HR Admin",
+      "createdAt": "2026-10-02T03:56:00.000Z"
+    }
+  ]
+}
+```
+
+Employee history actions: `CREATED`, `UPDATED`, `AVATAR_UPDATED`, `AVATAR_REMOVED`, `CONTRACT_ADDED`,
+`CONTRACT_UPDATED`, `CONTRACT_DELETED`.
 
 Employment types (shared with job postings): `FULL_TIME`, `PART_TIME`, `SHIFT`, `CONTRACT`, `INTERN`.
 
@@ -268,6 +293,8 @@ Create fields (`PUT` accepts any subset):
 - `status`: `DRAFT`, `OPEN`, `CLOSED`. `salaryMin`/`salaryMax`/`deadline` accept `null`;
   `salaryMax` must be greater than or equal to `salaryMin`.
 - Responses add `isOpen`, `applicationCount` and `newApplicationCount`.
+- An `OPEN` posting needs a deadline of today or later when it is created, opened or its deadline
+  changes (`400 Deadline must be today or later to open a job posting`).
 - A posting that already has applications cannot be deleted: `409 Job posting still has applications`.
   Set `status` to `CLOSED` instead.
 
@@ -276,14 +303,16 @@ Create fields (`PUT` accepts any subset):
 | Method | Path | Roles |
 | --- | --- | --- |
 | GET | `/applications?jobId=&status=&search=` | Any authenticated role |
-| GET | `/applications/:id` | Any authenticated role |
-| GET | `/applications/:id/cv` | Any authenticated role (returns the PDF file) |
+| GET | `/applications/:id` | Any authenticated role (adds `cvSize` and `history`) |
+| GET | `/applications/:id/cv` | Any authenticated role (PDF; `?inline=1` to preview in the browser) |
 | PATCH | `/applications/:id` | ADMIN, HR_MANAGER, HR_STAFF |
-| POST | `/applications/:id/hire` | ADMIN, HR_MANAGER, HR_STAFF |
+| POST | `/applications/:id/convert` | ADMIN, HR_MANAGER, HR_STAFF |
 
 `search` matches name, email, phone or application code (`HS-000123` or `123`).
+Each application has `viewedAt`: `null` until HR opens `GET /applications/:id` for the first time.
 
-Statuses: `NEW` → `REVIEWING` → `INTERVIEW` → `HIRED` or `REJECTED`.
+Statuses (Figma M-08c): `NEW` (Mới nộp) → `REVIEWING` (Đang xét) → `INTERVIEW` (Phỏng vấn) →
+`HIRED` (Đậu) or `REJECTED` (Trượt).
 
 `PATCH` fields (all optional):
 
@@ -295,29 +324,37 @@ Statuses: `NEW` → `REVIEWING` → `INTERVIEW` → `HIRED` or `REJECTED`.
 }
 ```
 
-- `status` accepts `NEW`, `REVIEWING`, `INTERVIEW`, `REJECTED`. `HIRED` is only set by `/hire`.
+- `INTERVIEW` needs an interview time (`400 Interview time is required for interview status`).
 - `interviewAt` must include a time zone (ISO 8601). `note` and `interviewAt` accept `null`.
-- A hired application cannot change status (`409 Hired application status cannot be changed`).
+- After the application was converted into an employee its status cannot change
+  (`409 Converted application status cannot be changed`).
 
-`POST /applications/:id/hire` creates an employee from the application (name, email, phone) and
-marks the application `HIRED` in one transaction:
+`POST /applications/:id/convert` (M-08e) only works for a `HIRED` application. In one transaction it
+creates the employee (name, email and phone from the application), the first `ACTIVE` contract
+(`HDLD-<employeeCode>-<year>`) and links the application to the employee:
 
 ```json
 {
   "employeeCode": "NV010",
   "hireDate": "2026-10-15",
   "baseSalary": 9000000,
+  "contractType": "PROBATION",
+  "contractEndDate": "2026-12-14",
   "departmentId": "optional, defaults to the job's department",
   "positionId": "optional, defaults to the job title as position name",
   "employmentType": "optional, defaults to the job's employment type"
 }
 ```
 
+`contractEndDate` is required (and on or after `hireDate`) unless `contractType` is `INDEFINITE`.
+
 | Case | Status | Message |
 | --- | --- | --- |
-| Application already hired | 409 | `Application has already been hired` |
-| Application rejected | 409 | `Rejected application cannot be hired` |
+| Application is not `HIRED` | 409 | `Only passed applications can be converted` |
+| Application already converted | 409 | `Application has already been converted` |
 | Employee code or email already used | 409 | `Employee code already exists` / `Employee email already exists` |
+
+Application history actions: `SUBMITTED`, `STATUS_CHANGED`, `INTERVIEW_SCHEDULED`, `NOTE_UPDATED`, `CONVERTED`.
 
 ## Error behavior
 

@@ -22,11 +22,12 @@ Chi tiet tung API: xem [API.md](API.md).
   - Chi tiet tin, nop ho so kem CV PDF.
 - Trang quan tri (`#login`, `#employees`, `#departments`, `#positions`, `#contracts`, `#recruitment`):
   - Dang nhap, ghi nho dang nhap, tu dang xuat khi token het han.
-  - Nhan su: danh sach, tim kiem, loc, phan trang, chi tiet (kem hop dong), them/sua, vo hieu hoa, xoa, avatar.
+  - Nhan su: danh sach, tim kiem, loc, phan trang, chi tiet (kem hop dong va lich su thay doi), them/sua (CCCD, quan ly truc tiep), vo hieu hoa, xoa, avatar.
   - Phong ban va chuc vu: them, sua, xoa.
   - Hop dong: danh sach toan cong ty, nhac hop dong sap het han; them/sua/xoa ngay tren trang chi tiet nhan vien.
-  - Tuyen dung: quan ly tin tuyen dung; xem ho so ung vien, tai CV, doi trang thai, hen phong van,
-    tuyen ung vien thanh nhan vien.
+  - Tuyen dung (Figma M-08a–e): quan ly tin (trang dang tin rieng, dong/mo lai), danh sach ho so (chip trang thai,
+    danh dau chua xem), trang chi tiet ho so (xem truoc CV, tien trinh, lich su), chuyen ung vien Dau thanh nhan su
+    kem hop dong dau tien.
 - File dung chung: `api.js` (goi API), `format.js` (nhan tieng Viet, dinh dang ngay/tien),
   `messages.js` (dich loi tu backend sang tieng Viet).
 
@@ -45,7 +46,7 @@ Chi tiet tung API: xem [API.md](API.md).
 | Hop dong lao dong | `/contracts` | Co |
 | Tuyen dung cong khai | `/public/jobs`, `/public/jobs/:id/applications` | Khong |
 | Quan ly tin tuyen dung | `/jobs` | Co |
-| Ho so ung vien | `/applications`, `/applications/:id/cv`, `/applications/:id/hire` | Co |
+| Ho so ung vien | `/applications`, `/applications/:id/cv`, `/applications/:id/convert` | Co |
 
 - Vai tro: `ADMIN`, `HR_MANAGER`, `HR_STAFF` (middleware `requireAuth`, `requireRole`).
 - Danh sach hinh thuc lam viec dung chung: `backend/src/constants.js`.
@@ -64,6 +65,7 @@ Chi tiet tung API: xem [API.md](API.md).
 | `employment_contracts` | Hop dong lao dong | `employee_id` -> `employees` (xoa nhan vien thi xoa hop dong) |
 | `job_postings` | Tin tuyen dung (`DRAFT`, `OPEN`, `CLOSED`) | `department_id` -> `departments` |
 | `applications` | Ho so ung vien nop tu trang tuyen dung | `job_posting_id` -> `job_postings`, `employee_id` -> `employees` |
+| `audit_logs` | Lich su thay doi (ai lam gi, luc nao) cua nhan vien va ho so ung vien | `entity_type` + `entity_id` |
 
 - Quy tac du lieu:
   - Khong xoa duoc phong ban con nhan vien (API tra `409`).
