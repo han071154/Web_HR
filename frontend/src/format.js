@@ -13,18 +13,13 @@ export const genderLabels = {
   OTHER: 'Khác'
 };
 
+// Hình thức làm việc, dùng chung cho hồ sơ nhân viên và tin tuyển dụng
+// (khớp EMPLOYMENT_TYPES trong backend/src/constants.js).
 export const employmentTypeLabels = {
   FULL_TIME: 'Toàn thời gian',
   PART_TIME: 'Bán thời gian',
-  CONTRACT: 'Hợp đồng',
-  INTERN: 'Thực tập'
-};
-
-// Hình thức làm việc ghi trên tin tuyển dụng (có thêm "Theo ca" cho vị trí xoay ca).
-export const jobTypeLabels = {
-  FULL_TIME: 'Toàn thời gian',
-  PART_TIME: 'Bán thời gian',
   SHIFT: 'Theo ca',
+  CONTRACT: 'Hợp đồng khoán',
   INTERN: 'Thực tập'
 };
 

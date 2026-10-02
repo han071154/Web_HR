@@ -1,5 +1,6 @@
 import express from 'express';
 import { z } from 'zod';
+import { EMPLOYMENT_TYPES } from '../constants.js';
 import { query } from '../db.js';
 import {
   avatarUpload,
@@ -23,7 +24,7 @@ const employeeSchema = z.object({
   // Chọn chức vụ từ danh mục (positionId) hoặc gõ tên tự do (position) — cần ít nhất một.
   positionId: z.string().uuid().optional().nullable(),
   position: z.string().min(2).max(120).optional(),
-  employmentType: z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN']),
+  employmentType: z.enum(EMPLOYMENT_TYPES),
   status: z.enum(['ACTIVE', 'ON_LEAVE', 'RESIGNED', 'TERMINATED']),
   hireDate: z.string().min(10),
   baseSalary: z.coerce.number().min(0),

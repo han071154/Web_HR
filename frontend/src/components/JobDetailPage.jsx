@@ -1,7 +1,7 @@
 import { ArrowLeft, BriefcaseBusiness, CalendarDays, GraduationCap, TriangleAlert, Wallet } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { daysUntil, formatDate, formatSalaryRange, jobTypeLabels } from '../format.js';
+import { daysUntil, employmentTypeLabels, formatDate, formatSalaryRange } from '../format.js';
 
 // Mô tả, yêu cầu, quyền lợi lưu mỗi ý một dòng → hiển thị thành danh sách gạch đầu dòng.
 function Bullets({ text }) {
@@ -102,7 +102,7 @@ export default function JobDetailPage({ jobId }) {
           <h1>{job.title}</h1>
           <div className="job-tags">
             <span className="job-tag">{job.departmentName || 'Chưa phân phòng ban'}</span>
-            <span className="job-tag">{jobTypeLabels[job.employmentType] || job.employmentType}</span>
+            <span className="job-tag">{employmentTypeLabels[job.employmentType] || job.employmentType}</span>
             <span className="job-tag">Số lượng: {job.quantity}</span>
             {job.deadline && <span className="job-tag warning">Hạn nộp: {formatDate(job.deadline)}</span>}
           </div>
@@ -152,7 +152,7 @@ export default function JobDetailPage({ jobId }) {
                 </span>
                 <div>
                   <small>Hình thức</small>
-                  <strong>{jobTypeLabels[job.employmentType] || job.employmentType}</strong>
+                  <strong>{employmentTypeLabels[job.employmentType] || job.employmentType}</strong>
                 </div>
               </li>
               <li>

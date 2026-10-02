@@ -324,7 +324,7 @@ export default function EmployeeForm({ employee, departments, positions, suggest
           </select>
         </label>
         <label>
-          <span>Loại hợp đồng</span>
+          <span>Hình thức làm việc</span>
           <select {...fieldProps('employmentType')}>
             {Object.entries(employmentTypeLabels).map(([value, label]) => (
               <option value={value} key={value}>

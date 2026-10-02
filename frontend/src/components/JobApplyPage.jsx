@@ -1,7 +1,7 @@
 import { ArrowLeft, CircleCheck, CloudUpload, FileText, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
-import { formatDate, jobTypeLabels } from '../format.js';
+import { employmentTypeLabels, formatDate } from '../format.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^0\d{9}$/;
@@ -235,7 +235,7 @@ export default function JobApplyPage({ jobId }) {
         <p className="apply-eyebrow">Ứng tuyển vị trí</p>
         <h1>{job.title}</h1>
         <p className="page-subtitle">
-          {job.departmentName || 'Chưa phân phòng ban'} · {jobTypeLabels[job.employmentType] || job.employmentType}
+          {job.departmentName || 'Chưa phân phòng ban'} · {employmentTypeLabels[job.employmentType] || job.employmentType}
         </p>
 
         {error && (

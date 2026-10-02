@@ -134,7 +134,7 @@ export default function EmployeeDetail({ employee, canDeactivate, onEdit, onDeac
               ['Phòng ban', employee.departmentName],
               ['Chức vụ', employee.position],
               ['Ngày vào làm', formatDate(employee.hireDate)],
-              ['Loại hợp đồng', employmentTypeLabels[employee.employmentType]],
+              ['Hình thức làm việc', employmentTypeLabels[employee.employmentType]],
               ['Lương cơ bản', formatMoney(employee.baseSalary)]
             ]}
           />

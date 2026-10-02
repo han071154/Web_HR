@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
-import { formatDate, formatSalaryRange, jobTypeLabels, normalizeText } from '../format.js';
+import { employmentTypeLabels, formatDate, formatSalaryRange, normalizeText } from '../format.js';
 
 const ABOUT = [
   {
@@ -50,7 +50,7 @@ function JobCard({ job, index }) {
         </div>
       </div>
       <div className="job-tags">
-        <span className="job-tag">{jobTypeLabels[job.employmentType] || job.employmentType}</span>
+        <span className="job-tag">{employmentTypeLabels[job.employmentType] || job.employmentType}</span>
         <span className="job-tag salary">{formatSalaryRange(job.salaryMin, job.salaryMax)}</span>
       </div>
       <p className="job-deadline">
@@ -109,7 +109,7 @@ export default function CareersHome() {
     jobs.forEach((job) => job.departmentId && map.set(job.departmentId, job.departmentName));
     return [...map].sort((a, b) => a[1].localeCompare(b[1], 'vi'));
   }, [jobs]);
-  const jobTypes = useMemo(() => Object.keys(jobTypeLabels).filter((type) => jobs.some((job) => job.employmentType === type)), [jobs]);
+  const jobTypes = useMemo(() => Object.keys(employmentTypeLabels).filter((type) => jobs.some((job) => job.employmentType === type)), [jobs]);
 
   // Lọc ngay khi gõ / chọn, giống các màn danh sách khác.
   const filteredJobs = useMemo(() => {
@@ -233,7 +233,7 @@ export default function CareersHome() {
             <option value="">Tất cả hình thức</option>
             {jobTypes.map((type) => (
               <option key={type} value={type}>
-                {jobTypeLabels[type]}
+                {employmentTypeLabels[type]}
               </option>
             ))}
           </select>

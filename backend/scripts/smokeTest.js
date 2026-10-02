@@ -263,7 +263,7 @@ async function main() {
         email: `position-${suffix}@webhr.local`,
         positionId,
         position: 'Ignored free text',
-        employmentType: 'FULL_TIME',
+        employmentType: 'SHIFT',
         status: 'ACTIVE',
         hireDate: '2026-01-01',
         baseSalary: 10000000

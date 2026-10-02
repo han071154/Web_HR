@@ -48,7 +48,7 @@ const fieldLabels = {
   departmentId: 'Phòng ban',
   positionId: 'Chức vụ',
   position: 'Chức vụ',
-  employmentType: 'Loại hợp đồng',
+  employmentType: 'Hình thức làm việc',
   status: 'Trạng thái',
   hireDate: 'Ngày vào làm',
   baseSalary: 'Lương cơ bản',
