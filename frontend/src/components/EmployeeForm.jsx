@@ -1,6 +1,6 @@
 import { Check, Upload } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { employmentTypeLabels, genderLabels, statusLabels, toDateInputValue } from '../format.js';
+import { employmentTypeLabels, genderLabels, statusLabels, toDateInputValue, todayInputValue } from '../format.js';
 import Avatar from './Avatar.jsx';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -20,14 +20,14 @@ const emptyEmployee = {
   position: '',
   employmentType: 'FULL_TIME',
   status: 'ACTIVE',
-  hireDate: new Date().toISOString().slice(0, 10),
+  hireDate: '',
   baseSalary: 0,
   address: ''
 };
 
 function toFormState(employee, suggestedCode) {
   if (!employee) {
-    return { ...emptyEmployee, employeeCode: suggestedCode || '' };
+    return { ...emptyEmployee, employeeCode: suggestedCode || '', hireDate: todayInputValue() };
   }
 
   return {

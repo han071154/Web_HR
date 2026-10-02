@@ -112,6 +112,12 @@ export function toDateInputValue(value) {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
+// Hôm nay theo giờ máy người dùng. Không dùng toISOString() vì đó là giờ UTC:
+// mở form lúc 0h–7h sáng ở Việt Nam sẽ ra ngày hôm qua.
+export function todayInputValue() {
+  return toDateInputValue(new Date());
+}
+
 function formatMillion(value) {
   return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(value / 1000000);
 }
