@@ -20,7 +20,9 @@ const employeeSchema = z.object({
   gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional().nullable(),
   dateOfBirth: z.string().optional().nullable(),
   departmentId: z.string().uuid().optional().nullable(),
-  position: z.string().min(2).max(120),
+  // Chọn chức vụ từ danh mục (positionId) hoặc gõ tên tự do (position) — cần ít nhất một.
+  positionId: z.string().uuid().optional().nullable(),
+  position: z.string().min(2).max(120).optional(),
   employmentType: z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN']),
   status: z.enum(['ACTIVE', 'ON_LEAVE', 'RESIGNED', 'TERMINATED']),
   hireDate: z.string().min(10),
@@ -28,7 +30,22 @@ const employeeSchema = z.object({
   address: z.string().optional().nullable()
 });
 
+const createEmployeeSchema = employeeSchema.refine((employee) => employee.positionId || employee.position, {
+  path: ['position'],
+  message: 'Position is required'
+});
 const updateEmployeeSchema = employeeSchema.partial();
+
+// Tên chức vụ lấy từ danh mục để employees.position luôn khớp với positions.name.
+async function getPositionName(positionId) {
+  const result = await query('SELECT name FROM positions WHERE id = $1', [positionId]);
+
+  if (!result.rows[0]) {
+    throw httpError(400, 'Selected position does not exist');
+  }
+
+  return result.rows[0].name;
+}
 
 function mapEmployee(row, req) {
   return {
@@ -41,6 +58,7 @@ function mapEmployee(row, req) {
     dateOfBirth: row.date_of_birth,
     departmentId: row.department_id,
     departmentName: row.department_name,
+    positionId: row.position_id,
     position: row.position,
     employmentType: row.employment_type,
     status: row.status,
@@ -108,14 +126,15 @@ router.get('/:id', async (req, res, next) => {
 
 router.post('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
   try {
-    const body = employeeSchema.parse(req.body);
+    const body = createEmployeeSchema.parse(req.body);
+    const positionName = body.positionId ? await getPositionName(body.positionId) : body.position;
     const result = await query(
       `INSERT INTO employees (
         employee_code, full_name, email, phone, gender, date_of_birth,
-        department_id, position, employment_type, status, hire_date,
+        department_id, position_id, position, employment_type, status, hire_date,
         base_salary, address
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`,
       [
         body.employeeCode,
@@ -125,7 +144,8 @@ router.post('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res
         body.gender || null,
         body.dateOfBirth || null,
         body.departmentId || null,
-        body.position,
+        body.positionId || null,
+        positionName,
         body.employmentType,
         body.status,
         body.hireDate,
@@ -158,13 +178,28 @@ router.put('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, r
       gender: Object.hasOwn(body, 'gender') ? body.gender : current.rows[0].gender,
       dateOfBirth: Object.hasOwn(body, 'dateOfBirth') ? body.dateOfBirth : current.rows[0].date_of_birth,
       departmentId: Object.hasOwn(body, 'departmentId') ? body.departmentId : current.rows[0].department_id,
-      position: Object.hasOwn(body, 'position') ? body.position : current.rows[0].position,
+      positionId: current.rows[0].position_id,
+      position: current.rows[0].position,
       employmentType: Object.hasOwn(body, 'employmentType') ? body.employmentType : current.rows[0].employment_type,
       status: Object.hasOwn(body, 'status') ? body.status : current.rows[0].status,
       hireDate: Object.hasOwn(body, 'hireDate') ? body.hireDate : current.rows[0].hire_date,
       baseSalary: Object.hasOwn(body, 'baseSalary') ? body.baseSalary : current.rows[0].base_salary,
       address: Object.hasOwn(body, 'address') ? body.address : current.rows[0].address
     };
+
+    // Có positionId thì lấy tên từ danh mục; chỉ gửi tên mới (khác tên cũ) thì bỏ liên kết.
+    if (Object.hasOwn(body, 'positionId') && body.positionId) {
+      merged.positionId = body.positionId;
+      merged.position = await getPositionName(body.positionId);
+    } else if (Object.hasOwn(body, 'positionId') || Object.hasOwn(body, 'position')) {
+      const position = body.position ?? merged.position;
+
+      if (Object.hasOwn(body, 'positionId') || position !== merged.position) {
+        merged.positionId = null;
+      }
+
+      merged.position = position;
+    }
 
     await query(
       `UPDATE employees
@@ -181,8 +216,9 @@ router.put('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, r
            hire_date = $11,
            base_salary = $12,
            address = $13,
+           position_id = $14,
            updated_at = NOW()
-       WHERE id = $14`,
+       WHERE id = $15`,
       [
         merged.employeeCode,
         merged.fullName,
@@ -197,6 +233,7 @@ router.put('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, r
         merged.hireDate,
         merged.baseSalary,
         merged.address,
+        merged.positionId,
         req.params.id
       ]
     );

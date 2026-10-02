@@ -141,6 +141,7 @@ async function main() {
   const suffix = Date.now().toString().slice(-8);
   let departmentId;
   let positionId;
+  let linkedEmployeeId;
   let contractId;
 
   try {
@@ -234,6 +235,50 @@ async function main() {
     });
     positionId = position.data.id;
 
+    // Nhân viên gắn với chức vụ trong danh mục: đổi tên chức vụ thì hồ sơ đổi theo.
+    const linkedEmployee = await request('/employees', {
+      token: staffToken,
+      method: 'POST',
+      expected: 201,
+      body: {
+        employeeCode: `POS-${suffix}`,
+        fullName: 'Smoke Position Link',
+        email: `position-${suffix}@webhr.local`,
+        positionId,
+        position: 'Ignored free text',
+        employmentType: 'FULL_TIME',
+        status: 'ACTIVE',
+        hireDate: '2026-01-01',
+        baseSalary: 10000000
+      }
+    });
+    linkedEmployeeId = linkedEmployee.data.id;
+    assert.equal(linkedEmployee.data.positionId, positionId);
+    assert.equal(linkedEmployee.data.position, `QA Engineer ${suffix}`);
+
+    await request(`/positions/${positionId}`, {
+      token: managerToken,
+      method: 'PUT',
+      body: { name: `QA Lead ${suffix}` }
+    });
+    const renamedEmployee = await request(`/employees/${linkedEmployeeId}`, { token: staffToken });
+    assert.equal(renamedEmployee.data.position, `QA Lead ${suffix}`);
+
+    await request('/employees', {
+      token: staffToken,
+      method: 'POST',
+      expected: 400,
+      body: {
+        employeeCode: `NOPOS-${suffix}`,
+        fullName: 'Smoke Missing Position',
+        email: `nopos-${suffix}@webhr.local`,
+        employmentType: 'FULL_TIME',
+        status: 'ACTIVE',
+        hireDate: '2026-01-01',
+        baseSalary: 0
+      }
+    });
+
     const updatedPosition = await request(`/positions/${positionId}`, {
       token: managerToken,
       method: 'PUT',
@@ -297,6 +342,14 @@ async function main() {
   } finally {
     if (contractId) {
       await request(`/contracts/${contractId}`, {
+        token: managerToken,
+        method: 'DELETE',
+        expected: 204
+      }).catch(() => undefined);
+    }
+
+    if (linkedEmployeeId) {
+      await request(`/employees/${linkedEmployeeId}`, {
         token: managerToken,
         method: 'DELETE',
         expected: 204

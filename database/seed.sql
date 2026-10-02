@@ -181,3 +181,11 @@ FROM (
 )
 LEFT JOIN departments d ON d.name = job.department_name
 ON CONFLICT (code) DO UPDATE SET deadline = EXCLUDED.deadline, status = EXCLUDED.status;
+
+-- Gắn chức vụ dạng chữ của các nhân viên cũ vào danh mục chức vụ cùng tên (chạy lại không sao).
+UPDATE employees e
+SET position_id = (
+  SELECT p.id FROM positions p WHERE p.name = e.position ORDER BY p.created_at LIMIT 1
+)
+WHERE e.position_id IS NULL
+  AND EXISTS (SELECT 1 FROM positions p WHERE p.name = e.position);

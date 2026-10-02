@@ -132,6 +132,13 @@ router.put('/:id', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) =>
         req.params.id
       ]
     );
+    // Đổi tên chức vụ thì hồ sơ nhân viên đang giữ chức vụ này cũng đổi theo.
+    await query(
+      `UPDATE employees
+       SET position = $1, updated_at = NOW()
+       WHERE position_id = $2 AND position <> $1`,
+      [position.name, req.params.id]
+    );
     const updated = await query(`${positionSelectSql} WHERE p.id = $1`, [req.params.id]);
 
     res.json({ data: mapPosition(updated.rows[0]) });

@@ -16,6 +16,7 @@ const emptyEmployee = {
   gender: '',
   dateOfBirth: '',
   departmentId: '',
+  positionId: '',
   position: '',
   employmentType: 'FULL_TIME',
   status: 'ACTIVE',
@@ -34,6 +35,7 @@ function toFormState(employee, suggestedCode) {
     phone: employee.phone || '',
     gender: employee.gender || '',
     departmentId: employee.departmentId || '',
+    positionId: employee.positionId || '',
     address: employee.address || '',
     dateOfBirth: toDateInputValue(employee.dateOfBirth),
     hireDate: toDateInputValue(employee.hireDate)
@@ -100,27 +102,52 @@ export default function EmployeeForm({ employee, departments, positions, suggest
 
   // Chức vụ: chỉ hiện chức vụ của phòng ban đang chọn (và chức vụ dùng chung).
   // Phòng ban chưa có chức vụ nào thì hiện tất cả để vẫn chọn được.
+  // Mỗi lựa chọn có value là id chức vụ; chức vụ cũ chưa có trong danh mục dùng value "name:<tên>".
   const positionOptions = useMemo(() => {
     const active = positions.filter((position) => position.isActive !== false);
     const inDepartment = active.filter(
       (position) => !form.departmentId || !position.departmentId || position.departmentId === form.departmentId
     );
-    const names = (inDepartment.length ? inDepartment : active).map((position) => position.name);
+    const options = (inDepartment.length ? inDepartment : active).map((position) => ({
+      value: position.id,
+      label: position.name
+    }));
 
-    // Chức vụ cũ của nhân viên đã bị xóa khỏi danh mục thì vẫn giữ để không mất dữ liệu.
-    if (employee?.position && !active.some((position) => position.name === employee.position)) {
-      names.unshift(employee.position);
+    // Chức vụ đang giữ đã ngừng dùng vẫn hiện để sửa hồ sơ không bị mất chức vụ.
+    const linked = positions.find((position) => position.id === employee?.positionId);
+
+    if (linked && !options.some((option) => option.value === linked.id)) {
+      options.unshift({ value: linked.id, label: linked.name });
     }
 
-    return [...new Set(names)];
+    // Chức vụ gõ tay từ trước (chưa liên kết danh mục) thì vẫn giữ để không mất dữ liệu.
+    if (employee?.position && !employee.positionId) {
+      options.unshift({ value: `name:${employee.position}`, label: employee.position });
+    }
+
+    return options;
   }, [positions, form.departmentId, employee]);
+
+  const positionValue = form.positionId || (form.position ? `name:${form.position}` : '');
 
   // Đổi phòng ban mà chức vụ đang chọn không thuộc phòng mới thì bỏ chọn.
   useEffect(() => {
-    if (form.position && positionOptions.length && !positionOptions.includes(form.position)) {
-      setForm((current) => ({ ...current, position: '' }));
+    if (positionValue && positionOptions.length && !positionOptions.some((option) => option.value === positionValue)) {
+      setForm((current) => ({ ...current, positionId: '', position: '' }));
     }
-  }, [form.position, positionOptions]);
+  }, [positionValue, positionOptions]);
+
+  function handlePositionChange(event) {
+    const { value } = event.target;
+    const option = positionOptions.find((item) => item.value === value);
+
+    setForm((current) => ({
+      ...current,
+      positionId: value.startsWith('name:') ? '' : value,
+      position: option?.label || ''
+    }));
+    setErrors((current) => (current.position ? { ...current, position: undefined } : current));
+  }
 
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -167,7 +194,8 @@ export default function EmployeeForm({ employee, departments, positions, suggest
         email: form.email.trim(),
         phone: form.phone.trim(),
         baseSalary: Number(form.baseSalary) || 0,
-        address: form.address.trim() || null
+        address: form.address.trim() || null,
+        positionId: form.positionId || null
       },
       avatarFile
     );
@@ -264,11 +292,16 @@ export default function EmployeeForm({ employee, departments, positions, suggest
         </label>
         <label>
           <span>Chức vụ <em className="required">*</em></span>
-          <select {...fieldProps('position')}>
+          <select
+            value={positionValue}
+            onChange={handlePositionChange}
+            className={errors.position ? 'invalid' : undefined}
+            aria-invalid={Boolean(errors.position)}
+          >
             <option value="">Chọn chức vụ</option>
-            {positionOptions.map((name) => (
-              <option value={name} key={name}>
-                {name}
+            {positionOptions.map((option) => (
+              <option value={option.value} key={option.value}>
+                {option.label}
               </option>
             ))}
           </select>

@@ -56,6 +56,11 @@ CREATE TABLE IF NOT EXISTS positions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Chức vụ của nhân viên liên kết với danh mục chức vụ. Cột employees.position vẫn giữ tên
+-- chức vụ (đổi tên chức vụ thì API cập nhật theo; xóa chức vụ thì nhân viên giữ tên cũ).
+ALTER TABLE employees
+  ADD COLUMN IF NOT EXISTS position_id UUID REFERENCES positions(id) ON DELETE SET NULL;
+
 CREATE TABLE IF NOT EXISTS employment_contracts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   contract_number VARCHAR(60) NOT NULL UNIQUE,
@@ -75,6 +80,7 @@ CREATE INDEX IF NOT EXISTS idx_employees_department_id ON employees(department_i
 CREATE INDEX IF NOT EXISTS idx_employees_status ON employees(status);
 CREATE INDEX IF NOT EXISTS idx_employees_full_name ON employees(full_name);
 CREATE INDEX IF NOT EXISTS idx_positions_department_id ON positions(department_id);
+CREATE INDEX IF NOT EXISTS idx_employees_position_id ON employees(position_id);
 CREATE INDEX IF NOT EXISTS idx_contracts_employee_id ON employment_contracts(employee_id);
 CREATE INDEX IF NOT EXISTS idx_contracts_status ON employment_contracts(status);
 
