@@ -460,14 +460,44 @@ async function main() {
     contractId = contract.data.id;
     assert.equal(contract.data.startDate, '2026-01-01');
 
+    // Hợp đồng xác định thời hạn bắt buộc có ngày kết thúc; không thời hạn thì không được có.
+    await request(`/contracts/${contractId}`, {
+      token: staffToken,
+      method: 'PUT',
+      expected: 400,
+      body: { endDate: null }
+    });
+    await request(`/contracts/${contractId}`, {
+      token: staffToken,
+      method: 'PUT',
+      expected: 400,
+      body: { contractType: 'INDEFINITE' }
+    });
+
     const updatedContract = await request(`/contracts/${contractId}`, {
       token: staffToken,
       method: 'PUT',
-      body: { endDate: null, notes: null }
+      body: { contractType: 'INDEFINITE', endDate: null, notes: null }
     });
     assert.equal(updatedContract.data.endDate, null);
     assert.equal(updatedContract.data.notes, null);
     await request(`/contracts/${contractId}`, { token: managerToken });
+
+    // Mỗi nhân viên chỉ có một hợp đồng đang hiệu lực.
+    await request('/contracts', {
+      token: staffToken,
+      method: 'POST',
+      expected: 409,
+      body: {
+        contractNumber: `HDLD-TEST2-${suffix}`,
+        employeeId: employee.id,
+        contractType: 'PROBATION',
+        startDate: '2026-01-01',
+        endDate: '2026-02-28',
+        salary: 15000000,
+        status: 'ACTIVE'
+      }
+    });
 
     const avatarForm = new FormData();
     const png = Buffer.from(

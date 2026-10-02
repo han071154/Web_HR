@@ -53,7 +53,8 @@ app.use((error, _req, res, _next) => {
     positions_code_key: 'Position code already exists',
     employment_contracts_contract_number_key: 'Contract number already exists',
     applications_active_email_job_key: 'You have already applied for this job',
-    job_postings_code_key: 'Job posting code already exists'
+    job_postings_code_key: 'Job posting code already exists',
+    employment_contracts_one_active_key: 'Employee already has an active contract'
   };
   const isValidationError = error.name === 'ZodError';
   const isDuplicate = error.code === '23505';

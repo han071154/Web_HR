@@ -83,6 +83,10 @@ CREATE INDEX IF NOT EXISTS idx_positions_department_id ON positions(department_i
 CREATE INDEX IF NOT EXISTS idx_employees_position_id ON employees(position_id);
 CREATE INDEX IF NOT EXISTS idx_contracts_employee_id ON employment_contracts(employee_id);
 CREATE INDEX IF NOT EXISTS idx_contracts_status ON employment_contracts(status);
+-- Mỗi nhân viên chỉ có một hợp đồng đang hiệu lực (API cũng kiểm tra trước để báo lỗi rõ ràng).
+CREATE UNIQUE INDEX IF NOT EXISTS employment_contracts_one_active_key
+  ON employment_contracts (employee_id)
+  WHERE status = 'ACTIVE';
 
 -- Tuyển dụng: tin tuyển dụng công khai và hồ sơ ứng viên nộp từ trang /#/viec-lam.
 CREATE TABLE IF NOT EXISTS job_postings (

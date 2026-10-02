@@ -27,7 +27,42 @@ const contractSchema = contractFieldsSchema.superRefine((contract, context) => {
       message: 'End date must be on or after start date'
     });
   }
+
+  // Hợp đồng không thời hạn thì không có ngày kết thúc; các loại còn lại bắt buộc có.
+  if (contract.contractType === 'INDEFINITE' && contract.endDate) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['endDate'],
+      message: 'Indefinite contracts must not have an end date'
+    });
+  }
+
+  if (contract.contractType !== 'INDEFINITE' && !contract.endDate) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['endDate'],
+      message: 'End date is required for this contract type'
+    });
+  }
 });
+
+// Mỗi nhân viên chỉ có một hợp đồng đang hiệu lực; muốn ký hợp đồng mới thì chuyển hợp đồng cũ
+// sang Hết hạn / Đã chấm dứt trước.
+async function ensureSingleActiveContract(contract, excludeId = null) {
+  if (contract.status !== 'ACTIVE') {
+    return;
+  }
+
+  const result = await query(
+    `SELECT contract_number FROM employment_contracts
+     WHERE employee_id = $1 AND status = 'ACTIVE' AND ($2::uuid IS NULL OR id <> $2)`,
+    [contract.employeeId, excludeId]
+  );
+
+  if (result.rows[0]) {
+    throw httpError(409, 'Employee already has an active contract');
+  }
+}
 
 const contractSelectSql = `
   SELECT
@@ -110,6 +145,7 @@ router.get('/:id', async (req, res, next) => {
 router.post('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
   try {
     const body = contractSchema.parse(req.body);
+    await ensureSingleActiveContract(body);
     const result = await query(
       `INSERT INTO employment_contracts (
         contract_number, employee_id, contract_type, start_date, end_date,
@@ -158,6 +194,7 @@ router.put('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, r
       status: Object.hasOwn(body, 'status') ? body.status : row.status,
       notes: Object.hasOwn(body, 'notes') ? body.notes : row.notes
     });
+    await ensureSingleActiveContract(contract, req.params.id);
 
     await query(
       `UPDATE employment_contracts
