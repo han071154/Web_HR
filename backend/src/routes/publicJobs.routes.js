@@ -2,6 +2,7 @@ import express from 'express';
 import { z } from 'zod';
 import { query } from '../db.js';
 import { cvUpload, isPdfFile, removeCvFile } from '../middleware/cvUpload.js';
+import { applicationCode } from '../utils/applicationCode.js';
 import { httpError } from '../utils/httpError.js';
 
 // API công khai cho trang tuyển dụng: không cần đăng nhập.
@@ -65,10 +66,6 @@ function mapJobDetail(row) {
     requirements: row.requirements,
     benefits: row.benefits
   };
-}
-
-function applicationCode(applicationNo) {
-  return `HS-${String(applicationNo).padStart(6, '0')}`;
 }
 
 function checkApplyLimit(ip) {

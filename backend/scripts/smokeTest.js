@@ -132,6 +132,142 @@ async function recruitmentChecks(suffix) {
   }
 }
 
+// Quy trình tuyển dụng phía HR: tạo tin → ứng viên nộp → xét → phỏng vấn → tuyển thành nhân viên.
+async function hrRecruitmentChecks({ managerToken, staffToken }, suffix) {
+  const email = `hire-${suffix}@example.com`;
+  const pdf = { content: '%PDF-1.4\n% hire smoke test\n', type: 'application/pdf', name: 'cv-tuyen-dung.pdf' };
+  let jobId;
+  let employeeId;
+
+  try {
+    const job = await request('/jobs', {
+      token: staffToken,
+      method: 'POST',
+      expected: 201,
+      body: {
+        code: `job-smoke-${suffix}`,
+        title: `Nhân viên Kho Smoke ${suffix}`,
+        employmentType: 'SHIFT',
+        quantity: 2,
+        salaryMin: 8000000,
+        salaryMax: 10000000,
+        description: 'Temporary smoke test job posting',
+        status: 'DRAFT'
+      }
+    });
+    jobId = job.data.id;
+    assert.equal(job.data.code, `JOB-SMOKE-${suffix}`);
+    assert.equal(job.data.isOpen, false);
+    assert.equal(job.data.applicationCount, 0);
+
+    await request('/jobs', {
+      token: staffToken,
+      method: 'POST',
+      expected: 400,
+      body: { ...job.data, code: `BAD-${suffix}`, salaryMin: 9000000, salaryMax: 1000000 }
+    });
+
+    // Tin nháp không hiện ở trang công khai; mở tin thì hiện.
+    await request(`/public/jobs/${jobId}`, { expected: 404 });
+    const opened = await request(`/jobs/${jobId}`, { token: staffToken, method: 'PUT', body: { status: 'OPEN' } });
+    assert.equal(opened.data.isOpen, true);
+
+    const applied = await request(`/public/jobs/${jobId}/applications`, {
+      method: 'POST',
+      expected: 201,
+      form: applicationForm(
+        { fullName: 'Ung Vien Trung Tuyen', email, phone: '0987654321', consent: 'true' },
+        pdf
+      )
+    });
+
+    const list = await request(`/applications?jobId=${jobId}`, { token: staffToken });
+    assert.equal(list.data.length, 1);
+    const applicationId = list.data[0].id;
+    assert.equal(list.data[0].applicationCode, applied.data.applicationCode);
+    const searched = await request(`/applications?search=${applied.data.applicationCode}`, { token: staffToken });
+    assert.ok(searched.data.some((item) => item.id === applicationId));
+
+    const cvResponse = await fetch(`${apiUrl}/applications/${applicationId}/cv`, {
+      headers: { Authorization: `Bearer ${staffToken}` }
+    });
+    assert.equal(cvResponse.status, 200);
+    assert.match(cvResponse.headers.get('content-type'), /pdf/);
+    assert.ok((await cvResponse.text()).startsWith('%PDF'));
+    await request(`/applications/${applicationId}/cv`, { expected: 401 });
+
+    const reviewing = await request(`/applications/${applicationId}`, {
+      token: staffToken,
+      method: 'PATCH',
+      body: { status: 'REVIEWING', note: 'CV phù hợp' }
+    });
+    assert.equal(reviewing.data.status, 'REVIEWING');
+    const interview = await request(`/applications/${applicationId}`, {
+      token: staffToken,
+      method: 'PATCH',
+      body: { status: 'INTERVIEW', interviewAt: '2026-10-10T09:00:00+07:00' }
+    });
+    assert.equal(interview.data.note, 'CV phù hợp');
+    assert.equal(new Date(interview.data.interviewAt).toISOString(), '2026-10-10T02:00:00.000Z');
+    await request(`/applications/${applicationId}`, {
+      token: staffToken,
+      method: 'PATCH',
+      expected: 400,
+      body: { status: 'HIRED' }
+    });
+
+    await request(`/jobs/${jobId}`, { token: staffToken, method: 'DELETE', expected: 403 });
+    await request(`/jobs/${jobId}`, { token: managerToken, method: 'DELETE', expected: 409 });
+
+    const hired = await request(`/applications/${applicationId}/hire`, {
+      token: staffToken,
+      method: 'POST',
+      expected: 201,
+      body: { employeeCode: `HIRE-${suffix}`, hireDate: '2026-10-15', baseSalary: 9000000 }
+    });
+    assert.equal(hired.data.status, 'HIRED');
+    assert.equal(hired.data.employeeCode, `HIRE-${suffix}`);
+    employeeId = hired.data.employeeId;
+
+    const employee = await request(`/employees/${employeeId}`, { token: staffToken });
+    assert.equal(employee.data.email, email);
+    assert.equal(employee.data.phone, '0987654321');
+    assert.equal(employee.data.position, `Nhân viên Kho Smoke ${suffix}`);
+    assert.equal(employee.data.employmentType, 'SHIFT');
+    assert.equal(employee.data.hireDate, '2026-10-15');
+
+    await request(`/applications/${applicationId}/hire`, {
+      token: staffToken,
+      method: 'POST',
+      expected: 409,
+      body: { employeeCode: `HIRE2-${suffix}`, hireDate: '2026-10-15' }
+    });
+    await request(`/applications/${applicationId}`, {
+      token: staffToken,
+      method: 'PATCH',
+      expected: 409,
+      body: { status: 'REJECTED' }
+    });
+
+    const jobAfter = await request(`/jobs/${jobId}`, { token: staffToken });
+    assert.equal(jobAfter.data.applicationCount, 1);
+  } finally {
+    const removed = await query('DELETE FROM applications WHERE email = $1 RETURNING cv_path', [email]);
+
+    for (const row of removed.rows) {
+      await removeCvFile(row.cv_path);
+    }
+
+    if (employeeId) {
+      await query('DELETE FROM employees WHERE id = $1', [employeeId]);
+    }
+
+    if (jobId) {
+      await query('DELETE FROM job_postings WHERE id = $1', [jobId]);
+    }
+  }
+}
+
 async function main() {
   const [adminToken, managerToken, staffToken] = await Promise.all([
     login('admin@webhr.local', 'admin123'),
@@ -354,6 +490,7 @@ async function main() {
     });
 
     await recruitmentChecks(suffix);
+    await hrRecruitmentChecks({ managerToken, staffToken }, suffix);
 
     console.log('API smoke test passed.');
   } finally {

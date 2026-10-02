@@ -5,10 +5,12 @@ import morgan from 'morgan';
 import path from 'node:path';
 import { config } from './config.js';
 import { requireAuth } from './middleware/auth.js';
+import applicationRoutes from './routes/applications.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import contractRoutes from './routes/contracts.routes.js';
 import departmentRoutes from './routes/departments.routes.js';
 import employeeRoutes from './routes/employees.routes.js';
+import jobPostingRoutes from './routes/jobPostings.routes.js';
 import positionRoutes from './routes/positions.routes.js';
 import publicJobRoutes from './routes/publicJobs.routes.js';
 
@@ -36,6 +38,8 @@ app.use('/api/departments', requireAuth, departmentRoutes);
 app.use('/api/employees', requireAuth, employeeRoutes);
 app.use('/api/positions', requireAuth, positionRoutes);
 app.use('/api/contracts', requireAuth, contractRoutes);
+app.use('/api/jobs', requireAuth, jobPostingRoutes);
+app.use('/api/applications', requireAuth, applicationRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
@@ -48,7 +52,8 @@ app.use((error, _req, res, _next) => {
     employees_email_key: 'Employee email already exists',
     positions_code_key: 'Position code already exists',
     employment_contracts_contract_number_key: 'Contract number already exists',
-    applications_active_email_job_key: 'You have already applied for this job'
+    applications_active_email_job_key: 'You have already applied for this job',
+    job_postings_code_key: 'Job posting code already exists'
   };
   const isValidationError = error.name === 'ZodError';
   const isDuplicate = error.code === '23505';
