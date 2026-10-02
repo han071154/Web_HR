@@ -1,6 +1,7 @@
 import {
   BriefcaseBusiness,
   Building2,
+  ClipboardList,
   Download,
   Eye,
   LogOut,
@@ -22,6 +23,7 @@ import EmployeeForm from './components/EmployeeForm.jsx';
 import LoginPage from './components/LoginPage.jsx';
 import Pagination from './components/Pagination.jsx';
 import PositionsPanel from './components/PositionsPanel.jsx';
+import RecruitmentPanel from './components/RecruitmentPanel.jsx';
 import Toast from './components/Toast.jsx';
 import { normalizeText, roleLabels, statusLabels } from './format.js';
 
@@ -31,12 +33,13 @@ const DELETE_ROLES = ['ADMIN', 'HR_MANAGER'];
 
 const PAGE_SIZE = 10;
 
-const VIEWS = ['employees', 'departments', 'positions'];
+const VIEWS = ['employees', 'departments', 'positions', 'recruitment'];
 
 const pageTitles = {
   employees: { title: 'Danh sách nhân sự', subtitle: 'Quản lý hồ sơ nhân viên của công ty' },
   departments: { title: 'Phòng ban', subtitle: 'Quản lý danh mục phòng ban' },
-  positions: { title: 'Chức vụ', subtitle: 'Quản lý danh mục chức vụ' }
+  positions: { title: 'Chức vụ', subtitle: 'Quản lý danh mục chức vụ' },
+  recruitment: { title: 'Tuyển dụng', subtitle: 'Quản lý tin tuyển dụng và hồ sơ ứng viên' }
 };
 
 function viewFromHash() {
@@ -507,6 +510,10 @@ function Dashboard({ user, onLogout }) {
             <BriefcaseBusiness size={18} aria-hidden="true" />
             Chức vụ
           </a>
+          <a className={`nav-item${view === 'recruitment' ? ' active' : ''}`} href="#recruitment">
+            <ClipboardList size={18} aria-hidden="true" />
+            Tuyển dụng
+          </a>
         </nav>
         <div className="sidebar-footer">
           <Avatar name={user?.fullName || user?.email} size="small" />
@@ -538,8 +545,17 @@ function Dashboard({ user, onLogout }) {
             onChanged={loadData}
             showToast={showToast}
           />
-        ) : (
+        ) : view === 'positions' ? (
           <PositionsPanel user={user} departments={departments} showToast={showToast} />
+        ) : (
+          <RecruitmentPanel
+            user={user}
+            departments={departments}
+            positions={positions}
+            suggestedCode={suggestedCode}
+            onEmployeesChanged={loadData}
+            showToast={showToast}
+          />
         )}
       </section>
 

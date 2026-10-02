@@ -26,7 +26,14 @@ const exactMessages = {
   'Employment contract not found': 'Không tìm thấy hợp đồng.',
   'Contract number already exists': 'Số hợp đồng đã tồn tại. Vui lòng dùng số khác.',
   'Avatar file is required in the avatar field': 'Vui lòng chọn ảnh đại diện.',
-  'Avatar must be a JPEG, PNG, or WebP image': 'Ảnh đại diện phải là file JPG, PNG hoặc WebP.'
+  'Avatar must be a JPEG, PNG, or WebP image': 'Ảnh đại diện phải là file JPG, PNG hoặc WebP.',
+  'Job posting code already exists': 'Mã tin tuyển dụng đã tồn tại. Vui lòng dùng mã khác.',
+  'Job posting still has applications': 'Tin đã có hồ sơ ứng tuyển nên không xóa được. Hãy chuyển tin sang "Đã đóng".',
+  'Application not found': 'Không tìm thấy hồ sơ ứng viên.',
+  'CV file not found': 'Không tìm thấy file CV trên máy chủ.',
+  'Hired application status cannot be changed': 'Hồ sơ đã trúng tuyển nên không đổi trạng thái được.',
+  'Application has already been hired': 'Hồ sơ này đã được tuyển thành nhân viên.',
+  'Rejected application cannot be hired': 'Hồ sơ đã bị loại nên không tuyển được. Hãy đổi trạng thái trước.'
 };
 
 // Giới hạn dung lượng lấy từ cấu hình backend nên số MB có thể thay đổi.
@@ -62,7 +69,19 @@ const fieldLabels = {
   endDate: 'Ngày kết thúc',
   signedDate: 'Ngày ký',
   salary: 'Mức lương',
-  notes: 'Ghi chú'
+  notes: 'Ghi chú',
+  title: 'Tiêu đề',
+  quantity: 'Số lượng',
+  salaryMin: 'Lương từ',
+  salaryMax: 'Lương đến',
+  experience: 'Kinh nghiệm',
+  location: 'Địa điểm',
+  workingTime: 'Thời gian làm việc',
+  requirements: 'Yêu cầu',
+  benefits: 'Quyền lợi',
+  deadline: 'Hạn nộp',
+  note: 'Ghi chú',
+  interviewAt: 'Lịch phỏng vấn'
 };
 
 const statusMessages = {

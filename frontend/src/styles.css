@@ -1057,6 +1057,17 @@ table.positions-table {
   background: var(--secondary-light);
 }
 
+/* Trạng thái hồ sơ ứng viên: Mới = Primary nhạt, Phỏng vấn = Primary (Đang xét dùng Warning, Trúng tuyển Success, Loại Danger) */
+.status-new {
+  color: var(--primary-light-text);
+  background: var(--primary-light);
+}
+
+.status-interview {
+  color: #ffffff;
+  background: var(--primary);
+}
+
 .count-pill {
   min-width: 32px;
   justify-content: center;
@@ -1199,6 +1210,95 @@ img.avatar {
   color: #a3b0bf;
   font-weight: 400;
   font-style: italic;
+}
+
+/* ---------- Tuyển dụng phía HR ---------- */
+.tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.tab-bar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--control-height);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-control);
+  padding: 6px 14px;
+  color: var(--text);
+  background: var(--card-bg);
+  font-weight: 700;
+}
+
+.tab-bar button.active {
+  border-color: var(--primary);
+  color: #ffffff;
+  background: var(--primary);
+}
+
+.tab-bar button.active .count-pill {
+  color: var(--primary);
+  background: #ffffff;
+}
+
+.panel-form,
+.application-detail,
+.hire-form,
+.process-form {
+  display: grid;
+  gap: 16px;
+}
+
+.panel-form,
+.application-detail {
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 20px;
+}
+
+.application-detail h3,
+.hire-form h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--heading);
+}
+
+.application-detail .section-header {
+  align-items: flex-start;
+}
+
+.hire-form,
+.process-form {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.application-actions {
+  justify-content: flex-start;
+}
+
+.cover-letter {
+  font-weight: 400;
+  white-space: pre-line;
+}
+
+.row-selected td {
+  background: var(--primary-light);
+}
+
+table.jobs-table {
+  min-width: 860px;
+}
+
+table.applications-table {
+  min-width: 760px;
 }
 
 /* ---------- Thông báo toast ---------- */

@@ -23,6 +23,21 @@ export const employmentTypeLabels = {
   INTERN: 'Thực tập'
 };
 
+export const jobStatusLabels = {
+  DRAFT: 'Nháp',
+  OPEN: 'Đang tuyển',
+  CLOSED: 'Đã đóng'
+};
+
+// Thứ tự xử lý hồ sơ ứng viên: Mới → Đang xét → Phỏng vấn → Trúng tuyển / Loại.
+export const applicationStatusLabels = {
+  NEW: 'Mới',
+  REVIEWING: 'Đang xét',
+  INTERVIEW: 'Phỏng vấn',
+  HIRED: 'Trúng tuyển',
+  REJECTED: 'Loại'
+};
+
 export const contractTypeLabels = {
   PROBATION: 'Thử việc',
   FIXED_TERM: 'Xác định thời hạn',
@@ -92,6 +107,31 @@ export function formatDate(value) {
   }
 
   return toLocalDate(value).toLocaleDateString('vi-VN');
+}
+
+// Ngày giờ theo giờ máy người dùng: "10/10/2026 09:00".
+export function formatDateTime(value) {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+  return `${date.toLocaleDateString('vi-VN')} ${time}`;
+}
+
+// Giá trị cho <input type="datetime-local">: "YYYY-MM-DDTHH:mm" theo giờ địa phương.
+export function toDateTimeInputValue(value) {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  return `${toDateInputValue(date)}T${hours}:${minutes}`;
 }
 
 // Giá trị cho <input type="date">: luôn là "YYYY-MM-DD" theo giờ địa phương.

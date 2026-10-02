@@ -47,11 +47,13 @@ async function request(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
+  // blob: true khi tải file (CV) cần gửi kèm token, không mở thẳng bằng link được.
+  const { blob, ...fetchOptions } = options;
   let response;
 
   try {
     response = await fetch(`${API_URL}${path}`, {
-      ...options,
+      ...fetchOptions,
       headers
     });
   } catch {
@@ -60,6 +62,10 @@ async function request(path, options = {}) {
 
   if (response.status === 204) {
     return null;
+  }
+
+  if (blob && response.ok) {
+    return response.blob();
   }
 
   const payload = await response.json().catch(() => null);
@@ -157,6 +163,37 @@ export const api = {
       body
     });
   },
+  // Quản lý tuyển dụng phía HR.
+  jobs: () => request('/jobs'),
+  createJob: (job) =>
+    request('/jobs', {
+      method: 'POST',
+      body: JSON.stringify(job)
+    }),
+  updateJob: (id, job) =>
+    request(`/jobs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(job)
+    }),
+  deleteJob: (id) =>
+    request(`/jobs/${id}`, {
+      method: 'DELETE'
+    }),
+  applications: (params = {}) => {
+    const search = new URLSearchParams(params);
+    return request(`/applications?${search.toString()}`);
+  },
+  updateApplication: (id, changes) =>
+    request(`/applications/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(changes)
+    }),
+  hireApplication: (id, employee) =>
+    request(`/applications/${id}/hire`, {
+      method: 'POST',
+      body: JSON.stringify(employee)
+    }),
+  applicationCv: (id) => request(`/applications/${id}/cv`, { blob: true }),
   contracts: (params = {}) => {
     const search = new URLSearchParams(params);
     return request(`/contracts?${search.toString()}`);
