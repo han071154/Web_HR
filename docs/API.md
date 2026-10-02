@@ -37,6 +37,50 @@ Create/update fields:
 
 `description` accepts `null`. Department responses include `employeeCount`.
 
+A department that still has employees cannot be deleted: `DELETE` returns `409`
+`Department still has employees`. Move the employees to another department first.
+
+## Employees
+
+| Method | Path | Roles |
+| --- | --- | --- |
+| GET | `/employees?search=&status=` | Any authenticated role |
+| GET | `/employees/:id` | Any authenticated role |
+| POST | `/employees` | ADMIN, HR_MANAGER, HR_STAFF |
+| PUT | `/employees/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| DELETE | `/employees/:id` | ADMIN, HR_MANAGER |
+
+Create fields (`PUT` accepts any subset):
+
+```json
+{
+  "employeeCode": "NV003",
+  "fullName": "Nguyễn Văn An",
+  "email": "an.nv@webhr.local",
+  "phone": "0901234567",
+  "gender": "MALE",
+  "dateOfBirth": "2000-05-20",
+  "departmentId": "department-uuid-or-null",
+  "positionId": "position-uuid-or-null",
+  "position": "Backend Developer",
+  "employmentType": "FULL_TIME",
+  "status": "ACTIVE",
+  "hireDate": "2026-10-01",
+  "baseSalary": 15000000,
+  "address": "Optional address"
+}
+```
+
+- Send `positionId` (a position from `/positions`) or a free-text `position`; one of them is required
+  when creating. With `positionId`, the stored `position` name is taken from the position catalog.
+- Renaming a position updates `position` on every employee linked to it. Deleting a position keeps
+  the name on employees and sets their `positionId` to `null`.
+- Sending only a different `position` text on `PUT` unlinks the employee from the catalog.
+
+Employment types (shared with job postings): `FULL_TIME`, `PART_TIME`, `SHIFT`, `CONTRACT`, `INTERN`.
+
+Employee statuses: `ACTIVE`, `ON_LEAVE`, `RESIGNED`, `TERMINATED`.
+
 ## Positions
 
 | Method | Path | Roles |
@@ -132,7 +176,7 @@ Only job postings with status `OPEN` and a deadline that has not passed are list
 | GET | `/public/jobs/:id` | Job detail. Closed or expired jobs return `isOpen: false`; drafts return `404` |
 | POST | `/public/jobs/:id/applications` | Submit an application (`multipart/form-data`) |
 
-Job employment types: `FULL_TIME`, `PART_TIME`, `SHIFT`, `INTERN`.
+Job employment types use the same list as employees: `FULL_TIME`, `PART_TIME`, `SHIFT`, `CONTRACT`, `INTERN`.
 `salaryMin`/`salaryMax` are `null` when the salary is negotiable.
 
 Application form fields:
@@ -183,6 +227,7 @@ CV files are stored in `backend/storage/cvs` (`CV_UPLOAD_DIR`), which is not ser
 - Insufficient role permissions return `403`.
 - Missing records return `404`.
 - Duplicate employee codes/emails and other unique values return `409`.
+- Deleting a department that still has employees returns `409`.
 - Oversized avatar or CV files return `413`.
 - Too many public applications from one IP return `429`.
 
@@ -192,5 +237,15 @@ With PostgreSQL and the backend running:
 
 ```bash
 npm run db:setup
+npm run db:test-users
 npm run test:smoke
 ```
+
+The Postman collection in `tests/postman` can be run in Postman or with Newman:
+
+```bash
+npx newman run tests/postman/WebHR.postman_collection.json -e tests/postman/WebHR-local.postman_environment.json
+```
+
+GitHub Actions runs the same steps (job `api-tests`) against a PostgreSQL 16 service on every
+push to `main`, `master`, `Dev`, `feature` and on pull requests.
