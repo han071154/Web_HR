@@ -22,9 +22,16 @@ const exactMessages = {
   'You have already applied for this job': 'Bạn đã nộp hồ sơ cho vị trí này và hồ sơ đang được xét.',
   'CV file is required': 'Vui lòng đính kèm CV.',
   'CV must be a PDF file': 'CV phải là file PDF.',
-  'CV must not exceed 5 MB': 'CV không được lớn hơn 5 MB.',
-  'Too many applications, please try again later': 'Bạn đã nộp quá nhiều hồ sơ. Vui lòng thử lại sau.'
+  'Too many applications, please try again later': 'Bạn đã nộp quá nhiều hồ sơ. Vui lòng thử lại sau.',
+  'Employment contract not found': 'Không tìm thấy hợp đồng.',
+  'Contract number already exists': 'Số hợp đồng đã tồn tại. Vui lòng dùng số khác.',
+  'Avatar file is required in the avatar field': 'Vui lòng chọn ảnh đại diện.',
+  'Avatar must be a JPEG, PNG, or WebP image': 'Ảnh đại diện phải là file JPG, PNG hoặc WebP.'
 };
+
+// Giới hạn dung lượng lấy từ cấu hình backend nên số MB có thể thay đổi.
+const fileSizeLabels = { Avatar: 'Ảnh đại diện', CV: 'CV' };
+const FILE_TOO_LARGE = /^(Avatar|CV) must not exceed (\d+(?:\.\d+)?) MB$/;
 
 const fieldLabels = {
   employeeCode: 'Mã nhân viên',
@@ -39,14 +46,23 @@ const fieldLabels = {
   gender: 'Giới tính',
   dateOfBirth: 'Ngày sinh',
   departmentId: 'Phòng ban',
-  position: 'Chức danh',
+  positionId: 'Chức vụ',
+  position: 'Chức vụ',
   employmentType: 'Loại hợp đồng',
   status: 'Trạng thái',
   hireDate: 'Ngày vào làm',
   baseSalary: 'Lương cơ bản',
   address: 'Địa chỉ',
   coverLetter: 'Thư giới thiệu',
-  consent: 'Đồng ý xử lý hồ sơ'
+  consent: 'Đồng ý xử lý hồ sơ',
+  contractNumber: 'Số hợp đồng',
+  employeeId: 'Nhân viên',
+  contractType: 'Loại hợp đồng',
+  startDate: 'Ngày bắt đầu',
+  endDate: 'Ngày kết thúc',
+  signedDate: 'Ngày ký',
+  salary: 'Mức lương',
+  notes: 'Ghi chú'
 };
 
 const statusMessages = {
@@ -75,6 +91,12 @@ export function toVietnameseError(status, payload) {
 
   if (exactMessages[message]) {
     return exactMessages[message];
+  }
+
+  const tooLarge = FILE_TOO_LARGE.exec(message);
+
+  if (tooLarge) {
+    return `${fileSizeLabels[tooLarge[1]]} không được lớn hơn ${tooLarge[2]} MB.`;
   }
 
   if (message === 'Validation error') {
