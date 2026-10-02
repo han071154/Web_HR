@@ -10,6 +10,7 @@ const exactMessages = {
   'Employee code already exists': 'Mã nhân viên đã tồn tại. Vui lòng dùng mã khác.',
   'Employee email already exists': 'Email đã được sử dụng. Vui lòng dùng email khác.',
   'Department name already exists': 'Tên phòng ban đã tồn tại. Vui lòng dùng tên khác.',
+  'Department still has employees': 'Phòng ban vẫn còn nhân viên. Hãy chuyển nhân viên sang phòng khác trước khi xóa.',
   'Position not found': 'Không tìm thấy chức vụ.',
   'Position code already exists': 'Mã chức vụ đã tồn tại. Vui lòng dùng mã khác.',
   'Selected position does not exist': 'Chức vụ đã chọn không còn trong danh mục. Vui lòng chọn lại.',

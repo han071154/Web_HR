@@ -221,6 +221,23 @@ async function main() {
     assert.equal(updatedDepartment.data.description, null);
     await request(`/departments/${departmentId}`, { token: staffToken });
 
+    // Phòng còn nhân viên thì không xóa được; chuyển nhân viên đi rồi mới xóa.
+    await request(`/employees/${employee.id}`, {
+      token: staffToken,
+      method: 'PUT',
+      body: { departmentId }
+    });
+    await request(`/departments/${departmentId}`, {
+      token: managerToken,
+      method: 'DELETE',
+      expected: 409
+    });
+    await request(`/employees/${employee.id}`, {
+      token: staffToken,
+      method: 'PUT',
+      body: { departmentId: employee.departmentId }
+    });
+
     const position = await request('/positions', {
       token: managerToken,
       method: 'POST',

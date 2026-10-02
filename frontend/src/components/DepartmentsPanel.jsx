@@ -126,12 +126,17 @@ export default function DepartmentsPanel({ user, departments, loading, onChanged
     }
   }, [deletingBusy]);
 
-  function deleteMessage(department) {
-    const base = `Phòng ban "${department.name}" sẽ bị xóa vĩnh viễn.`;
+  // Phòng còn nhân viên thì API chặn xóa, nên báo luôn thay vì mở hộp xác nhận.
+  function requestDelete(department) {
+    if (department.employeeCount > 0) {
+      showToast(
+        'error',
+        `Phòng ban "${department.name}" còn ${department.employeeCount} nhân viên. Hãy chuyển họ sang phòng khác trước khi xóa.`
+      );
+      return;
+    }
 
-    return department.employeeCount > 0
-      ? `${base} ${department.employeeCount} nhân viên đang thuộc phòng này sẽ chuyển thành "Chưa phân phòng".`
-      : base;
+    setDeleting(department);
   }
 
   return (
@@ -222,7 +227,7 @@ export default function DepartmentsPanel({ user, departments, loading, onChanged
                         <button
                           type="button"
                           className="icon-button danger"
-                          onClick={() => setDeleting(department)}
+                          onClick={() => requestDelete(department)}
                           title="Xóa"
                         >
                           <Trash2 size={17} aria-hidden="true" />
@@ -244,7 +249,7 @@ export default function DepartmentsPanel({ user, departments, loading, onChanged
       {deleting && (
         <ConfirmDialog
           title="Xóa phòng ban?"
-          message={deleteMessage(deleting)}
+          message={`Phòng ban "${deleting.name}" sẽ bị xóa vĩnh viễn.`}
           confirmLabel="Xóa phòng ban"
           busy={deletingBusy}
           onConfirm={confirmDelete}
