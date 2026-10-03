@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, Dev, feature]
   pull_request:
 
 jobs:
@@ -27,3 +27,68 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+  # Chạy API thật với PostgreSQL: smoke test + bộ Postman (tests/postman).
+  api-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: web_hr
+          POSTGRES_USER: web_hr
+          POSTGRES_PASSWORD: web_hr_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U web_hr -d web_hr"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://web_hr:web_hr_password@localhost:5432/web_hr
+      JWT_SECRET: ci_test_secret
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create schema, seed data and test users
+        run: |
+          npm run db:setup
+          npm run db:test-users
+
+      - name: Start backend
+        run: |
+          npm run start --workspace backend > backend.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            curl -fs http://localhost:4000/api/health && exit 0
+            sleep 1
+          done
+          echo "Backend did not start"
+          cat backend.log
+          exit 1
+
+      - name: API smoke test
+        run: npm run test:smoke
+
+      - name: Postman collection (Newman)
+        run: >-
+          npx --yes newman@6 run tests/postman/WebHR.postman_collection.json
+          -e tests/postman/WebHR-local.postman_environment.json
+          --reporter-cli-no-console
+
+      - name: Show backend log
+        if: failure()
+        run: cat backend.log

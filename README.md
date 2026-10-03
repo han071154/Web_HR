@@ -42,7 +42,8 @@ npm run db:setup
 npm run dev
 ```
 
-Frontend: http://localhost:5173
+Frontend: http://localhost:5173 (the public careers page opens first; staff sign in at
+http://localhost:5173/#login)
 
 Backend health check: http://localhost:4000/api/health
 
@@ -50,6 +51,16 @@ Default login:
 
 - Email: `admin@webhr.local`
 - Password: `admin123`
+
+Test role accounts:
+
+- HR Manager: `manager@webhr.local` / `manager123`
+- HR Staff: `staff@webhr.local` / `staff123`
+
+Backend database settings are read from `backend/.env`. Copy `backend/.env.example`
+and update `DATABASE_URL` when PostgreSQL runs outside the provided Docker Compose setup.
+
+API reference: [docs/API.md](docs/API.md)
 
 ## Project Structure
 

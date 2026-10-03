@@ -8,7 +8,9 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "lint": "eslint .",
-    "db:setup": "node scripts/setupDatabase.js"
+    "db:setup": "node scripts/setupDatabase.js",
+    "db:test-users": "node scripts/seedTestUsers.js",
+    "test:smoke": "node scripts/smokeTest.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -18,6 +20,7 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
+    "multer": "^2.4.0",
     "pg": "^8.16.3",
     "zod": "^3.25.76"
   },
