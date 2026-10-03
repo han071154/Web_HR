@@ -11,6 +11,8 @@
     "build": "npm run build --workspace frontend",
     "lint": "npm run lint --workspace backend && npm run lint --workspace frontend",
     "db:setup": "npm run db:setup --workspace backend",
+    "db:test-users": "npm run db:test-users --workspace backend",
+    "test:smoke": "npm run test:smoke --workspace backend",
     "start": "npm run start --workspace backend"
   },
   "devDependencies": {

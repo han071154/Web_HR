@@ -13,26 +13,34 @@ async function runSqlFile(relativePath) {
   await query(sql);
 }
 
-async function seedAdmin() {
-  const passwordHash = await bcrypt.hash('admin123', 12);
+async function seedUsers() {
+  const users = [
+    ['admin@webhr.local', 'admin123', 'Web HR Admin', 'ADMIN'],
+    ['manager@webhr.local', 'manager123', 'HR Manager', 'HR_MANAGER'],
+    ['staff@webhr.local', 'staff123', 'HR Staff', 'HR_STAFF']
+  ];
 
-  await query(
-    `INSERT INTO users (email, password_hash, full_name, role)
-     VALUES ($1, $2, $3, $4)
-     ON CONFLICT (email)
-     DO UPDATE SET
-       password_hash = EXCLUDED.password_hash,
-       full_name = EXCLUDED.full_name,
-       role = EXCLUDED.role,
-       is_active = TRUE,
-       updated_at = NOW()`,
-    ['admin@webhr.local', passwordHash, 'Web HR Admin', 'ADMIN']
-  );
+  for (const [email, password, fullName, role] of users) {
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    await query(
+      `INSERT INTO users (email, password_hash, full_name, role)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (email)
+       DO UPDATE SET
+         password_hash = EXCLUDED.password_hash,
+         full_name = EXCLUDED.full_name,
+         role = EXCLUDED.role,
+         is_active = TRUE,
+         updated_at = NOW()`,
+      [email, passwordHash, fullName, role]
+    );
+  }
 }
 
 async function main() {
   await runSqlFile('database/schema.sql');
-  await seedAdmin();
+  await seedUsers();
   await runSqlFile('database/seed.sql');
   console.log('Database schema and seed data are ready.');
 }
