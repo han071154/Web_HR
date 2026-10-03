@@ -13,7 +13,7 @@ import {
   Upload,
   Users
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, clearSession, getStoredUser, getToken, setUnauthorizedHandler } from './api.js';
 import Avatar from './components/Avatar.jsx';
 import CareersPage from './components/CareersPage.jsx';
@@ -155,6 +155,19 @@ function Dashboard({ user, onLogout }) {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [screen.type]);
+
+  // Điện thoại: menu là thanh cuộn ngang, cuộn tới mục đang chọn để không bị khuất.
+  const navRef = useRef(null);
+
+  useEffect(() => {
+    const nav = navRef.current;
+    const active = nav?.querySelector('.nav-item.active');
+
+    if (nav && active && nav.scrollWidth > nav.clientWidth) {
+      const left = active.getBoundingClientRect().left - nav.getBoundingClientRect().left + nav.scrollLeft;
+      nav.scrollLeft = left - (nav.clientWidth - active.offsetWidth) / 2;
+    }
+  }, [view]);
 
   // Lọc ngay khi gõ / chọn, không cần bấm nút "Lọc".
   const filteredEmployees = useMemo(() => {
@@ -505,7 +518,7 @@ function Dashboard({ user, onLogout }) {
           <span className="brand-name">WebHR</span>
         </div>
         <p className="menu-label">Menu</p>
-        <nav>
+        <nav ref={navRef}>
           <a className={`nav-item${view === 'employees' ? ' active' : ''}`} href="#employees" onClick={showList}>
             <Users size={18} aria-hidden="true" />
             Nhân sự

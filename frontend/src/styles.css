@@ -1020,7 +1020,8 @@ td span.deadline-note.overdue {
   gap: 16px;
 }
 
-.avatar-upload > div {
+/* Cột nút "Tải ảnh lên"; bỏ qua ảnh đại diện (cũng là div) để chữ viết tắt vẫn nằm giữa */
+.avatar-upload > div:not(.avatar) {
   display: grid;
   justify-items: start;
   gap: 6px;
@@ -2591,7 +2592,7 @@ a.ghost-button {
   .detail-top,
   .detail-bottom,
   .detail-split {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -2605,8 +2606,9 @@ a.ghost-button {
     display: none;
   }
 
+  /* minmax(0, ...) để menu ngang cuộn trong khung, không kéo giãn cả trang */
   .app-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .sidebar {
