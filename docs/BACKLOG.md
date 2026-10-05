@@ -10,7 +10,7 @@
 | HR-006 | La HR, toi muon tim kiem va loc nhan vien de thao tac nhanh. | Medium | Done |
 | HR-007 | La Admin, toi muon quan ly tai khoan nguoi dung. | High | Todo |
 | HR-008 | La HR, toi muon quan ly phong ban day du. | Medium | Done |
-| HR-009 | La HR, toi muon import/export danh sach nhan vien Excel. | Medium | Todo |
+| HR-009 | La HR, toi muon import/export danh sach nhan vien Excel. | Medium | Done |
 | HR-010 | La quan ly, toi muon xem bao cao nhan su theo phong ban. | Medium | Todo |
 | HR-011 | La nhan vien, toi muon cap nhat thong tin ca nhan. | Low | Todo |
 | HR-012 | La DevOps, toi muon deploy backend va frontend tu GitHub Actions. | High | Todo |
