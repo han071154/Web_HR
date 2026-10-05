@@ -19,8 +19,12 @@ export const config = {
   // CV ứng viên có thông tin cá nhân: lưu ngoài thư mục uploads/ (thư mục đó được public).
   cvUploadDir: path.resolve(backendDir, process.env.CV_UPLOAD_DIR || 'storage/cvs'),
   cvMaxSizeMb: Number(process.env.CV_MAX_SIZE_MB || 5),
+  excelMaxSizeMb: Number(process.env.EXCEL_MAX_SIZE_MB || 10),
   corsOrigin: (process.env.CORS_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173')
     .split(',')
     .map((origin) => origin.trim())
-    .filter(Boolean)
+    .filter(Boolean),
+  // Refresh token: hạn dùng dài hơn access token để người dùng không phải đăng nhập lại liên tục.
+  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'dev_refresh_secret',
+  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d'
 };
