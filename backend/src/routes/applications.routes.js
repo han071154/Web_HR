@@ -6,6 +6,7 @@ import { config } from '../config.js';
 import { EMPLOYMENT_TYPES } from '../constants.js';
 import { pool, query } from '../db.js';
 import { requireRole } from '../middleware/auth.js';
+import { removeCvFile } from '../middleware/cvUpload.js';
 import { applicationCode } from '../utils/applicationCode.js';
 import { listAudit, logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
@@ -379,6 +380,30 @@ router.post('/:id/convert', requireRole(...HR_ROLES), async (req, res, next) => 
     next(error);
   } finally {
     client.release();
+  }
+});
+
+// BUG-05: xoá hồ sơ ứng viên. Hồ sơ đã chuyển thành nhân sự thì giữ lại (là nguồn gốc hợp đồng đầu tiên).
+// Cùng quyền với các thao tác xoá khác trong hệ thống (ADMIN, HR_MANAGER).
+router.delete('/:id', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
+  try {
+    const current = await query('SELECT cv_path, employee_id FROM applications WHERE id = $1', [req.params.id]);
+    const row = current.rows[0];
+
+    if (!row) {
+      throw httpError(404, 'Application not found');
+    }
+
+    if (row.employee_id) {
+      throw httpError(409, 'Cannot delete an application that has already been converted to an employee');
+    }
+
+    await query('DELETE FROM applications WHERE id = $1', [req.params.id]);
+    await query("DELETE FROM audit_logs WHERE entity_type = 'APPLICATION' AND entity_id = $1", [req.params.id]);
+    await removeCvFile(row.cv_path);
+    res.status(204).send();
+  } catch (error) {
+    next(error);
   }
 });
 

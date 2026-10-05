@@ -125,6 +125,8 @@ export const api = {
     const search = new URLSearchParams(params);
     return request(`/employees?${search.toString()}`);
   },
+  // Danh sách rút gọn, không phân trang: ô chọn quản lý, gợi ý mã NV, danh sách chức vụ tự do.
+  employeesLookup: () => request('/employees/lookup'),
   createEmployee: (employee) =>
     request('/employees', {
       method: 'POST',
@@ -140,6 +142,16 @@ export const api = {
       method: 'DELETE'
     }),
   employeeHistory: (id) => request(`/employees/${id}/history`),
+  // HR-009: xuất/nhập danh sách nhân sự bằng Excel.
+  exportEmployees: (params = {}) => {
+    const search = new URLSearchParams(params);
+    return request(`/employees/export?${search.toString()}`, { blob: true });
+  },
+  importEmployees: (file) => {
+    const body = new FormData();
+    body.append('file', file);
+    return request('/employees/import', { method: 'POST', body });
+  },
   uploadEmployeeAvatar: (id, file) => {
     const body = new FormData();
     body.append('avatar', file);
@@ -195,6 +207,11 @@ export const api = {
     request(`/applications/${id}/convert`, {
       method: 'POST',
       body: JSON.stringify(employee)
+    }),
+  // BUG-05: xoá hồ sơ ứng viên (chỉ hồ sơ chưa chuyển thành nhân sự).
+  deleteApplication: (id) =>
+    request(`/applications/${id}`, {
+      method: 'DELETE'
     }),
   // inline = true để xem trước trong trang, false để tải xuống.
   applicationCv: (id, inline = false) => request(`/applications/${id}/cv${inline ? '?inline=1' : ''}`, { blob: true }),
