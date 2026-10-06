@@ -39,7 +39,7 @@ Chi tiet tung API: xem [API.md](API.md).
 
 | Nhom | Duong dan | Dang nhap |
 | --- | --- | --- |
-| Xac thuc | `/auth/login`, `/auth/me` | Khong / Co |
+| Xac thuc | `/auth/login`, `/auth/refresh`, `/auth/me` | Khong / Co |
 | Phong ban | `/departments` | Co |
 | Chuc vu | `/positions` | Co |
 | Nhan vien | `/employees`, `/employees/:id/avatar` | Co |
@@ -66,6 +66,13 @@ Chi tiet tung API: xem [API.md](API.md).
 | `job_postings` | Tin tuyen dung (`DRAFT`, `OPEN`, `CLOSED`) | `department_id` -> `departments` |
 | `applications` | Ho so ung vien nop tu trang tuyen dung | `job_posting_id` -> `job_postings`, `employee_id` -> `employees` |
 | `audit_logs` | Lich su thay doi (ai lam gi, luc nao) cua nhan vien va ho so ung vien | `entity_type` + `entity_id` |
+| `work_shifts` | Danh muc ca lam viec (HR-021) | |
+| `work_schedules` | Lich phan ca theo ngay (HR-021) | `employee_id` -> `employees`, `shift_id` -> `work_shifts` |
+| `attendance_records` | Cham cong theo ngay (HR-022) | `employee_id` -> `employees`, `schedule_id` -> `work_schedules` |
+| `leave_requests` | Don nghi phep (HR-023) | `employee_id` -> `employees`, `approved_by` -> `users` |
+
+4 bang cuoi (`work_shifts`...`leave_requests`) moi chi thiet ke o schema.sql, chua co API/UI —
+HR-021/022/023 trong `BACKLOG.md` van la Todo.
 
 - Quy tac du lieu:
   - Khong xoa duoc phong ban con nhan vien (API tra `409`).
@@ -75,8 +82,15 @@ Chi tiet tung API: xem [API.md](API.md).
 
 ## Kiem thu
 
+- `npm run test --workspace backend`: unit test (Vitest + Supertest), mock tang DB — hien co cho `/auth`.
 - `npm run test:smoke`: smoke test API (`backend/scripts/smokeTest.js`).
 - `tests/postman`: bo Postman (dang nhap, CRUD nhan su, phan quyen), chay bang Postman hoac Newman.
+
+## Tai lieu API & bao mat
+
+- Swagger UI cho nhom API Auth: `/api/docs` (xem `backend/src/swagger.js`). Cac nhom API khac xem
+  [API.md](API.md).
+- `docs/SECURITY_CHECKLIST.md`: ra soat bao mat co ban theo OWASP Top 10.
 
 ## CI
 

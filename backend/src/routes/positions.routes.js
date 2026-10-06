@@ -149,6 +149,15 @@ router.put('/:id', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) =>
 
 router.delete('/:id', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
   try {
+    // Không xóa chức vụ còn nhân viên đang giữ, cùng quy tắc với xóa phòng ban.
+    const holders = await query('SELECT COUNT(*)::int AS count FROM employees WHERE position_id = $1', [
+      req.params.id
+    ]);
+
+    if (holders.rows[0].count > 0) {
+      throw httpError(409, 'Position still has employees');
+    }
+
     const result = await query('DELETE FROM positions WHERE id = $1 RETURNING id', [req.params.id]);
 
     if (!result.rows[0]) {

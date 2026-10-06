@@ -1,3 +1,4 @@
+import ExcelJS from 'exceljs';
 import express from 'express';
 import { z } from 'zod';
 import { EMPLOYMENT_TYPES } from '../constants.js';
@@ -9,6 +10,7 @@ import {
   removeAvatarFile
 } from '../middleware/avatarUpload.js';
 import { requireRole } from '../middleware/auth.js';
+import { excelUpload } from '../middleware/excelUpload.js';
 import { diffFields, listAudit, logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
 
@@ -113,31 +115,312 @@ async function findEmployee(id, req) {
   return result.rows[0] ? mapEmployee(result.rows[0], req) : null;
 }
 
+// BUG-06: lọc dùng chung cho danh sách (phân trang) và xuất Excel (lấy hết theo cùng bộ lọc).
+function buildEmployeeFilters(req) {
+  const search = String(req.query.search || '').trim();
+  const status = String(req.query.status || '').trim();
+  const departmentId = String(req.query.departmentId || '').trim();
+  const position = String(req.query.position || '').trim();
+  const values = [];
+  const where = [];
+
+  if (search) {
+    values.push(`%${search}%`);
+    // unaccent() để tìm không phân biệt dấu tiếng Việt, giống hành vi lọc phía frontend trước đây.
+    where.push(
+      `(unaccent(e.full_name) ILIKE unaccent($${values.length})
+        OR e.employee_code ILIKE $${values.length}
+        OR e.email ILIKE $${values.length})`
+    );
+  }
+
+  if (status) {
+    values.push(status);
+    where.push(`e.status = $${values.length}`);
+  }
+
+  if (departmentId) {
+    values.push(departmentId);
+    where.push(`e.department_id = $${values.length}`);
+  }
+
+  if (position) {
+    values.push(position);
+    where.push(`e.position = $${values.length}`);
+  }
+
+  return { whereSql: where.length ? `WHERE ${where.join(' AND ')}` : '', values };
+}
+
+function parsePagination(req) {
+  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+  return { page, limit, offset: (page - 1) * limit };
+}
+
 router.get('/', async (req, res, next) => {
   try {
-    const search = String(req.query.search || '').trim();
-    const status = String(req.query.status || '').trim();
-    const values = [];
-    const where = [];
+    const { whereSql, values } = buildEmployeeFilters(req);
+    const { page, limit, offset } = parsePagination(req);
 
-    if (search) {
-      values.push(`%${search}%`);
-      where.push(`(e.full_name ILIKE $${values.length} OR e.employee_code ILIKE $${values.length} OR e.email ILIKE $${values.length})`);
-    }
+    const countResult = await query(`SELECT COUNT(*)::int AS count FROM employees e ${whereSql}`, values);
+    const total = countResult.rows[0].count;
 
-    if (status) {
-      values.push(status);
-      where.push(`e.status = $${values.length}`);
-    }
-
+    const listValues = [...values, limit, offset];
     const result = await query(
       `${selectEmployeeSql}
-       ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-       ORDER BY e.created_at DESC`,
-      values
+       ${whereSql}
+       ORDER BY e.created_at DESC
+       LIMIT $${listValues.length - 1} OFFSET $${listValues.length}`,
+      listValues
     );
 
-    res.json({ data: result.rows.map((row) => mapEmployee(row, req)) });
+    res.json({
+      data: result.rows.map((row) => mapEmployee(row, req)),
+      pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Danh sách rút gọn (không JOIN phòng ban/quản lý) cho ô chọn quản lý trực tiếp, gợi ý mã NV
+// kế tiếp và danh sách chức vụ tự do — nhẹ hơn nhiều so với GET / nên không cần phân trang.
+router.get('/lookup', async (req, res, next) => {
+  try {
+    const result = await query(
+      `SELECT id, employee_code, full_name, position, status
+       FROM employees
+       ORDER BY full_name ASC`
+    );
+
+    res.json({
+      data: result.rows.map((row) => ({
+        id: row.id,
+        employeeCode: row.employee_code,
+        fullName: row.full_name,
+        position: row.position,
+        status: row.status
+      }))
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+const EXPORT_COLUMNS = [
+  { header: 'Mã nhân viên', key: 'employeeCode', width: 14 },
+  { header: 'Họ tên', key: 'fullName', width: 24 },
+  { header: 'Email', key: 'email', width: 28 },
+  { header: 'Điện thoại', key: 'phone', width: 16 },
+  { header: 'Giới tính', key: 'gender', width: 12 },
+  { header: 'Ngày sinh', key: 'dateOfBirth', width: 14 },
+  { header: 'CCCD', key: 'idNumber', width: 16 },
+  { header: 'Phòng ban', key: 'departmentName', width: 20 },
+  { header: 'Chức vụ', key: 'position', width: 20 },
+  { header: 'Hình thức làm việc', key: 'employmentType', width: 18 },
+  { header: 'Trạng thái', key: 'status', width: 14 },
+  { header: 'Ngày vào làm', key: 'hireDate', width: 14 },
+  { header: 'Lương cơ bản', key: 'baseSalary', width: 16 },
+  { header: 'Địa chỉ', key: 'address', width: 30 }
+];
+
+// HR-009: xuất danh sách nhân sự ra Excel theo cùng bộ lọc đang xem trên danh sách.
+router.get('/export', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
+  try {
+    const { whereSql, values } = buildEmployeeFilters(req);
+    const result = await query(`${selectEmployeeSql} ${whereSql} ORDER BY e.employee_code ASC`, values);
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Nhân sự');
+    sheet.columns = EXPORT_COLUMNS;
+    sheet.getRow(1).font = { bold: true };
+
+    for (const row of result.rows) {
+      sheet.addRow(mapEmployee(row, req));
+    }
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="danh-sach-nhan-su-${Date.now()}.xlsx"`);
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    next(error);
+  }
+});
+
+const IMPORT_HEADERS = {
+  'Mã nhân viên': 'employeeCode',
+  'Họ tên': 'fullName',
+  Email: 'email',
+  'Điện thoại': 'phone',
+  'Giới tính': 'gender',
+  'Ngày sinh': 'dateOfBirth',
+  CCCD: 'idNumber',
+  'Phòng ban': 'departmentName',
+  'Chức vụ': 'position',
+  'Hình thức làm việc': 'employmentType',
+  'Trạng thái': 'status',
+  'Ngày vào làm': 'hireDate',
+  'Lương cơ bản': 'baseSalary',
+  'Địa chỉ': 'address'
+};
+
+// Excel lưu ô ngày dưới dạng Date; ô text thì giữ nguyên chuỗi người dùng nhập (yyyy-mm-dd).
+function formatExcelDate(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  return String(value).trim();
+}
+
+function excelCell(value) {
+  return value === null || value === undefined ? '' : String(value).trim();
+}
+
+// HR-009: nhập danh sách nhân sự từ Excel (cùng định dạng cột với file xuất ra).
+// Mã NV đã tồn tại thì cập nhật, chưa có thì tạo mới; dòng lỗi được bỏ qua và báo lại trong "errors".
+router.post('/import', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), excelUpload, async (req, res, next) => {
+  try {
+    if (!req.file) {
+      throw httpError(400, 'Excel file is required in the file field');
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(req.file.buffer);
+    const sheet = workbook.worksheets[0];
+
+    if (!sheet) {
+      throw httpError(400, 'Excel file has no worksheet');
+    }
+
+    const columnFields = [];
+    sheet.getRow(1).eachCell((cell, colNumber) => {
+      columnFields[colNumber] = IMPORT_HEADERS[String(cell.value ?? '').trim()];
+    });
+
+    const [departmentRows, positionRows] = await Promise.all([
+      query('SELECT id, name FROM departments'),
+      query('SELECT id, name FROM positions')
+    ]);
+    const departmentIdByName = new Map(departmentRows.rows.map((row) => [row.name.toLowerCase(), row.id]));
+    const positionIdByName = new Map(positionRows.rows.map((row) => [row.name.toLowerCase(), row.id]));
+    const positionNameById = new Map(positionRows.rows.map((row) => [row.id, row.name]));
+
+    let created = 0;
+    let updated = 0;
+    const errors = [];
+
+    for (let rowNumber = 2; rowNumber <= sheet.rowCount; rowNumber += 1) {
+      const row = sheet.getRow(rowNumber);
+      const raw = {};
+      row.eachCell((cell, colNumber) => {
+        const field = columnFields[colNumber];
+
+        if (field) {
+          raw[field] = cell.value;
+        }
+      });
+
+      if (!Object.keys(raw).length) {
+        continue;
+      }
+
+      try {
+        const departmentName = excelCell(raw.departmentName);
+        const positionName = excelCell(raw.position);
+        const body = createEmployeeSchema.parse({
+          employeeCode: excelCell(raw.employeeCode),
+          fullName: excelCell(raw.fullName),
+          email: excelCell(raw.email),
+          phone: excelCell(raw.phone) || null,
+          gender: excelCell(raw.gender).toUpperCase() || null,
+          dateOfBirth: formatExcelDate(raw.dateOfBirth),
+          idNumber: excelCell(raw.idNumber) || null,
+          departmentId: departmentName ? departmentIdByName.get(departmentName.toLowerCase()) || null : null,
+          positionId: positionName ? positionIdByName.get(positionName.toLowerCase()) || null : null,
+          position: positionName || undefined,
+          employmentType: excelCell(raw.employmentType),
+          status: excelCell(raw.status),
+          hireDate: formatExcelDate(raw.hireDate),
+          baseSalary: raw.baseSalary,
+          address: excelCell(raw.address) || null
+        });
+        const resolvedPosition = body.positionId ? positionNameById.get(body.positionId) : body.position;
+        const existing = await query('SELECT id FROM employees WHERE employee_code = $1', [body.employeeCode]);
+
+        if (existing.rows[0]) {
+          await query(
+            `UPDATE employees
+             SET full_name = $1, email = $2, phone = $3, gender = $4, date_of_birth = $5,
+                 department_id = $6, position_id = $7, position = $8, employment_type = $9,
+                 status = $10, hire_date = $11, base_salary = $12, address = $13, id_number = $14,
+                 updated_at = NOW()
+             WHERE id = $15`,
+            [
+              body.fullName,
+              body.email.toLowerCase(),
+              body.phone || null,
+              body.gender || null,
+              body.dateOfBirth || null,
+              body.departmentId || null,
+              body.positionId || null,
+              resolvedPosition,
+              body.employmentType,
+              body.status,
+              body.hireDate,
+              body.baseSalary,
+              body.address || null,
+              body.idNumber || null,
+              existing.rows[0].id
+            ]
+          );
+          updated += 1;
+        } else {
+          await query(
+            `INSERT INTO employees (
+              employee_code, full_name, email, phone, gender, date_of_birth,
+              department_id, position_id, position, employment_type, status, hire_date,
+              base_salary, address, id_number
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+            [
+              body.employeeCode,
+              body.fullName,
+              body.email.toLowerCase(),
+              body.phone || null,
+              body.gender || null,
+              body.dateOfBirth || null,
+              body.departmentId || null,
+              body.positionId || null,
+              resolvedPosition,
+              body.employmentType,
+              body.status,
+              body.hireDate,
+              body.baseSalary,
+              body.address || null,
+              body.idNumber || null
+            ]
+          );
+          created += 1;
+        }
+      } catch (rowError) {
+        errors.push({
+          row: rowNumber,
+          message: rowError.issues?.[0]?.message || rowError.message || 'Dữ liệu không hợp lệ'
+        });
+      }
+    }
+
+    res.json({ data: { created, updated, skipped: errors.length, errors } });
   } catch (error) {
     next(error);
   }

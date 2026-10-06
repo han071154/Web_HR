@@ -3,6 +3,7 @@ import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'node:path';
+import swaggerUi from 'swagger-ui-express';
 import { config } from './config.js';
 import { requireAuth } from './middleware/auth.js';
 import applicationRoutes from './routes/applications.routes.js';
@@ -13,6 +14,7 @@ import employeeRoutes from './routes/employees.routes.js';
 import jobPostingRoutes from './routes/jobPostings.routes.js';
 import positionRoutes from './routes/positions.routes.js';
 import publicJobRoutes from './routes/publicJobs.routes.js';
+import { swaggerSpec } from './swagger.js';
 
 const app = express();
 
@@ -30,6 +32,9 @@ app.use(
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'web-hr-api' });
 });
+
+// Tài liệu API Auth dạng Swagger UI (task #68). Các nhóm API khác xem docs/API.md.
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use('/api/auth', authRoutes);
 // Trang tuyển dụng công khai: xem tin và nộp hồ sơ không cần đăng nhập.
@@ -78,9 +83,10 @@ app.use((error, _req, res, _next) => {
         : isInvalidDatabaseValue
           ? 'Invalid identifier or database value'
           : isFileTooLarge
-            ? error.field === 'cv'
-              ? `CV must not exceed ${config.cvMaxSizeMb} MB`
-              : `Avatar must not exceed ${config.avatarMaxSizeMb} MB`
+            ? {
+                cv: `CV must not exceed ${config.cvMaxSizeMb} MB`,
+                file: `Excel file must not exceed ${config.excelMaxSizeMb} MB`
+              }[error.field] || `Avatar must not exceed ${config.avatarMaxSizeMb} MB`
             : error.message || 'Internal server error';
 
   res.status(status).json({

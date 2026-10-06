@@ -16,6 +16,47 @@ returned as `YYYY-MM-DD` strings.
 
 Run `npm run db:setup` to create or refresh these accounts.
 
+## Auth
+
+Interactive Swagger UI for this section is served at `/api/docs` (task #68).
+
+| Method | Path | Roles |
+| --- | --- | --- |
+| POST | `/auth/login` | None |
+| POST | `/auth/refresh` | None (requires a valid `refreshToken`) |
+| GET | `/auth/me` | Any authenticated role |
+
+```json
+// POST /auth/login
+{ "email": "admin@webhr.local", "password": "admin123" }
+```
+
+```json
+// 200 response
+{
+  "token": "access-token-jwt",
+  "refreshToken": "refresh-token-jwt",
+  "user": { "id": "uuid", "email": "admin@webhr.local", "fullName": "Web HR Admin", "role": "ADMIN" }
+}
+```
+
+`token` (access token) expires after `JWT_EXPIRES_IN` (default `1d`). `refreshToken` expires after
+`JWT_REFRESH_EXPIRES_IN` (default `30d`) and is only accepted by `POST /auth/refresh`:
+
+```json
+// POST /auth/refresh
+{ "refreshToken": "refresh-token-jwt" }
+```
+
+```json
+// 200 response
+{ "token": "new-access-token-jwt" }
+```
+
+`401 Invalid or expired refresh token` is returned for an expired/forged/wrong-type token or a
+deactivated account. `/auth/login` and `/auth/refresh` are rate-limited to 20 requests per 15
+minutes per IP (`429 Too many login attempts, please try again later`).
+
 ## Departments
 
 | Method | Path | Roles |
@@ -44,12 +85,51 @@ A department that still has employees cannot be deleted: `DELETE` returns `409`
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/employees?search=&status=` | Any authenticated role |
+| GET | `/employees?search=&status=&departmentId=&position=&page=&limit=` | Any authenticated role |
+| GET | `/employees/lookup` | Any authenticated role |
 | GET | `/employees/:id` | Any authenticated role |
 | GET | `/employees/:id/history` | Any authenticated role |
+| GET | `/employees/export?search=&status=&departmentId=&position=` | ADMIN, HR_MANAGER, HR_STAFF |
+| POST | `/employees/import` | ADMIN, HR_MANAGER, HR_STAFF |
 | POST | `/employees` | ADMIN, HR_MANAGER, HR_STAFF |
 | PUT | `/employees/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | DELETE | `/employees/:id` | ADMIN, HR_MANAGER |
+
+BUG-06: `GET /employees` is paginated (`page` default `1`, `limit` default `20`, max `100`) and
+returns a `pagination` block alongside `data`:
+
+```json
+{
+  "data": [ /* up to `limit` employees for this page */ ],
+  "pagination": { "page": 1, "limit": 20, "total": 5000, "totalPages": 250 }
+}
+```
+
+`search` matches full name (accent-insensitive, via PostgreSQL `unaccent`), employee code or email.
+
+`GET /employees/lookup` returns every employee with only `id`, `employeeCode`, `fullName`,
+`position` and `status` (no department/manager join) — used by the frontend for the manager
+picker, the "next employee code" suggestion and the free-text position filter without paying the
+cost of the full paginated query for every employee.
+
+### Import / export (Excel, HR-009)
+
+`GET /employees/export` streams an `.xlsx` file (same filters as the list) with columns: Mã nhân
+viên, Họ tên, Email, Điện thoại, Giới tính, Ngày sinh, CCCD, Phòng ban, Chức vụ, Hình thức làm
+việc, Trạng thái, Ngày vào làm, Lương cơ bản, Địa chỉ.
+
+`POST /employees/import` accepts `multipart/form-data` with a `file` field (`.xlsx`, up to 10 MB,
+same columns as the export, header row required but columns can be reordered). An existing
+`employeeCode` is updated; a new one is created. Department/position columns are matched by name
+(case-insensitive) against the existing catalog; an unmatched position is kept as free text.
+
+```json
+// 200 response
+{ "data": { "created": 12, "updated": 3, "skipped": 1, "errors": [{ "row": 7, "message": "Invalid email" }] } }
+```
+
+A row that fails validation is skipped (not the whole import) and reported in `errors` with its
+1-based spreadsheet row number.
 
 Create fields (`PUT` accepts any subset):
 
@@ -307,6 +387,7 @@ Create fields (`PUT` accepts any subset):
 | GET | `/applications/:id/cv` | Any authenticated role (PDF; `?inline=1` to preview in the browser) |
 | PATCH | `/applications/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | POST | `/applications/:id/convert` | ADMIN, HR_MANAGER, HR_STAFF |
+| DELETE | `/applications/:id` | ADMIN, HR_MANAGER |
 
 `search` matches name, email, phone or application code (`HS-000123` or `123`).
 Each application has `viewedAt`: `null` until HR opens `GET /applications/:id` for the first time.
@@ -356,6 +437,11 @@ creates the employee (name, email and phone from the application), the first `AC
 
 Application history actions: `SUBMITTED`, `STATUS_CHANGED`, `INTERVIEW_SCHEDULED`, `NOTE_UPDATED`, `CONVERTED`.
 
+BUG-05: `DELETE /applications/:id` removes the application, its history and its CV file. An
+application already converted into an employee cannot be deleted
+(`409 Cannot delete an application that has already been converted to an employee`) since it is
+the source record for that employee's first contract.
+
 ## Error behavior
 
 - Validation errors return `400`.
@@ -363,13 +449,19 @@ Application history actions: `SUBMITTED`, `STATUS_CHANGED`, `INTERVIEW_SCHEDULED
 - Insufficient role permissions return `403`.
 - Missing records return `404`.
 - Duplicate employee codes/emails and other unique values return `409`.
-- Deleting a department that still has employees returns `409`.
-- Oversized avatar or CV files return `413`.
-- Too many public applications from one IP return `429`.
+- Deleting a department or a position that still has employees returns `409`.
+- Oversized avatar, CV or Excel import files return `413`.
+- Too many public applications from one IP, or too many login/refresh attempts, return `429`.
 
 ## Local verification
 
-With PostgreSQL and the backend running:
+Unit tests (mock the database, no PostgreSQL needed — task #67, currently covers `/auth`):
+
+```bash
+npm run test --workspace backend
+```
+
+Integration checks, with PostgreSQL and the backend running:
 
 ```bash
 npm run db:setup
