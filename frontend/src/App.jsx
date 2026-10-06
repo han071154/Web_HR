@@ -13,7 +13,7 @@ import {
   Upload,
   Users
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, clearSession, getStoredUser, getToken, setUnauthorizedHandler } from './api.js';
 import Avatar from './components/Avatar.jsx';
 import CareersPage from './components/CareersPage.jsx';
@@ -28,7 +28,7 @@ import PositionsPanel from './components/PositionsPanel.jsx';
 import RecruitmentPanel from './components/RecruitmentPanel.jsx';
 import Toast from './components/Toast.jsx';
 import { CONTRACT_DELETE_ROLES, CONTRACT_EDIT_ROLES } from './contracts.js';
-import { normalizeText, roleLabels, statusLabels } from './format.js';
+import { roleLabels, statusLabels } from './format.js';
 
 // Quyền khớp với backend: ai cũng thêm/sửa được, chỉ Admin và HR Manager được xóa.
 const EDIT_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
@@ -91,15 +91,22 @@ function Breadcrumb({ items }) {
 
 function Dashboard({ user, onLogout }) {
   const [employees, setEmployees] = useState([]);
+  // Danh sách rút gọn TOÀN BỘ nhân sự (không phân trang) dùng cho ô chọn quản lý, gợi ý mã NV
+  // và danh sách chức vụ tự do. Danh sách chính (employees) giờ chỉ chứa trang đang xem (BUG-06).
+  const [employeesLookup, setEmployeesLookup] = useState([]);
+  const [totalEmployees, setTotalEmployees] = useState(0);
   const [departments, setDepartments] = useState([]);
   const [positions, setPositions] = useState([]);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [positionFilter, setPositionFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const importInputRef = useRef(null);
   // Màn hình con của mục Nhân sự: danh sách, chi tiết hoặc form.
   const [screen, setScreen] = useState({ type: 'list' });
   const [saving, setSaving] = useState(false);
@@ -116,27 +123,52 @@ function Dashboard({ user, onLogout }) {
   }, []);
   const closeToast = useCallback(() => setToast(null), []);
 
+  // Gõ tìm kiếm thì chờ 300ms mới gọi API, tránh gọi backend liên tục theo từng phím gõ.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // BUG-06: danh sách nhân sự giờ phân trang ở backend (page/limit) thay vì tải hết rồi cắt ở
+  // frontend — tránh trả về toàn bộ bảng mỗi lần tải khi dữ liệu lớn.
   const loadData = useCallback(async () => {
     setError('');
     setLoading(true);
 
     try {
-      const [employeeResponse, departmentResponse, positionResponse] = await Promise.all([
-        api.employees(),
+      const [employeeResponse, lookupResponse, departmentResponse, positionResponse] = await Promise.all([
+        api.employees({
+          page,
+          limit: PAGE_SIZE,
+          search: debouncedSearch,
+          status: statusFilter,
+          departmentId: departmentFilter,
+          position: positionFilter
+        }),
+        api.employeesLookup(),
         api.departments(),
         api.positions()
       ]);
       setEmployees(employeeResponse.data);
+      setTotalEmployees(employeeResponse.pagination.total);
+      setEmployeesLookup(lookupResponse.data);
       setDepartments(departmentResponse.data);
       setPositions(positionResponse.data);
+
+      // Bộ lọc thu hẹp kết quả làm trang hiện tại vượt quá tổng số trang mới: quay về trang cuối.
+      const totalPages = Math.max(1, Math.ceil(employeeResponse.pagination.total / PAGE_SIZE));
+
+      if (page > totalPages) {
+        setPage(totalPages);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, debouncedSearch, statusFilter, departmentFilter, positionFilter]);
 
-  // Tải lại mỗi khi đổi mục menu để thấy phòng ban / chức vụ mới sửa.
+  // Tải lại mỗi khi đổi mục menu, đổi trang hoặc đổi bộ lọc.
   useEffect(() => {
     loadData();
   }, [loadData, view]);
@@ -156,41 +188,32 @@ function Dashboard({ user, onLogout }) {
     window.scrollTo(0, 0);
   }, [screen.type]);
 
-  // Lọc ngay khi gõ / chọn, không cần bấm nút "Lọc".
-  const filteredEmployees = useMemo(() => {
-    const keyword = normalizeText(search.trim());
+  // Điện thoại: menu là thanh cuộn ngang, cuộn tới mục đang chọn để không bị khuất.
+  const navRef = useRef(null);
 
-    return employees.filter((employee) => {
-      const matchesSearch =
-        !keyword ||
-        [employee.fullName, employee.employeeCode, employee.email].some((value) =>
-          normalizeText(value).includes(keyword)
-        );
+  useEffect(() => {
+    const nav = navRef.current;
+    const active = nav?.querySelector('.nav-item.active');
 
-      return (
-        matchesSearch &&
-        (!departmentFilter || employee.departmentId === departmentFilter) &&
-        (!positionFilter || employee.position === positionFilter) &&
-        (!statusFilter || employee.status === statusFilter)
-      );
-    });
-  }, [employees, search, departmentFilter, positionFilter, statusFilter]);
+    if (nav && active && nav.scrollWidth > nav.clientWidth) {
+      const left = active.getBoundingClientRect().left - nav.getBoundingClientRect().left + nav.scrollLeft;
+      nav.scrollLeft = left - (nav.clientWidth - active.offsetWidth) / 2;
+    }
+  }, [view]);
 
-  // Đổi bộ lọc thì quay về trang 1.
+  // Đổi bộ lọc thì quay về trang 1 (search đã debounce ở effect phía trên).
   useEffect(() => {
     setPage(1);
-  }, [search, departmentFilter, positionFilter, statusFilter]);
+  }, [debouncedSearch, departmentFilter, positionFilter, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pageEmployees = filteredEmployees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-
+  // positionNames/suggestedCode cần dữ liệu TOÀN BỘ nhân sự nên lấy từ employeesLookup
+  // (danh sách rút gọn), không phải từ "employees" (chỉ có trang đang xem).
   const positionNames = useMemo(() => {
-    const names = [...positions.map((position) => position.name), ...employees.map((employee) => employee.position)];
+    const names = [...positions.map((position) => position.name), ...employeesLookup.map((employee) => employee.position)];
     return [...new Set(names.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
-  }, [positions, employees]);
+  }, [positions, employeesLookup]);
 
-  const suggestedCode = useMemo(() => nextEmployeeCode(employees), [employees]);
+  const suggestedCode = useMemo(() => nextEmployeeCode(employeesLookup), [employeesLookup]);
 
   function showList() {
     setScreen({ type: 'list' });
@@ -252,6 +275,52 @@ function Dashboard({ user, onLogout }) {
       setFormError(err.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  // HR-009: xuất danh sách đang xem (theo đúng bộ lọc hiện tại) ra file Excel.
+  async function handleExportEmployees() {
+    try {
+      const blob = await api.exportEmployees({
+        search: debouncedSearch,
+        status: statusFilter,
+        departmentId: departmentFilter,
+        position: positionFilter
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `danh-sach-nhan-su-${Date.now()}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      showToast('error', err.message);
+    }
+  }
+
+  // HR-009: nhập danh sách nhân sự từ file Excel (cùng định dạng cột với file xuất ra).
+  async function handleImportFile(event) {
+    const file = event.target.files[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    setImporting(true);
+
+    try {
+      const response = await api.importEmployees(file);
+      const { created, updated, skipped } = response.data;
+      showToast(
+        'success',
+        `Đã nhập ${created} nhân viên mới, cập nhật ${updated} nhân viên, bỏ qua ${skipped} dòng lỗi.`
+      );
+      await loadData();
+    } catch (err) {
+      showToast('error', err.message);
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -337,7 +406,7 @@ function Dashboard({ user, onLogout }) {
       return (
         <EmployeeForm
           employee={screen.employee}
-          employees={employees}
+          employees={employeesLookup}
           departments={departments}
           positions={positions}
           suggestedCode={screen.employee ? '' : suggestedCode}
@@ -386,11 +455,31 @@ function Dashboard({ user, onLogout }) {
             ))}
           </select>
           <div className="toolbar-actions">
-            {/* Import / Export Excel thuộc task HR-009, chưa có API nên tạm khóa. */}
-            <button type="button" className="icon-text-button square" disabled title="Nhập từ Excel (sắp có)" aria-label="Nhập từ Excel">
+            {/* HR-009: nhập/xuất Excel. Input file ẩn, bấm nút icon thì mở hộp chọn file. */}
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".xlsx"
+              hidden
+              onChange={handleImportFile}
+            />
+            <button
+              type="button"
+              className="icon-text-button square"
+              disabled={importing}
+              onClick={() => importInputRef.current?.click()}
+              title="Nhập từ Excel"
+              aria-label="Nhập từ Excel"
+            >
               <Upload size={18} aria-hidden="true" />
             </button>
-            <button type="button" className="icon-text-button square" disabled title="Xuất Excel (sắp có)" aria-label="Xuất Excel">
+            <button
+              type="button"
+              className="icon-text-button square"
+              onClick={handleExportEmployees}
+              title="Xuất Excel"
+              aria-label="Xuất Excel"
+            >
               <Download size={18} aria-hidden="true" />
             </button>
             {canEdit && (
@@ -422,8 +511,8 @@ function Dashboard({ user, onLogout }) {
                   <tr>
                     <td colSpan="6">Đang tải dữ liệu</td>
                   </tr>
-                ) : pageEmployees.length ? (
-                  pageEmployees.map((employee) => (
+                ) : employees.length ? (
+                  employees.map((employee) => (
                     <tr key={employee.id}>
                       <td className="cell-main">
                         <div className="person-cell">
@@ -484,9 +573,9 @@ function Dashboard({ user, onLogout }) {
           </div>
 
           <Pagination
-            page={currentPage}
+            page={page}
             pageSize={PAGE_SIZE}
-            total={filteredEmployees.length}
+            total={totalEmployees}
             unit="nhân sự"
             onChange={setPage}
           />
@@ -505,7 +594,7 @@ function Dashboard({ user, onLogout }) {
           <span className="brand-name">WebHR</span>
         </div>
         <p className="menu-label">Menu</p>
-        <nav>
+        <nav ref={navRef}>
           <a className={`nav-item${view === 'employees' ? ' active' : ''}`} href="#employees" onClick={showList}>
             <Users size={18} aria-hidden="true" />
             Nhân sự
@@ -560,7 +649,7 @@ function Dashboard({ user, onLogout }) {
         ) : view === 'positions' ? (
           <PositionsPanel user={user} departments={departments} showToast={showToast} />
         ) : view === 'contracts' ? (
-          <ContractsPanel user={user} employees={employees} showToast={showToast} />
+          <ContractsPanel user={user} employees={employeesLookup} showToast={showToast} />
         ) : (
           <RecruitmentPanel
             user={user}

@@ -1,4 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- BUG-06: tìm nhân sự không phân biệt dấu tiếng Việt (unaccent(...) ILIKE unaccent(...)).
+CREATE EXTENSION IF NOT EXISTS unaccent;
 
 CREATE TABLE IF NOT EXISTS departments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -165,3 +167,67 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs (entity_type, entity_id, created_at DESC);
+
+-- Ca lam viec & cham cong/nghi phep (HR-021, HR-022, HR-023): moi thiet ke bang o giai doan nay,
+-- chua co API/UI (PROJECT_OUTLINE.md dang de hai phan nay ngoai pham vi tam thoi).
+CREATE TABLE IF NOT EXISTS work_shifts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  code VARCHAR(40) NOT NULL UNIQUE,
+  name VARCHAR(120) NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  break_minutes INTEGER NOT NULL DEFAULT 0 CHECK (break_minutes >= 0),
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Lich phan ca: moi nhan vien chi co mot ca cho moi ngay lam viec.
+CREATE TABLE IF NOT EXISTS work_schedules (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  shift_id UUID NOT NULL REFERENCES work_shifts(id) ON DELETE RESTRICT,
+  work_date DATE NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'SCHEDULED' CHECK (status IN ('SCHEDULED', 'CANCELLED')),
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (employee_id, work_date)
+);
+
+-- Cham cong theo ngay, doi chieu voi lich phan ca (schedule_id co the null neu cham cong ngoai lich).
+CREATE TABLE IF NOT EXISTS attendance_records (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  schedule_id UUID REFERENCES work_schedules(id) ON DELETE SET NULL,
+  work_date DATE NOT NULL,
+  check_in TIMESTAMPTZ,
+  check_out TIMESTAMPTZ,
+  status VARCHAR(20) NOT NULL DEFAULT 'PRESENT'
+    CHECK (status IN ('PRESENT', 'LATE', 'ABSENT', 'ON_LEAVE')),
+  note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (employee_id, work_date)
+);
+
+-- Don nghi phep: quan ly duyet/tu choi theo nguoi dung (users).
+CREATE TABLE IF NOT EXISTS leave_requests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  leave_type VARCHAR(20) NOT NULL CHECK (leave_type IN ('ANNUAL', 'SICK', 'UNPAID', 'OTHER')),
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL CHECK (end_date >= start_date),
+  reason TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+  approved_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  approved_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_work_schedules_employee_date ON work_schedules(employee_id, work_date);
+CREATE INDEX IF NOT EXISTS idx_work_schedules_shift_id ON work_schedules(shift_id);
+CREATE INDEX IF NOT EXISTS idx_attendance_records_employee_date ON attendance_records(employee_id, work_date);
+CREATE INDEX IF NOT EXISTS idx_leave_requests_employee_id ON leave_requests(employee_id);
+CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status);

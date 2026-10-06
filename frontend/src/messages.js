@@ -14,6 +14,7 @@ const exactMessages = {
   'Position not found': 'Không tìm thấy chức vụ.',
   'Position code already exists': 'Mã chức vụ đã tồn tại. Vui lòng dùng mã khác.',
   'Selected position does not exist': 'Chức vụ đã chọn không còn trong danh mục. Vui lòng chọn lại.',
+  'Position still has employees': 'Chức vụ vẫn còn nhân viên đang giữ. Hãy đổi chức vụ khác cho họ trước khi xóa.',
   'Related record does not exist or is still in use': 'Dữ liệu liên quan không tồn tại hoặc đang được sử dụng.',
   'Invalid identifier or database value': 'Dữ liệu gửi lên không hợp lệ.',
   'Internal server error': 'Hệ thống đang gặp lỗi. Vui lòng thử lại sau.',
@@ -35,16 +36,21 @@ const exactMessages = {
   'CV file not found': 'Không tìm thấy file CV trên máy chủ.',
   'Converted application status cannot be changed': 'Hồ sơ đã chuyển thành nhân sự nên không đổi trạng thái được.',
   'Application has already been converted': 'Hồ sơ này đã được chuyển thành nhân sự.',
+  'Cannot delete an application that has already been converted to an employee':
+    'Hồ sơ đã chuyển thành nhân sự nên không xóa được.',
   'Only passed applications can be converted': 'Chỉ hồ sơ ở trạng thái "Đậu" mới chuyển thành nhân sự được.',
   'Interview time is required for interview status': 'Vui lòng chọn lịch phỏng vấn.',
   'Deadline must be today or later to open a job posting': 'Hạn nộp hồ sơ phải từ hôm nay trở đi.',
   'ID number already exists': 'Số CCCD đã được dùng cho nhân viên khác.',
-  'An employee cannot be their own manager': 'Nhân viên không thể là quản lý trực tiếp của chính mình.'
+  'An employee cannot be their own manager': 'Nhân viên không thể là quản lý trực tiếp của chính mình.',
+  'File must be an Excel .xlsx file': 'Vui lòng chọn file Excel định dạng .xlsx.',
+  'Excel file is required in the file field': 'Vui lòng chọn file Excel để nhập.',
+  'Excel file has no worksheet': 'File Excel không có dữ liệu.'
 };
 
 // Giới hạn dung lượng lấy từ cấu hình backend nên số MB có thể thay đổi.
-const fileSizeLabels = { Avatar: 'Ảnh đại diện', CV: 'CV' };
-const FILE_TOO_LARGE = /^(Avatar|CV) must not exceed (\d+(?:\.\d+)?) MB$/;
+const fileSizeLabels = { Avatar: 'Ảnh đại diện', CV: 'CV', 'Excel file': 'File Excel' };
+const FILE_TOO_LARGE = /^(Avatar|CV|Excel file) must not exceed (\d+(?:\.\d+)?) MB$/;
 
 const fieldLabels = {
   employeeCode: 'Mã nhân viên',
