@@ -14,13 +14,20 @@ Xay dung he thong quan ly nhan su co kha nang dang nhap, phan quyen, quan ly ho 
 - Luu tru du lieu bang PostgreSQL.
 - Thiet lap CI voi GitHub Actions.
 
+## Pham vi tuan 5-8 (bo sung)
+
+- Quan ly ca lam viec va lich phan ca (xep ca, dang ky/doi ca, duyet doi ca).
+- Cham cong (check-in/check-out), xin nghi phep va phe duyet nghi phep.
+- Bao cao thong ke (theo phong ban, gio cong, xuat Excel).
+- Dong goi backend/frontend bang Docker, pipeline CI/CD, tai lieu trien khai.
+
 ## Ngoai pham vi tam thoi
 
-- Cham cong.
 - Tinh luong chi tiet.
-- Phe duyet nghi phep.
 - Ky hop dong dien tu.
 - Tich hop email, lich, SSO.
+- He thong thong bao (notification) thuc su — tam thoi dung audit log thay the.
+- Trien khai tu dong len server staging that (chua co server/credential thuc te; xem docs/DEPLOYMENT.md).
 
 ## Ben lien quan
 

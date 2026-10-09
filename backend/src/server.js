@@ -7,13 +7,18 @@ import swaggerUi from 'swagger-ui-express';
 import { config } from './config.js';
 import { requireAuth } from './middleware/auth.js';
 import applicationRoutes from './routes/applications.routes.js';
+import attendanceRoutes from './routes/attendance.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import contractRoutes from './routes/contracts.routes.js';
 import departmentRoutes from './routes/departments.routes.js';
 import employeeRoutes from './routes/employees.routes.js';
 import jobPostingRoutes from './routes/jobPostings.routes.js';
+import leaveRequestRoutes from './routes/leaveRequests.routes.js';
 import positionRoutes from './routes/positions.routes.js';
 import publicJobRoutes from './routes/publicJobs.routes.js';
+import reportRoutes from './routes/reports.routes.js';
+import workScheduleRoutes from './routes/workSchedules.routes.js';
+import workShiftRoutes from './routes/workShifts.routes.js';
 import { swaggerSpec } from './swagger.js';
 
 const app = express();
@@ -45,6 +50,11 @@ app.use('/api/positions', requireAuth, positionRoutes);
 app.use('/api/contracts', requireAuth, contractRoutes);
 app.use('/api/jobs', requireAuth, jobPostingRoutes);
 app.use('/api/applications', requireAuth, applicationRoutes);
+app.use('/api/work-shifts', requireAuth, workShiftRoutes);
+app.use('/api/work-schedules', requireAuth, workScheduleRoutes);
+app.use('/api/attendance-records', requireAuth, attendanceRoutes);
+app.use('/api/leave-requests', requireAuth, leaveRequestRoutes);
+app.use('/api/reports', requireAuth, reportRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
@@ -60,7 +70,11 @@ app.use((error, _req, res, _next) => {
     employment_contracts_contract_number_key: 'Contract number already exists',
     applications_active_email_job_key: 'You have already applied for this job',
     job_postings_code_key: 'Job posting code already exists',
-    employment_contracts_one_active_key: 'Employee already has an active contract'
+    employment_contracts_one_active_key: 'Employee already has an active contract',
+    work_shifts_code_key: 'Shift code already exists',
+    work_schedules_employee_id_work_date_key: 'Employee already has a shift scheduled for this date',
+    attendance_records_employee_id_work_date_key: 'Attendance already recorded for this date',
+    users_employee_id_key: 'This employee already has a linked account'
   };
   const isValidationError = error.name === 'ZodError';
   const isDuplicate = error.code === '23505';

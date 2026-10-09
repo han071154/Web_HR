@@ -189,3 +189,29 @@ SET position_id = (
 )
 WHERE e.position_id IS NULL
   AND EXISTS (SELECT 1 FROM positions p WHERE p.name = e.position);
+
+-- Liên kết tài khoản tự-phục vụ mẫu (employee@webhr.local, tạo trong setupDatabase.js) với EMP002.
+UPDATE users
+SET employee_id = (SELECT id FROM employees WHERE employee_code = 'EMP002')
+WHERE email = 'employee@webhr.local' AND employee_id IS NULL;
+
+-- Ca làm việc mẫu.
+INSERT INTO work_shifts (code, name, start_time, end_time, break_minutes)
+VALUES
+  ('SHIFT-SANG', 'Ca sáng', '08:00', '12:00', 0),
+  ('SHIFT-CHIEU', 'Ca chiều', '13:00', '17:00', 0),
+  ('SHIFT-HANHCHINH', 'Ca hành chính', '08:00', '17:00', 60)
+ON CONFLICT (code) DO NOTHING;
+
+-- Lịch phân ca mẫu cho EMP002 trong tuần hiện tại (từ thứ 2 tuần này, 5 ngày làm việc).
+INSERT INTO work_schedules (employee_id, shift_id, work_date, status)
+SELECT
+  e.id,
+  s.id,
+  (date_trunc('week', CURRENT_DATE) + (offset_days || ' days')::interval)::date,
+  'SCHEDULED'
+FROM employees e
+JOIN work_shifts s ON s.code = 'SHIFT-HANHCHINH'
+CROSS JOIN generate_series(0, 4) AS offset_days
+WHERE e.employee_code = 'EMP002'
+ON CONFLICT (employee_id, work_date) DO NOTHING;
