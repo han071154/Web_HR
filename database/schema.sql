@@ -168,8 +168,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs (entity_type, entity_id, created_at DESC);
 
--- Ca lam viec & cham cong/nghi phep (HR-021, HR-022, HR-023): moi thiet ke bang o giai doan nay,
--- chua co API/UI (PROJECT_OUTLINE.md dang de hai phan nay ngoai pham vi tam thoi).
+-- Tai khoan tu-phuc-vu cua nhan vien (cham cong, xem lich ca nhan, xin nghi phep, dang ky/doi ca):
+-- lien ket 1-1 toi employees qua employee_id (null = tai khoan HR thuan, khong phai nhan vien).
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS employee_id UUID REFERENCES employees(id) ON DELETE SET NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS users_employee_id_key
+  ON users (employee_id)
+  WHERE employee_id IS NOT NULL;
+
+-- Ca lam viec & cham cong/nghi phep (HR-021, HR-022, HR-023): module Tuan 5-6 (Ca lam viec,
+-- Cham cong & nghi phep, Bao cao thong ke).
 CREATE TABLE IF NOT EXISTS work_shifts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   code VARCHAR(40) NOT NULL UNIQUE,
@@ -226,8 +235,27 @@ CREATE TABLE IF NOT EXISTS leave_requests (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Yeu cau doi ca: nhan vien de xuat doi lich phan ca sang ca khac, HR duyet/tu choi.
+CREATE TABLE IF NOT EXISTS shift_change_requests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  schedule_id UUID NOT NULL REFERENCES work_schedules(id) ON DELETE CASCADE,
+  requested_shift_id UUID REFERENCES work_shifts(id) ON DELETE SET NULL,
+  reason TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+  reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_work_schedules_employee_date ON work_schedules(employee_id, work_date);
 CREATE INDEX IF NOT EXISTS idx_work_schedules_shift_id ON work_schedules(shift_id);
+CREATE INDEX IF NOT EXISTS idx_work_schedules_work_date ON work_schedules(work_date);
 CREATE INDEX IF NOT EXISTS idx_attendance_records_employee_date ON attendance_records(employee_id, work_date);
+CREATE INDEX IF NOT EXISTS idx_attendance_records_work_date ON attendance_records(work_date);
 CREATE INDEX IF NOT EXISTS idx_leave_requests_employee_id ON leave_requests(employee_id);
 CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status);
+CREATE INDEX IF NOT EXISTS idx_shift_change_requests_employee_id ON shift_change_requests(employee_id);
+CREATE INDEX IF NOT EXISTS idx_shift_change_requests_schedule_id ON shift_change_requests(schedule_id);
+CREATE INDEX IF NOT EXISTS idx_shift_change_requests_status ON shift_change_requests(status);

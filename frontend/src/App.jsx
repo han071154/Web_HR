@@ -1,12 +1,16 @@
 import {
+  BarChart3,
   BriefcaseBusiness,
   Building2,
+  CalendarDays,
   ClipboardList,
+  Clock,
   Download,
   FileText,
   Eye,
   LogOut,
   Pencil,
+  Plane,
   Plus,
   Search,
   Trash2,
@@ -18,14 +22,21 @@ import { api, clearSession, getStoredUser, getToken, setUnauthorizedHandler } fr
 import Avatar from './components/Avatar.jsx';
 import CareersPage from './components/CareersPage.jsx';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
+import AttendancePanel from './components/AttendancePanel.jsx';
 import ContractsPanel from './components/ContractsPanel.jsx';
 import DepartmentsPanel from './components/DepartmentsPanel.jsx';
 import EmployeeDetail from './components/EmployeeDetail.jsx';
 import EmployeeForm from './components/EmployeeForm.jsx';
+import LeavePanel from './components/LeavePanel.jsx';
 import LoginPage from './components/LoginPage.jsx';
+import MyAttendancePanel from './components/MyAttendancePanel.jsx';
+import MyLeavePanel from './components/MyLeavePanel.jsx';
+import MySchedulePanel from './components/MySchedulePanel.jsx';
 import Pagination from './components/Pagination.jsx';
 import PositionsPanel from './components/PositionsPanel.jsx';
 import RecruitmentPanel from './components/RecruitmentPanel.jsx';
+import ReportsPanel from './components/ReportsPanel.jsx';
+import ShiftsPanel from './components/ShiftsPanel.jsx';
 import Toast from './components/Toast.jsx';
 import { CONTRACT_DELETE_ROLES, CONTRACT_EDIT_ROLES } from './contracts.js';
 import { roleLabels, statusLabels } from './format.js';
@@ -36,19 +47,47 @@ const DELETE_ROLES = ['ADMIN', 'HR_MANAGER'];
 
 const PAGE_SIZE = 10;
 
-const VIEWS = ['employees', 'departments', 'positions', 'contracts', 'recruitment'];
+// Menu bên trái: HR thấy các mục quản lý, tài khoản nhân viên (EMPLOYEE) chỉ thấy các mục tự phục vụ.
+const HR_MENU = [
+  { view: 'employees', label: 'Nhân sự', icon: Users },
+  { view: 'departments', label: 'Phòng ban', icon: Building2 },
+  { view: 'positions', label: 'Chức vụ', icon: BriefcaseBusiness },
+  { view: 'contracts', label: 'Hợp đồng', icon: FileText },
+  { view: 'recruitment', label: 'Tuyển dụng', icon: ClipboardList },
+  { view: 'shifts', label: 'Ca làm việc', icon: CalendarDays },
+  { view: 'attendance', label: 'Chấm công', icon: Clock },
+  { view: 'leave', label: 'Nghỉ phép', icon: Plane },
+  { view: 'reports', label: 'Báo cáo', icon: BarChart3 }
+];
+
+const EMPLOYEE_MENU = [
+  { view: 'my-attendance', label: 'Chấm công', icon: Clock },
+  { view: 'my-schedule', label: 'Lịch làm việc', icon: CalendarDays },
+  { view: 'my-leave', label: 'Nghỉ phép', icon: Plane }
+];
 
 const pageTitles = {
   employees: { title: 'Danh sách nhân sự', subtitle: 'Quản lý hồ sơ nhân viên của công ty' },
   departments: { title: 'Phòng ban', subtitle: 'Quản lý danh mục phòng ban' },
   positions: { title: 'Chức vụ', subtitle: 'Quản lý danh mục chức vụ' },
   contracts: { title: 'Hợp đồng', subtitle: 'Quản lý hợp đồng lao động của nhân viên' },
-  recruitment: { title: 'Tuyển dụng', subtitle: 'Quản lý tin tuyển dụng và hồ sơ ứng viên' }
+  recruitment: { title: 'Tuyển dụng', subtitle: 'Quản lý tin tuyển dụng và hồ sơ ứng viên' },
+  shifts: { title: 'Ca làm việc', subtitle: 'Xếp lịch làm việc theo tuần và quản lý danh mục ca' },
+  attendance: { title: 'Chấm công', subtitle: 'Theo dõi giờ vào/ra và bảng công của nhân viên' },
+  leave: { title: 'Nghỉ phép', subtitle: 'Duyệt đơn xin nghỉ của nhân viên' },
+  reports: { title: 'Báo cáo', subtitle: 'Thống kê nhân sự và giờ công' },
+  'my-attendance': { title: 'Chấm công', subtitle: 'Chấm công vào/ra và xem bảng công của bạn' },
+  'my-schedule': { title: 'Lịch làm việc', subtitle: 'Xem ca được xếp, đăng ký ca hoặc xin đổi ca' },
+  'my-leave': { title: 'Nghỉ phép', subtitle: 'Gửi đơn xin nghỉ và theo dõi kết quả duyệt' }
 };
 
-function viewFromHash() {
+function menuFor(user) {
+  return user?.role === 'EMPLOYEE' ? EMPLOYEE_MENU : HR_MENU;
+}
+
+function viewFromHash(menu) {
   const view = window.location.hash.slice(1);
-  return VIEWS.includes(view) ? view : 'employees';
+  return menu.some((item) => item.view === view) ? view : menu[0].view;
 }
 
 // Gợi ý mã nhân viên kế tiếp: NV007 → NV008 (giữ tiền tố và số chữ số của mã lớn nhất).
@@ -114,7 +153,9 @@ function Dashboard({ user, onLogout }) {
   const [confirmAction, setConfirmAction] = useState(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [toast, setToast] = useState(null);
-  const [view, setView] = useState(viewFromHash);
+  const menu = menuFor(user);
+  const isEmployee = menu === EMPLOYEE_MENU;
+  const [view, setView] = useState(() => viewFromHash(menu));
   const canEdit = EDIT_ROLES.includes(user?.role);
   const canDelete = DELETE_ROLES.includes(user?.role);
 
@@ -169,20 +210,23 @@ function Dashboard({ user, onLogout }) {
   }, [page, debouncedSearch, statusFilter, departmentFilter, positionFilter]);
 
   // Tải lại mỗi khi đổi mục menu, đổi trang hoặc đổi bộ lọc.
+  // Tài khoản nhân viên không dùng danh sách nhân sự/phòng ban nên không tải.
   useEffect(() => {
-    loadData();
-  }, [loadData, view]);
+    if (!isEmployee) {
+      loadData();
+    }
+  }, [loadData, view, isEmployee]);
 
   useEffect(() => {
     // Menu bên trái đổi trang qua #employees / #departments / #positions trên URL.
     function handleHashChange() {
-      setView(viewFromHash());
+      setView(viewFromHash(menu));
       setScreen({ type: 'list' });
     }
 
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  }, [menu]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -595,26 +639,21 @@ function Dashboard({ user, onLogout }) {
         </div>
         <p className="menu-label">Menu</p>
         <nav ref={navRef}>
-          <a className={`nav-item${view === 'employees' ? ' active' : ''}`} href="#employees" onClick={showList}>
-            <Users size={18} aria-hidden="true" />
-            Nhân sự
-          </a>
-          <a className={`nav-item${view === 'departments' ? ' active' : ''}`} href="#departments">
-            <Building2 size={18} aria-hidden="true" />
-            Phòng ban
-          </a>
-          <a className={`nav-item${view === 'positions' ? ' active' : ''}`} href="#positions">
-            <BriefcaseBusiness size={18} aria-hidden="true" />
-            Chức vụ
-          </a>
-          <a className={`nav-item${view === 'contracts' ? ' active' : ''}`} href="#contracts">
-            <FileText size={18} aria-hidden="true" />
-            Hợp đồng
-          </a>
-          <a className={`nav-item${view === 'recruitment' ? ' active' : ''}`} href="#recruitment">
-            <ClipboardList size={18} aria-hidden="true" />
-            Tuyển dụng
-          </a>
+          {menu.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <a
+                key={item.view}
+                className={`nav-item${view === item.view ? ' active' : ''}`}
+                href={`#${item.view}`}
+                onClick={item.view === 'employees' ? showList : undefined}
+              >
+                <Icon size={18} aria-hidden="true" />
+                {item.label}
+              </a>
+            );
+          })}
         </nav>
         <div className="sidebar-footer">
           <Avatar name={user?.fullName || user?.email} size="small" />
@@ -650,6 +689,20 @@ function Dashboard({ user, onLogout }) {
           <PositionsPanel user={user} departments={departments} showToast={showToast} />
         ) : view === 'contracts' ? (
           <ContractsPanel user={user} employees={employeesLookup} showToast={showToast} />
+        ) : view === 'shifts' ? (
+          <ShiftsPanel departments={departments} showToast={showToast} />
+        ) : view === 'attendance' ? (
+          <AttendancePanel departments={departments} showToast={showToast} />
+        ) : view === 'leave' ? (
+          <LeavePanel showToast={showToast} />
+        ) : view === 'reports' ? (
+          <ReportsPanel departments={departments} showToast={showToast} />
+        ) : view === 'my-attendance' ? (
+          <MyAttendancePanel showToast={showToast} />
+        ) : view === 'my-schedule' ? (
+          <MySchedulePanel showToast={showToast} />
+        ) : view === 'my-leave' ? (
+          <MyLeavePanel showToast={showToast} />
         ) : (
           <RecruitmentPanel
             user={user}

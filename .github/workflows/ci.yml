@@ -25,8 +25,39 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Unit tests
+        run: npm test
+
       - name: Build frontend
         run: npm run build
+
+  # Build (không push) các Docker image để xác nhận Dockerfile build được — chưa deploy tự động
+  # lên server staging thật vì repo chưa có server/credentials (xem docs/DEPLOYMENT.md).
+  docker-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: false
+          tags: web-hr-backend:ci
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: false
+          tags: web-hr-frontend:ci
 
   # Chạy API thật với PostgreSQL: smoke test + bộ Postman (tests/postman).
   api-tests:

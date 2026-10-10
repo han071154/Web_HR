@@ -85,6 +85,20 @@ async function request(path, options = {}) {
   return payload;
 }
 
+// Bỏ các tham số rỗng để backend không nhận "?status=&from=".
+function toQuery(params = {}) {
+  const search = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '') {
+      search.append(key, value);
+    }
+  }
+
+  const text = search.toString();
+  return text ? `?${text}` : '';
+}
+
 export const api = {
   login: (email, password) =>
     request('/auth/login', {
@@ -232,5 +246,51 @@ export const api = {
   deleteContract: (id) =>
     request(`/contracts/${id}`, {
       method: 'DELETE'
-    })
+    }),
+  // Ca làm việc (HR-029).
+  workShifts: (params) => request(`/work-shifts${toQuery(params)}`),
+  createWorkShift: (shift) => request('/work-shifts', { method: 'POST', body: JSON.stringify(shift) }),
+  updateWorkShift: (id, shift) => request(`/work-shifts/${id}`, { method: 'PUT', body: JSON.stringify(shift) }),
+  deleteWorkShift: (id) => request(`/work-shifts/${id}`, { method: 'DELETE' }),
+  // Lịch phân ca phía HR (HR-021, HR-030).
+  workSchedules: (params) => request(`/work-schedules${toQuery(params)}`),
+  createWorkSchedule: (schedule) => request('/work-schedules', { method: 'POST', body: JSON.stringify(schedule) }),
+  updateWorkSchedule: (id, schedule) =>
+    request(`/work-schedules/${id}`, { method: 'PUT', body: JSON.stringify(schedule) }),
+  deleteWorkSchedule: (id) => request(`/work-schedules/${id}`, { method: 'DELETE' }),
+  bulkWorkSchedules: (assignments) =>
+    request('/work-schedules/bulk', { method: 'POST', body: JSON.stringify({ assignments }) }),
+  copyPreviousWeek: (weekStartDate, departmentId) =>
+    request('/work-schedules/copy-previous-week', {
+      method: 'POST',
+      body: JSON.stringify({ weekStartDate, departmentId: departmentId || null })
+    }),
+  // Yêu cầu đổi ca (HR-032).
+  shiftChangeRequests: (params) => request(`/work-schedules/change-requests${toQuery(params)}`),
+  reviewShiftChangeRequest: (id, status) =>
+    request(`/work-schedules/change-requests/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  // Nhân viên tự xem lịch, đăng ký ca, xin đổi ca (HR-031, HR-032, HR-033).
+  mySchedules: (params) => request(`/work-schedules/me${toQuery(params)}`),
+  registerShift: (shiftId, workDate) =>
+    request('/work-schedules/me/register', { method: 'POST', body: JSON.stringify({ shiftId, workDate }) }),
+  requestShiftChange: (scheduleId, changes) =>
+    request(`/work-schedules/${scheduleId}/change-requests`, { method: 'POST', body: JSON.stringify(changes) }),
+  // Chấm công (HR-022, HR-035 → HR-037).
+  checkIn: () => request('/attendance-records/check-in', { method: 'POST' }),
+  checkOut: () => request('/attendance-records/check-out', { method: 'POST' }),
+  myAttendance: (params) => request(`/attendance-records/me${toQuery(params)}`),
+  attendanceRecords: (params) => request(`/attendance-records${toQuery(params)}`),
+  monthlyAttendance: (params) => request(`/attendance-records/monthly-summary${toQuery(params)}`),
+  updateAttendance: (id, changes) =>
+    request(`/attendance-records/${id}`, { method: 'PUT', body: JSON.stringify(changes) }),
+  // Nghỉ phép (HR-023).
+  myLeaveRequests: () => request('/leave-requests/me'),
+  createLeaveRequest: (leave) => request('/leave-requests', { method: 'POST', body: JSON.stringify(leave) }),
+  leaveRequests: (params) => request(`/leave-requests${toQuery(params)}`),
+  reviewLeaveRequest: (id, status) =>
+    request(`/leave-requests/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  // Báo cáo (HR-010, HR-038, HR-040).
+  reportByDepartment: () => request('/reports/by-department'),
+  reportWorkHours: (params) => request(`/reports/work-hours${toQuery(params)}`),
+  exportWorkHours: (params) => request(`/reports/export${toQuery(params)}`, { blob: true })
 };

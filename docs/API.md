@@ -442,6 +442,156 @@ application already converted into an employee cannot be deleted
 (`409 Cannot delete an application that has already been converted to an employee`) since it is
 the source record for that employee's first contract.
 
+## Work shifts (Ca làm việc)
+
+| Method | Path | Roles |
+| --- | --- | --- |
+| GET | `/work-shifts?active=true` | Any authenticated role |
+| GET | `/work-shifts/:id` | Any authenticated role |
+| POST | `/work-shifts` | ADMIN, HR_MANAGER, HR_STAFF |
+| PUT | `/work-shifts/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| DELETE | `/work-shifts/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+
+Create/update fields:
+
+```json
+{
+  "code": "SHIFT-SANG",
+  "name": "Ca sáng",
+  "startTime": "08:00",
+  "endTime": "12:00",
+  "breakMinutes": 0,
+  "isActive": true
+}
+```
+
+`endTime` must be after `startTime`. `breakMinutes` defaults to `0`, `isActive` defaults to `true`
+when creating. A shift already used in a schedule cannot be deleted
+(`409 This shift is already used in a schedule; deactivate it instead of deleting`) — set
+`isActive` to `false` instead.
+
+## Work schedules (Lịch phân ca)
+
+An account only has a personal schedule if it is linked to an employee profile
+(`users.employee_id`, set by HR directly in the database for now — there is no self-service
+sign-up flow yet). Calling a `/me*` endpoint from an account without that link returns
+`409 This account is not linked to an employee profile`.
+
+| Method | Path | Roles |
+| --- | --- | --- |
+| GET | `/work-schedules/me?from=&to=` | Any authenticated role linked to an employee |
+| POST | `/work-schedules/me/register` | Any authenticated role linked to an employee |
+| POST | `/work-schedules/:scheduleId/change-requests` | Any authenticated role linked to an employee |
+| GET | `/work-schedules?employeeId=&departmentId=&from=&to=` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/work-schedules/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| POST | `/work-schedules` | ADMIN, HR_MANAGER, HR_STAFF |
+| POST | `/work-schedules/bulk` | ADMIN, HR_MANAGER, HR_STAFF |
+| POST | `/work-schedules/copy-previous-week` | ADMIN, HR_MANAGER, HR_STAFF |
+| PUT | `/work-schedules/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| DELETE | `/work-schedules/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/work-schedules/change-requests?status=` | ADMIN, HR_MANAGER, HR_STAFF |
+| PATCH | `/work-schedules/change-requests/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+
+Create/update fields:
+
+```json
+{
+  "employeeId": "employee-uuid",
+  "shiftId": "shift-uuid",
+  "workDate": "2026-10-12",
+  "status": "SCHEDULED",
+  "notes": "Optional"
+}
+```
+
+- One shift per employee per day (`409 Employee already has a shift scheduled for this date`).
+- Total scheduled hours for an employee within the same ISO week (Mon–Sun) cannot exceed
+  `MAX_WEEKLY_WORK_HOURS` (env var, default `48`): `409 Weekly work hour limit exceeded (max 48h/week)`.
+
+`POST /work-schedules/bulk` accepts `{ "assignments": [{ employeeId, shiftId, workDate, notes? }, ...] }`
+(1–200 items, used for weekly bulk assignment) and returns
+`{ "data": { "created": 5, "skipped": 1, "errors": [{ employeeId, workDate, message }] } }` — a
+failing assignment is skipped, not the whole batch.
+
+`POST /work-schedules/copy-previous-week` accepts `{ "weekStartDate": "2026-10-19", "departmentId"?: "uuid" }`
+and copies every `SCHEDULED` schedule from the 7 days before `weekStartDate` to the matching day
+one week later, skipping conflicts the same way as `bulk`.
+
+`POST /work-schedules/me/register` (`{ shiftId, workDate }`) lets the logged-in employee register
+themselves for an open shift, subject to the same conflict/weekly-limit rules.
+
+### Shift change requests (Đổi ca)
+
+`POST /work-schedules/:scheduleId/change-requests` (`{ requestedShiftId?, reason? }`) lets an
+employee request a change on their own schedule entry (`403` if the schedule belongs to someone
+else). `PATCH /work-schedules/change-requests/:id` (`{ "status": "APPROVED" | "REJECTED" }`) lets
+HR review it; approving with a `requestedShiftId` updates the underlying schedule's shift
+(re-checking the weekly hour limit) and returns `409 This request has already been reviewed` if
+called twice. There is no notification system yet — the decision is recorded in the audit log
+(`entityType: 'SHIFT_CHANGE_REQUEST'`); the employee sees the result by re-checking
+`GET /work-schedules/me`.
+
+## Attendance (Chấm công)
+
+| Method | Path | Roles |
+| --- | --- | --- |
+| POST | `/attendance-records/check-in` | Any authenticated role linked to an employee |
+| POST | `/attendance-records/check-out` | Any authenticated role linked to an employee |
+| GET | `/attendance-records/me?from=&to=` | Any authenticated role linked to an employee |
+| GET | `/attendance-records?employeeId=&departmentId=&status=&from=&to=` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/attendance-records/monthly-summary?month=YYYY-MM&employeeId=&departmentId=` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/attendance-records/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| PUT | `/attendance-records/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+
+`check-in` looks up today's schedule (`work_schedules`) for the employee: with no schedule the
+record is `PRESENT`; with a schedule, checking in more than `LATE_THRESHOLD_MINUTES` (env var,
+default `15`) after the shift's `startTime` sets `LATE`. A second `check-in` the same day returns
+`409 Already checked in today`. `check-out` requires a prior `check-in` the same day
+(`409 You have not checked in today`) and can only run once (`409 Already checked out today`).
+
+`PUT /attendance-records/:id` lets HR correct a record (forgotten check-in/out, wrong status) —
+any subset of `checkIn`, `checkOut` (ISO datetime with offset), `status`, `note`.
+
+`GET /attendance-records/monthly-summary` and `GET /reports/work-hours` share the same
+aggregation (see Reports below): `workDays`, `lateCount`, `absentCount`, `totalHours`, `otHours`.
+`otHours` is actual worked time (`checkOut - checkIn`) beyond the shift's standard duration
+(`endTime - startTime` from `work_shifts`), or beyond `DEFAULT_STANDARD_WORK_HOURS` (env var,
+default `8`) when the record has no linked schedule.
+
+## Leave requests (Nghỉ phép)
+
+| Method | Path | Roles |
+| --- | --- | --- |
+| GET | `/leave-requests/me` | Any authenticated role linked to an employee |
+| POST | `/leave-requests` | Any authenticated role linked to an employee |
+| GET | `/leave-requests?employeeId=&status=` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/leave-requests/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| PATCH | `/leave-requests/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+
+```json
+// POST /leave-requests
+{ "leaveType": "ANNUAL", "startDate": "2026-10-20", "endDate": "2026-10-21", "reason": "Optional" }
+```
+
+Leave types: `ANNUAL`, `SICK`, `UNPAID`, `OTHER`. `endDate` must be on or after `startDate`.
+New requests start as `PENDING`. `PATCH` (`{ "status": "APPROVED" | "REJECTED" }`) can only be
+called once per request (`409 This leave request has already been reviewed`); approving marks
+every day in the range as `ON_LEAVE` in `attendance-records`, without overwriting a day that
+already has a real attendance record.
+
+## Reports (Báo cáo thống kê)
+
+All routes require ADMIN, HR_MANAGER or HR_STAFF.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/reports/by-department` | Active employee headcount per department |
+| GET | `/reports/work-hours?from=&to=&employeeId=&departmentId=` | Work-hour stats (see Attendance) for a date range |
+| GET | `/reports/export?from=&to=&employeeId=&departmentId=` | Same stats as `.xlsx` |
+
+`from`/`to` are required `YYYY-MM-DD` dates. The employee list itself is exported separately via
+`GET /employees/export` (Excel only — no PDF export is implemented, per project decision).
+
 ## Error behavior
 
 - Validation errors return `400`.
@@ -476,4 +626,6 @@ npx newman run tests/postman/WebHR.postman_collection.json -e tests/postman/WebH
 ```
 
 GitHub Actions runs the same steps (job `api-tests`) against a PostgreSQL 16 service on every
-push to `main`, `master`, `Dev`, `feature` and on pull requests.
+push to `main`, `master`, `Dev`, `feature` and on pull requests. It also runs `npm test` inside the
+`build` job and builds (without pushing) the backend/frontend Docker images in the `docker-build`
+job — see [DEPLOYMENT.md](DEPLOYMENT.md) for running the full stack with Docker Compose.
