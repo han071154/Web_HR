@@ -2587,6 +2587,569 @@ a.ghost-button {
   }
 }
 
+/* ---------- Ca làm việc, chấm công, nghỉ phép, báo cáo (HR-021 → HR-038) ---------- */
+.content-panel + .content-panel {
+  margin-top: 20px;
+}
+
+.info-note {
+  margin: 0 0 16px;
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-control);
+  padding: 10px 14px;
+  color: var(--primary-light-text);
+  background: var(--primary-light);
+  font-size: 0.9rem;
+}
+
+.inline-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.inline-field input {
+  width: auto;
+}
+
+.muted-text.block {
+  display: block;
+  margin-top: 4px;
+}
+
+.danger-text,
+.ghost-button.danger-text {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.ghost-button.danger-text:hover {
+  color: #ffffff;
+  background: var(--danger);
+}
+
+.form-actions .danger-text {
+  margin-right: auto;
+}
+
+.primary-button.large {
+  min-height: 52px;
+  padding: 10px 28px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Hộp thoại có form (xếp ca, sửa chấm công...) */
+.modal.form-dialog {
+  width: min(100%, 520px);
+}
+
+.modal.form-dialog.wide {
+  width: min(100%, 680px);
+}
+
+.form-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.form-dialog-header h2 {
+  margin: 0;
+}
+
+.form-dialog-header p {
+  margin: 4px 0 0;
+  color: var(--text);
+}
+
+.dialog-form {
+  display: grid;
+  gap: 16px;
+}
+
+/* Ô datetime-local có bề rộng tối thiểu lớn: cho phép co lại để không tràn hộp thoại */
+.dialog-form label {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dialog-form input {
+  min-width: 0;
+}
+
+.dialog-form .form-actions {
+  margin-top: 6px;
+}
+
+.choice-group {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.choice-group legend {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 0;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.choice-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.choice-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--input-border);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.choice-chip input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.choice-chip.checked {
+  border-color: var(--primary);
+  color: #ffffff;
+  background: var(--primary);
+}
+
+.choice-chip:focus-within {
+  box-shadow: 0 0 0 0.25rem rgba(67, 94, 190, 0.25);
+}
+
+.choice-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-control);
+  padding: 12px;
+}
+
+.choice-list .checkbox-field {
+  font-weight: 400;
+}
+
+.skipped-list {
+  border-radius: var(--radius-control);
+  padding: 12px 14px;
+  color: #664d03;
+  background: #fff3cd;
+  font-size: 0.9rem;
+}
+
+.skipped-list ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+/* Lưới lịch phân ca theo tuần */
+.schedule-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.schedule-toolbar select {
+  width: auto;
+  min-width: 180px;
+}
+
+.week-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.week-nav strong {
+  min-width: 150px;
+  color: var(--heading);
+  text-align: center;
+}
+
+.icon-text-button.square {
+  width: var(--control-height);
+  padding: 0;
+}
+
+table.schedule-grid {
+  min-width: 1040px;
+  table-layout: fixed;
+}
+
+.schedule-grid th,
+.schedule-grid td {
+  border: 1px solid var(--border);
+  padding: 8px;
+  text-align: center;
+}
+
+.schedule-grid th span,
+.schedule-grid th small {
+  display: block;
+}
+
+.schedule-grid th small {
+  color: #8a97a8;
+  font-weight: 400;
+}
+
+.schedule-grid .sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: 190px;
+  background: var(--card-bg);
+  text-align: left;
+}
+
+.schedule-grid td.sticky-col strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-grid th:last-child,
+.schedule-grid td:last-child {
+  width: 80px;
+}
+
+.schedule-grid .is-today {
+  background: var(--primary-light);
+}
+
+.shift-chip {
+  display: grid;
+  width: 100%;
+  gap: 2px;
+  border: 0;
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-control);
+  padding: 6px 8px;
+  color: var(--primary-light-text);
+  background: #dfe8fb;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.shift-chip strong {
+  overflow: hidden;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shift-chip span {
+  margin: 0;
+  color: inherit;
+  font-size: 0.8rem;
+}
+
+.shift-chip:hover {
+  background: #cbd9f7;
+}
+
+.shift-chip.cancelled {
+  border-left-color: var(--secondary);
+  color: var(--secondary);
+  background: var(--secondary-light);
+  text-decoration: line-through;
+}
+
+.add-shift-button {
+  display: grid;
+  width: 100%;
+  min-height: 44px;
+  place-items: center;
+  border: 1px dashed var(--input-border);
+  border-radius: var(--radius-control);
+  color: #a3b0bf;
+  background: transparent;
+}
+
+.add-shift-button:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.add-shift-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.hours-cell {
+  color: var(--heading);
+  font-weight: 700;
+}
+
+.schedule-grid td.hours-over {
+  color: var(--danger);
+  background: var(--danger-light);
+  font-weight: 700;
+}
+
+table.shifts-table {
+  min-width: 820px;
+}
+
+table.requests-table,
+table.attendance-table {
+  min-width: 1040px;
+}
+
+table.leave-table {
+  min-width: 980px;
+}
+
+table.summary-table,
+table.my-attendance-table,
+table.my-leave-table {
+  min-width: 680px;
+}
+
+td.warning-cell {
+  color: #997404;
+  font-weight: 700;
+}
+
+td.danger-cell {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+/* Thẻ số liệu và biểu đồ thanh */
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-tile {
+  display: grid;
+  gap: 4px;
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-menu);
+  padding: 14px 16px;
+  background: var(--page-bg);
+}
+
+.stat-tile span {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.stat-tile strong {
+  color: var(--heading);
+  font-size: 1.5rem;
+}
+
+.stat-tile.tone-success {
+  border-left-color: var(--success);
+}
+
+.stat-tile.tone-info {
+  border-left-color: var(--accent-blue);
+}
+
+.stat-tile.tone-warning {
+  border-left-color: var(--warning);
+}
+
+.bar-list {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bar-list li {
+  display: grid;
+  grid-template-columns: minmax(120px, 220px) minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 12px;
+}
+
+.bar-label {
+  overflow: hidden;
+  color: var(--heading);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-track {
+  height: 14px;
+  border-radius: 999px;
+  background: var(--secondary-light);
+}
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  border-radius: 999px;
+  background: var(--primary);
+}
+
+.bar-value {
+  color: var(--heading);
+  text-align: right;
+}
+
+/* Chấm công của nhân viên */
+.check-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+}
+
+.check-clock span {
+  color: var(--text);
+  text-transform: capitalize;
+}
+
+.check-clock strong {
+  display: block;
+  margin: 4px 0;
+  color: var(--heading);
+  font-size: 2.6rem;
+  line-height: 1.1;
+}
+
+.check-clock p {
+  margin: 0;
+  color: var(--text);
+}
+
+.check-status {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.check-status div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.check-status dt {
+  color: var(--text);
+}
+
+.check-status dd {
+  margin: 0;
+  color: var(--heading);
+  font-weight: 700;
+}
+
+.check-actions .info-note {
+  margin: 0;
+}
+
+/* Lịch làm việc cá nhân */
+.my-week {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.my-day {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-menu);
+  padding: 12px 16px;
+}
+
+.my-day.is-today {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.my-day.is-past {
+  opacity: 0.7;
+}
+
+.my-day-date strong,
+.my-day-date span,
+.my-day-shift > * {
+  display: block;
+}
+
+.my-day-date strong,
+.my-day-shift strong {
+  color: var(--heading);
+}
+
+.my-day-date span,
+.my-day-shift span {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.cancelled-text {
+  text-decoration: line-through;
+}
+
+.section-header > select {
+  width: auto;
+  min-width: 180px;
+}
+
+.inline-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.inline-form.boxed {
+  margin: 16px 0 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-menu);
+  padding: 20px;
+}
+
+.leave-days {
+  align-self: end;
+  padding-bottom: 8px;
+  color: var(--primary);
+  font-weight: 700;
+}
+
 /* ---------- Màn hình nhỏ ---------- */
 @media (max-width: 1200px) {
   .detail-top,
@@ -2770,5 +3333,80 @@ a.ghost-button {
   .icon-text-button,
   .ghost-button {
     width: 100%;
+  }
+}
+
+/* Màn hình nhỏ: ca làm việc, chấm công, báo cáo */
+@media (max-width: 900px) {
+  .check-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Lưới lịch giữ dạng bảng và cuộn ngang (không đổi thành thẻ như các bảng khác) */
+  .table-wrap.schedule-wrap {
+    overflow-x: auto;
+  }
+
+  .schedule-toolbar select,
+  .schedule-toolbar .toolbar-actions,
+  .week-nav {
+    width: 100%;
+  }
+
+  .week-nav strong {
+    flex: 1;
+  }
+
+  .schedule-toolbar .toolbar-actions {
+    flex-direction: column;
+  }
+
+  .schedule-grid .sticky-col {
+    width: 130px;
+  }
+
+  .week-nav .icon-text-button.square {
+    width: var(--control-height);
+  }
+
+  .week-nav .ghost-button {
+    width: 100%;
+  }
+
+  .inline-field {
+    display: grid;
+    width: 100%;
+  }
+
+  .inline-field input {
+    width: 100%;
+  }
+
+  .choice-list {
+    grid-template-columns: 1fr;
+  }
+
+  .bar-list li {
+    grid-template-columns: minmax(0, 1fr) 40px;
+  }
+
+  .bar-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .my-day {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .check-clock strong {
+    font-size: 2.2rem;
+  }
+
+  .form-actions .danger-text {
+    margin-right: 0;
   }
 }

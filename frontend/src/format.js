@@ -64,7 +64,8 @@ export const contractStatusLabels = {
 export const roleLabels = {
   ADMIN: 'Quản trị viên',
   HR_MANAGER: 'Quản lý nhân sự',
-  HR_STAFF: 'Nhân viên nhân sự'
+  HR_STAFF: 'Nhân viên nhân sự',
+  EMPLOYEE: 'Nhân viên'
 };
 
 // Bỏ dấu để tìm "nguyen" vẫn ra "Nguyễn".
@@ -192,4 +193,129 @@ export function daysUntil(value) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return Math.round((toLocalDate(value) - today) / 86400000);
+}
+
+// ---------- Ca làm việc, chấm công, nghỉ phép (HR-021 → HR-038) ----------
+
+// Trạng thái duyệt dùng chung cho đơn nghỉ phép và yêu cầu đổi ca.
+export const approvalStatusLabels = {
+  PENDING: 'Chờ duyệt',
+  APPROVED: 'Đã duyệt',
+  REJECTED: 'Từ chối'
+};
+
+export const approvalStatusClass = {
+  PENDING: 'status-on_leave',
+  APPROVED: 'status-active',
+  REJECTED: 'status-terminated'
+};
+
+export const leaveTypeLabels = {
+  ANNUAL: 'Nghỉ phép năm',
+  SICK: 'Nghỉ ốm',
+  UNPAID: 'Nghỉ không lương',
+  OTHER: 'Khác'
+};
+
+export const attendanceStatusLabels = {
+  PRESENT: 'Đúng giờ',
+  LATE: 'Đi trễ',
+  ABSENT: 'Vắng',
+  ON_LEAVE: 'Nghỉ phép'
+};
+
+export const attendanceStatusClass = {
+  PRESENT: 'status-active',
+  LATE: 'status-on_leave',
+  ABSENT: 'status-terminated',
+  ON_LEAVE: 'status-reviewing'
+};
+
+export const weekdayLabels = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
+
+// Giờ từ API ("08:00:00") → "08:00".
+export function formatTime(value) {
+  return value ? String(value).slice(0, 5) : '';
+}
+
+// Giờ trong ngày của một mốc thời gian (check-in/check-out): "08:05".
+export function formatClock(value) {
+  if (!value) {
+    return '';
+  }
+
+  return new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+// Số giờ: 8 → "8", 7.5 → "7,5" (tối đa 1 chữ số thập phân).
+export function formatHours(value) {
+  return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(value || 0);
+}
+
+function minutesOfDay(time) {
+  const [hours, minutes] = String(time).split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+// Giờ công chuẩn của một ca (giờ kết thúc − giờ bắt đầu − giờ nghỉ), khớp cách backend tính giới hạn giờ/tuần.
+export function shiftHours(shift) {
+  if (!shift?.startTime || !shift?.endTime) {
+    return 0;
+  }
+
+  return (minutesOfDay(shift.endTime) - minutesOfDay(shift.startTime) - (shift.breakMinutes || 0)) / 60;
+}
+
+// Thứ 2 của tuần chứa ngày đã cho (tuần tính từ thứ 2 đến chủ nhật như backend).
+export function startOfWeek(value) {
+  const date = toLocalDate(value);
+  const weekday = (date.getDay() + 6) % 7;
+  date.setDate(date.getDate() - weekday);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+// Cộng/trừ số ngày, trả về "YYYY-MM-DD".
+export function addDays(value, days) {
+  const date = toLocalDate(value);
+  date.setDate(date.getDate() + days);
+  return toDateInputValue(date);
+}
+
+// 7 ngày của tuần bắt đầu từ weekStart, dạng "YYYY-MM-DD".
+export function weekDates(weekStart) {
+  return Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+}
+
+// "12/10" — ngày/tháng ngắn gọn cho tiêu đề cột lịch.
+export function formatDayMonth(value) {
+  const date = toLocalDate(value);
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Tháng hiện tại dạng "YYYY-MM" cho <input type="month">.
+export function currentMonthValue() {
+  return todayInputValue().slice(0, 7);
+}
+
+// Ngày đầu và ngày cuối của tháng "YYYY-MM".
+export function monthRange(month) {
+  const [year, monthNumber] = month.split('-').map(Number);
+  const lastDay = new Date(year, monthNumber, 0).getDate();
+  return { from: `${month}-01`, to: `${month}-${String(lastDay).padStart(2, '0')}` };
+}
+
+// Số ngày của khoảng nghỉ phép (tính cả ngày đầu và ngày cuối).
+export function countDays(from, to) {
+  return Math.round((toLocalDate(to) - toLocalDate(from)) / 86400000) + 1;
+}
+
+// Tải file (blob) về máy với tên cho trước.
+export function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
