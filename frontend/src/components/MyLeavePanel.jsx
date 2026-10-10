@@ -10,12 +10,15 @@ import {
   leaveTypeLabels,
   todayInputValue
 } from '../format.js';
+import { isNotLinkedError } from '../messages.js';
+import NotLinkedNotice from './NotLinkedNotice.jsx';
 
 // Nhân viên gửi đơn nghỉ phép và theo dõi kết quả duyệt (HR-023).
 export default function MyLeavePanel({ showToast }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notLinked, setNotLinked] = useState(false);
   const [form, setForm] = useState(() => ({
     leaveType: 'ANNUAL',
     startDate: todayInputValue(),
@@ -33,6 +36,10 @@ export default function MyLeavePanel({ showToast }) {
       setRequests(response.data);
       setError('');
     } catch (err) {
+      if (isNotLinkedError(err)) {
+        setNotLinked(true);
+      }
+
       setError(err.message);
     } finally {
       setLoading(false);
@@ -80,6 +87,10 @@ export default function MyLeavePanel({ showToast }) {
   }
 
   const days = form.startDate && form.endDate && form.endDate >= form.startDate ? countDays(form.startDate, form.endDate) : 0;
+
+  if (notLinked) {
+    return <NotLinkedNotice />;
+  }
 
   return (
     <>

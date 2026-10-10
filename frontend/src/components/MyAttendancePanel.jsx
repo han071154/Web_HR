@@ -2,6 +2,8 @@ import { LogIn, LogOut } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useLatestRequest } from '../useLatestRequest.js';
+import { isNotLinkedError } from '../messages.js';
+import NotLinkedNotice from './NotLinkedNotice.jsx';
 import {
   attendanceStatusClass,
   attendanceStatusLabels,
@@ -45,6 +47,7 @@ export default function MyAttendancePanel({ showToast }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [notLinked, setNotLinked] = useState(false);
 
   const loadToday = useCallback(async () => {
     try {
@@ -55,6 +58,10 @@ export default function MyAttendancePanel({ showToast }) {
       setTodaySchedule(scheduleResponse.data.find((schedule) => schedule.status === 'SCHEDULED') || null);
       setTodayRecord(recordResponse.data[0] || null);
     } catch (err) {
+      if (isNotLinkedError(err)) {
+        setNotLinked(true);
+      }
+
       setError(err.message);
     }
   }, [today]);
@@ -78,6 +85,10 @@ export default function MyAttendancePanel({ showToast }) {
 
       setRecords(response.data);
     } catch (err) {
+      if (isNotLinkedError(err)) {
+        setNotLinked(true);
+      }
+
       if (isLatest()) {
         setError(err.message);
       }
@@ -127,6 +138,10 @@ export default function MyAttendancePanel({ showToast }) {
     }),
     { days: 0, late: 0, hours: 0 }
   );
+
+  if (notLinked) {
+    return <NotLinkedNotice />;
+  }
 
   return (
     <>

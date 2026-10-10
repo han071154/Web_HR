@@ -15,6 +15,8 @@ import {
   weekdayLabels
 } from '../format.js';
 import FormDialog from './FormDialog.jsx';
+import { isNotLinkedError } from '../messages.js';
+import NotLinkedNotice from './NotLinkedNotice.jsx';
 import { useLatestRequest } from '../useLatestRequest.js';
 
 function shiftLabel(shift) {
@@ -150,6 +152,7 @@ export default function MySchedulePanel({ showToast }) {
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notLinked, setNotLinked] = useState(false);
   const [registering, setRegistering] = useState(null);
   const [changing, setChanging] = useState(null);
   // Chưa có API cho nhân viên xem lại yêu cầu đổi ca, nên chỉ nhớ các yêu cầu vừa gửi trong phiên này.
@@ -174,6 +177,10 @@ export default function MySchedulePanel({ showToast }) {
 
       setSchedules(response.data);
     } catch (err) {
+      if (isNotLinkedError(err)) {
+        setNotLinked(true);
+      }
+
       if (isLatest()) {
         setError(err.message);
       }
@@ -199,6 +206,10 @@ export default function MySchedulePanel({ showToast }) {
   const weekHours = schedules
     .filter((schedule) => schedule.status === 'SCHEDULED')
     .reduce((total, schedule) => total + shiftHours(schedule), 0);
+
+  if (notLinked) {
+    return <NotLinkedNotice />;
+  }
 
   return (
     <section className="content-panel">

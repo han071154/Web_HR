@@ -202,3 +202,9 @@ export function toVietnameseError(status, payload) {
 }
 
 export const networkErrorMessage = 'Không kết nối được máy chủ. Hãy kiểm tra backend đã chạy chưa.';
+
+// Các API tự-phục vụ (GET /.../me) trả 409 khi tài khoản EMPLOYEE chưa gắn với hồ sơ nhân viên
+// (users.employee_id = NULL). Chỉ dùng cho lỗi khi TẢI dữ liệu: thao tác như chấm công lần 2 cũng trả 409.
+export function isNotLinkedError(error) {
+  return error?.status === 409;
+}

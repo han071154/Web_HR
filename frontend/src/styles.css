@@ -3128,6 +3128,36 @@ td.danger-cell {
   min-width: 180px;
 }
 
+/* Thông báo thay cả trang (VD: tài khoản nhân viên chưa liên kết hồ sơ) */
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.empty-state-icon {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.empty-state h2 {
+  margin: 0;
+}
+
+.empty-state p {
+  max-width: 520px;
+  margin: 0;
+  color: var(--text);
+  line-height: 1.6;
+}
+
 .inline-form {
   display: grid;
   gap: 16px;
