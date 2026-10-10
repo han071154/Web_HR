@@ -5,6 +5,7 @@ import { query } from '../db.js';
 import { requireRole } from '../middleware/auth.js';
 import { logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
+import { lastDayOfMonth, localDate, localMinutesOfDay } from '../utils/localTime.js';
 import { getOwnEmployeeId } from '../utils/selfService.js';
 import { computeWorkHourStats } from '../utils/workHourStats.js';
 
@@ -55,8 +56,10 @@ function mapAttendance(row) {
   };
 }
 
+// Ngày theo múi giờ công ty (không dùng toISOString(): đó là giờ UTC, chấm công lúc 0h–7h sáng
+// ở Việt Nam sẽ bị ghi sang ngày hôm trước).
 function todayDate() {
-  return new Date().toISOString().slice(0, 10);
+  return localDate();
 }
 
 // Trễ hơn giờ bắt đầu ca (theo lịch phân ca hôm nay) quá config.lateThresholdMinutes thì tính LATE.
@@ -67,7 +70,7 @@ function resolveCheckInStatus(now, shiftStartTime) {
 
   const [hours, minutes] = shiftStartTime.split(':').map(Number);
   const thresholdMinutes = hours * 60 + minutes + config.lateThresholdMinutes;
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const nowMinutes = localMinutesOfDay(now);
 
   return nowMinutes > thresholdMinutes ? 'LATE' : 'PRESENT';
 }
@@ -192,7 +195,7 @@ router.get('/monthly-summary', requireRole(...HR_ROLES), async (req, res, next) 
     const employeeId = String(req.query.employeeId || '').trim() || undefined;
     const departmentId = String(req.query.departmentId || '').trim() || undefined;
     const from = `${month}-01`;
-    const to = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).toISOString().slice(0, 10);
+    const to = lastDayOfMonth(month);
 
     const data = await computeWorkHourStats({ employeeId, departmentId, from, to });
 
