@@ -10,6 +10,7 @@ import {
   leaveTypeLabels
 } from '../format.js';
 import ConfirmDialog from './ConfirmDialog.jsx';
+import { useLatestRequest } from '../useLatestRequest.js';
 
 // Duyệt đơn nghỉ phép (HR-023). Duyệt xong thì các ngày nghỉ được ghi "Nghỉ phép" trong bảng chấm công.
 export default function LeavePanel({ showToast }) {
@@ -20,19 +21,31 @@ export default function LeavePanel({ showToast }) {
   const [busyId, setBusyId] = useState(null);
   const [rejecting, setRejecting] = useState(null);
 
+  const startRequest = useLatestRequest();
+
   const loadRequests = useCallback(async () => {
+    const isLatest = startRequest();
+
     setLoading(true);
     setError('');
 
     try {
       const response = await api.leaveRequests({ status: statusFilter });
+      if (!isLatest()) {
+        return;
+      }
+
       setRequests(response.data);
     } catch (err) {
-      setError(err.message);
+      if (isLatest()) {
+        setError(err.message);
+      }
     } finally {
-      setLoading(false);
+      if (isLatest()) {
+        setLoading(false);
+      }
     }
-  }, [statusFilter]);
+  }, [startRequest, statusFilter]);
 
   useEffect(() => {
     loadRequests();

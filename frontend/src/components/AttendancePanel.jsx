@@ -14,6 +14,7 @@ import {
 } from '../format.js';
 import FormDialog from './FormDialog.jsx';
 import TabBar from './TabBar.jsx';
+import { useLatestRequest } from '../useLatestRequest.js';
 
 // Số giờ làm thực tế của một bản ghi (giờ ra − giờ vào), chưa chấm ra thì trả null.
 function workedHours(record) {
@@ -122,7 +123,11 @@ function AttendanceRecords({ departments, showToast }) {
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(null);
 
+  const startRequest = useLatestRequest();
+
   const loadRecords = useCallback(async () => {
+    const isLatest = startRequest();
+
     if (!range.from || !range.to) {
       return;
     }
@@ -137,13 +142,21 @@ function AttendanceRecords({ departments, showToast }) {
         departmentId: departmentFilter,
         status: statusFilter
       });
+      if (!isLatest()) {
+        return;
+      }
+
       setRecords(response.data);
     } catch (err) {
-      setError(err.message);
+      if (isLatest()) {
+        setError(err.message);
+      }
     } finally {
-      setLoading(false);
+      if (isLatest()) {
+        setLoading(false);
+      }
     }
-  }, [range, departmentFilter, statusFilter]);
+  }, [startRequest, range, departmentFilter, statusFilter]);
 
   useEffect(() => {
     loadRecords();
@@ -273,7 +286,11 @@ function MonthlySummary({ departments, showToast }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const startRequest = useLatestRequest();
+
   const loadSummary = useCallback(async () => {
+    const isLatest = startRequest();
+
     if (!month) {
       return;
     }
@@ -283,13 +300,21 @@ function MonthlySummary({ departments, showToast }) {
 
     try {
       const response = await api.monthlyAttendance({ month, departmentId: departmentFilter });
+      if (!isLatest()) {
+        return;
+      }
+
       setRows(response.data);
     } catch (err) {
-      setError(err.message);
+      if (isLatest()) {
+        setError(err.message);
+      }
     } finally {
-      setLoading(false);
+      if (isLatest()) {
+        setLoading(false);
+      }
     }
-  }, [month, departmentFilter]);
+  }, [startRequest, month, departmentFilter]);
 
   useEffect(() => {
     loadSummary();

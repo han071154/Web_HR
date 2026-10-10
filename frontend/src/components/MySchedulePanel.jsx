@@ -15,6 +15,7 @@ import {
   weekdayLabels
 } from '../format.js';
 import FormDialog from './FormDialog.jsx';
+import { useLatestRequest } from '../useLatestRequest.js';
 
 function shiftLabel(shift) {
   return `${shift.name} (${formatTime(shift.startTime)} – ${formatTime(shift.endTime)})`;
@@ -157,19 +158,31 @@ export default function MySchedulePanel({ showToast }) {
   const days = useMemo(() => weekDates(weekStart), [weekStart]);
   const today = todayInputValue();
 
+  const startRequest = useLatestRequest();
+
   const loadWeek = useCallback(async () => {
+    const isLatest = startRequest();
+
     setLoading(true);
     setError('');
 
     try {
       const response = await api.mySchedules({ from: days[0], to: days[6] });
+      if (!isLatest()) {
+        return;
+      }
+
       setSchedules(response.data);
     } catch (err) {
-      setError(err.message);
+      if (isLatest()) {
+        setError(err.message);
+      }
     } finally {
-      setLoading(false);
+      if (isLatest()) {
+        setLoading(false);
+      }
     }
-  }, [days]);
+  }, [startRequest, days]);
 
   useEffect(() => {
     loadWeek();

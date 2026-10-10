@@ -2,6 +2,7 @@ import { Download } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { currentMonthValue, downloadBlob, formatHours, monthRange } from '../format.js';
+import { useLatestRequest } from '../useLatestRequest.js';
 
 function StatTile({ label, value, tone = 'primary' }) {
   return (
@@ -28,7 +29,11 @@ export default function ReportsPanel({ departments, showToast }) {
       .catch((err) => setError(err.message));
   }, []);
 
+  const startRequest = useLatestRequest();
+
   const loadWorkHours = useCallback(async () => {
+    const isLatest = startRequest();
+
     if (!range.from || !range.to) {
       return;
     }
@@ -38,13 +43,21 @@ export default function ReportsPanel({ departments, showToast }) {
 
     try {
       const response = await api.reportWorkHours({ ...range, departmentId: departmentFilter });
+      if (!isLatest()) {
+        return;
+      }
+
       setWorkHours(response.data);
     } catch (err) {
-      setError(err.message);
+      if (isLatest()) {
+        setError(err.message);
+      }
     } finally {
-      setLoading(false);
+      if (isLatest()) {
+        setLoading(false);
+      }
     }
-  }, [range, departmentFilter]);
+  }, [startRequest, range, departmentFilter]);
 
   useEffect(() => {
     loadWorkHours();

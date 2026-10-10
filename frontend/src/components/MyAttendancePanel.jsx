@@ -1,6 +1,7 @@
 import { LogIn, LogOut } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { useLatestRequest } from '../useLatestRequest.js';
 import {
   attendanceStatusClass,
   attendanceStatusLabels,
@@ -58,7 +59,11 @@ export default function MyAttendancePanel({ showToast }) {
     }
   }, [today]);
 
+  const startRequest = useLatestRequest();
+
   const loadMonth = useCallback(async () => {
+    const isLatest = startRequest();
+
     if (!month) {
       return;
     }
@@ -67,13 +72,21 @@ export default function MyAttendancePanel({ showToast }) {
 
     try {
       const response = await api.myAttendance(monthRange(month));
+      if (!isLatest()) {
+        return;
+      }
+
       setRecords(response.data);
     } catch (err) {
-      setError(err.message);
+      if (isLatest()) {
+        setError(err.message);
+      }
     } finally {
-      setLoading(false);
+      if (isLatest()) {
+        setLoading(false);
+      }
     }
-  }, [month]);
+  }, [startRequest, month]);
 
   useEffect(() => {
     loadToday();

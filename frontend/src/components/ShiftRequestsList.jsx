@@ -2,6 +2,7 @@ import { Check, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { approvalStatusClass, approvalStatusLabels, formatDate, formatDateTime } from '../format.js';
+import { useLatestRequest } from '../useLatestRequest.js';
 
 // Yêu cầu đổi ca của nhân viên (HR-032): HR duyệt thì lịch tự đổi sang ca mới.
 export default function ShiftRequestsList({ showToast, onReviewed }) {
@@ -11,19 +12,31 @@ export default function ShiftRequestsList({ showToast, onReviewed }) {
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
 
+  const startRequest = useLatestRequest();
+
   const loadRequests = useCallback(async () => {
+    const isLatest = startRequest();
+
     setLoading(true);
     setError('');
 
     try {
       const response = await api.shiftChangeRequests({ status: statusFilter });
+      if (!isLatest()) {
+        return;
+      }
+
       setRequests(response.data);
     } catch (err) {
-      setError(err.message);
+      if (isLatest()) {
+        setError(err.message);
+      }
     } finally {
-      setLoading(false);
+      if (isLatest()) {
+        setLoading(false);
+      }
     }
-  }, [statusFilter]);
+  }, [startRequest, statusFilter]);
 
   useEffect(() => {
     loadRequests();

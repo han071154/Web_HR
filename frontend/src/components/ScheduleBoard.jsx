@@ -16,6 +16,7 @@ import {
 } from '../format.js';
 import { toVietnameseError } from '../messages.js';
 import FormDialog from './FormDialog.jsx';
+import { useLatestRequest } from '../useLatestRequest.js';
 
 // Khớp MAX_WEEKLY_WORK_HOURS mặc định của backend: chỉ để tô cảnh báo trên lưới,
 // backend mới là nơi chặn thật (trả lỗi 409 khi vượt).
@@ -277,7 +278,11 @@ export default function ScheduleBoard({ departments, shifts, showToast }) {
   const today = todayInputValue();
   const activeShifts = useMemo(() => shifts.filter((shift) => shift.isActive), [shifts]);
 
+  const startRequest = useLatestRequest();
+
   const loadWeek = useCallback(async () => {
+    const isLatest = startRequest();
+
     setLoading(true);
     setError('');
 
@@ -286,15 +291,23 @@ export default function ScheduleBoard({ departments, shifts, showToast }) {
         api.employees({ status: 'ACTIVE', departmentId: departmentFilter, limit: 100 }),
         api.workSchedules({ from: days[0], to: days[6], departmentId: departmentFilter })
       ]);
+      if (!isLatest()) {
+        return;
+      }
+
       setEmployees(employeeResponse.data);
       setTotalEmployees(employeeResponse.pagination.total);
       setSchedules(scheduleResponse.data);
     } catch (err) {
-      setError(err.message);
+      if (isLatest()) {
+        setError(err.message);
+      }
     } finally {
-      setLoading(false);
+      if (isLatest()) {
+        setLoading(false);
+      }
     }
-  }, [days, departmentFilter]);
+  }, [startRequest, days, departmentFilter]);
 
   useEffect(() => {
     loadWeek();
