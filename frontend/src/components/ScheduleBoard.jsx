@@ -1,5 +1,5 @@
-import { CalendarPlus, ChevronLeft, ChevronRight, Copy, Plus, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CalendarPlus, ChevronLeft, ChevronRight, Copy, GripVertical, Plus, Search, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api.js';
 import {
   addDays,
@@ -7,6 +7,7 @@ import {
   formatDayMonth,
   formatHours,
   formatTime,
+  normalizeText,
   shiftHours,
   startOfWeek,
   todayInputValue,
@@ -273,6 +274,11 @@ export default function ScheduleBoard({ departments, shifts, showToast }) {
   const [cell, setCell] = useState(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  // Kéo-thả (WBS 5.3.10): { type: 'shift', shiftId } khi kéo từ thanh ca, { type: 'schedule', schedule } khi kéo ca đã xếp.
+  const dragRef = useRef(null);
+  const [dropKey, setDropKey] = useState('');
+  const [dropping, setDropping] = useState(false);
 
   const days = useMemo(() => weekDates(weekStart), [weekStart]);
   const today = todayInputValue();
@@ -332,6 +338,17 @@ export default function ScheduleBoard({ departments, shifts, showToast }) {
     return list.sort((a, b) => a.fullName.localeCompare(b.fullName, 'vi'));
   }, [employees, schedules]);
 
+  // Lọc theo nhân viên (WBS 5.3.9): gõ tên hoặc mã, không phân biệt dấu.
+  const visibleRows = useMemo(() => {
+    const keyword = normalizeText(employeeSearch.trim());
+
+    if (!keyword) {
+      return rows;
+    }
+
+    return rows.filter((employee) => normalizeText(`${employee.fullName} ${employee.employeeCode}`).includes(keyword));
+  }, [rows, employeeSearch]);
+
   const scheduleMap = useMemo(() => {
     const map = new Map();
 
@@ -368,6 +385,94 @@ export default function ScheduleBoard({ departments, shifts, showToast }) {
   }
 
   const noShifts = !activeShifts.length;
+
+  function startDrag(event, payload) {
+    dragRef.current = payload;
+    event.dataTransfer.effectAllowed = 'copyMove';
+    // Firefox chỉ cho kéo khi có dữ liệu trong dataTransfer.
+    event.dataTransfer.setData('text/plain', payload.type);
+  }
+
+  function endDrag() {
+    dragRef.current = null;
+    setDropKey('');
+  }
+
+  function allowDrop(event, key) {
+    if (!dragRef.current || dropping) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = dragRef.current.type === 'shift' || event.ctrlKey || event.altKey ? 'copy' : 'move';
+
+    if (dropKey !== key) {
+      setDropKey(key);
+    }
+  }
+
+  // Thả vào ô (employee, day): kéo từ thanh ca → xếp ca mới (ô có ca rồi thì đổi sang ca đó);
+  // kéo ca đã xếp → dời sang ô trống, giữ Ctrl/Alt khi thả thì sao chép.
+  async function handleDrop(event, employee, day, target) {
+    event.preventDefault();
+    const payload = dragRef.current;
+    endDrag();
+
+    if (!payload) {
+      return;
+    }
+
+    const copy = event.ctrlKey || event.altKey;
+    let action = null;
+    let message = '';
+
+    if (payload.type === 'shift') {
+      const shift = activeShifts.find((item) => item.id === payload.shiftId);
+
+      if (target) {
+        if (target.shiftId === payload.shiftId) {
+          return;
+        }
+
+        action = () => api.updateWorkSchedule(target.id, { shiftId: payload.shiftId });
+        message = `Đã đổi ca của ${employee.fullName} ngày ${formatDayMonth(day)} sang ${shift?.name}.`;
+      } else {
+        action = () => api.createWorkSchedule({ employeeId: employee.id, shiftId: payload.shiftId, workDate: day });
+        message = `Đã xếp ${shift?.name} cho ${employee.fullName} ngày ${formatDayMonth(day)}.`;
+      }
+    } else {
+      const source = payload.schedule;
+
+      if (source.employeeId === employee.id && source.workDate === day) {
+        return;
+      }
+
+      if (target) {
+        showToast('error', `${employee.fullName} đã có ca ngày ${formatDayMonth(day)}. Hãy xóa hoặc dời ca đó trước.`);
+        return;
+      }
+
+      if (copy) {
+        action = () => api.createWorkSchedule({ employeeId: employee.id, shiftId: source.shiftId, workDate: day, notes: source.notes || null });
+        message = `Đã sao chép ${source.shiftName} cho ${employee.fullName} ngày ${formatDayMonth(day)}.`;
+      } else {
+        action = () => api.updateWorkSchedule(source.id, { employeeId: employee.id, workDate: day });
+        message = `Đã dời ${source.shiftName} sang ${employee.fullName} ngày ${formatDayMonth(day)}.`;
+      }
+    }
+
+    setDropping(true);
+
+    try {
+      await action();
+      showToast('success', message);
+      await loadWeek();
+    } catch (err) {
+      showToast('error', err.message);
+    } finally {
+      setDropping(false);
+    }
+  }
 
   return (
     <section className="content-panel">
@@ -410,6 +515,15 @@ export default function ScheduleBoard({ departments, shifts, showToast }) {
             </option>
           ))}
         </select>
+        <label className="search-field schedule-search">
+          <Search size={18} aria-hidden="true" />
+          <input
+            value={employeeSearch}
+            onChange={(event) => setEmployeeSearch(event.target.value)}
+            placeholder="Tìm nhân viên (tên hoặc mã)"
+            aria-label="Lọc lịch theo nhân viên"
+          />
+        </label>
         <div className="toolbar-actions">
           <button type="button" className="ghost-button" onClick={copyPreviousWeek} disabled={copying || loading}>
             <Copy size={17} aria-hidden="true" />
@@ -419,7 +533,7 @@ export default function ScheduleBoard({ departments, shifts, showToast }) {
             type="button"
             className="primary-button"
             onClick={() => setBulkOpen(true)}
-            disabled={noShifts || !rows.length}
+            disabled={noShifts || !visibleRows.length}
           >
             <CalendarPlus size={18} aria-hidden="true" />
             Xếp ca hàng loạt
@@ -437,7 +551,30 @@ export default function ScheduleBoard({ departments, shifts, showToast }) {
       )}
       {error && <p className="form-error">{error}</p>}
 
-      <div className="table-wrap schedule-wrap">
+      {!noShifts && (
+        <div className="shift-palette" aria-label="Kéo ca vào lịch">
+          <span className="shift-palette-label">Kéo ca vào lịch:</span>
+          {activeShifts.map((shift) => (
+            <span
+              key={shift.id}
+              className="palette-chip"
+              draggable={!dropping}
+              onDragStart={(event) => startDrag(event, { type: 'shift', shiftId: shift.id })}
+              onDragEnd={endDrag}
+              title={`Kéo ${shift.name} thả vào một ô để xếp ca`}
+            >
+              <GripVertical size={14} aria-hidden="true" />
+              <strong>{shift.name}</strong>
+              <span>
+                {formatTime(shift.startTime)}–{formatTime(shift.endTime)}
+              </span>
+            </span>
+          ))}
+          <span className="shift-palette-hint">Kéo ca đã xếp sang ô khác để dời ca · giữ Ctrl khi thả để sao chép</span>
+        </div>
+      )}
+
+      <div className={`table-wrap schedule-wrap${dropping ? ' is-busy' : ''}`}>
         <table className="schedule-grid">
           <thead>
             <tr>
@@ -456,8 +593,8 @@ export default function ScheduleBoard({ departments, shifts, showToast }) {
               <tr>
                 <td colSpan="9">Đang tải dữ liệu</td>
               </tr>
-            ) : rows.length ? (
-              rows.map((employee) => {
+            ) : visibleRows.length ? (
+              visibleRows.map((employee) => {
                 const hours = weeklyHours(employee.id);
 
                 return (
@@ -468,15 +605,25 @@ export default function ScheduleBoard({ departments, shifts, showToast }) {
                     </td>
                     {days.map((day) => {
                       const schedule = scheduleMap.get(`${employee.id}|${day}`);
+                      const key = `${employee.id}|${day}`;
 
                       return (
-                        <td key={day} className={day === today ? 'is-today' : ''}>
+                        <td
+                          key={day}
+                          className={`${day === today ? 'is-today' : ''}${dropKey === key ? ' drop-target' : ''}`}
+                          onDragOver={(event) => allowDrop(event, key)}
+                          onDragLeave={() => dropKey === key && setDropKey('')}
+                          onDrop={(event) => handleDrop(event, employee, day, schedule)}
+                        >
                           {schedule ? (
                             <button
                               type="button"
                               className={`shift-chip${schedule.status === 'CANCELLED' ? ' cancelled' : ''}`}
                               onClick={() => setCell({ employee, date: day, schedule })}
-                              title={schedule.notes || 'Sửa ca'}
+                              draggable={!dropping}
+                              onDragStart={(event) => startDrag(event, { type: 'schedule', schedule })}
+                              onDragEnd={endDrag}
+                              title={schedule.notes || 'Bấm để sửa · kéo để dời ca'}
                             >
                               <strong>{schedule.shiftName}</strong>
                               <span>
@@ -506,7 +653,7 @@ export default function ScheduleBoard({ departments, shifts, showToast }) {
               })
             ) : (
               <tr>
-                <td colSpan="9">Không có nhân viên đang làm việc</td>
+                <td colSpan="9">{rows.length ? 'Không có nhân viên phù hợp' : 'Không có nhân viên đang làm việc'}</td>
               </tr>
             )}
           </tbody>
@@ -528,7 +675,7 @@ export default function ScheduleBoard({ departments, shifts, showToast }) {
 
       {bulkOpen && (
         <BulkDialog
-          employees={rows}
+          employees={visibleRows}
           days={days}
           shifts={activeShifts}
           onClose={() => setBulkOpen(false)}

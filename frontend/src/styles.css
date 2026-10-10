@@ -3158,6 +3158,68 @@ td.danger-cell {
   line-height: 1.6;
 }
 
+/* Kéo-thả xếp ca & lọc theo nhân viên (WBS 5.3.9, 5.3.10) */
+.schedule-search {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.shift-palette {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.shift-palette-label {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.palette-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-control);
+  padding: 6px 10px 6px 6px;
+  color: var(--primary-light-text);
+  background: #dfe8fb;
+  font-size: 0.85rem;
+  cursor: grab;
+  user-select: none;
+}
+
+.palette-chip:active {
+  cursor: grabbing;
+}
+
+.palette-chip span {
+  color: inherit;
+}
+
+.shift-palette-hint {
+  margin-left: auto;
+  color: #8a97a8;
+  font-size: 0.82rem;
+}
+
+.shift-chip[draggable='true'] {
+  cursor: grab;
+}
+
+.schedule-grid td.drop-target {
+  outline: 2px dashed var(--primary);
+  outline-offset: -3px;
+  background: var(--primary-light);
+}
+
+.schedule-wrap.is-busy {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 .inline-form {
   display: grid;
   gap: 16px;
@@ -3176,6 +3238,263 @@ td.danger-cell {
   padding-bottom: 8px;
   color: var(--primary);
   font-weight: 700;
+}
+
+/* ---------- Tổng quan & biểu đồ (WBS 6.3.3, 6.3.4) ---------- */
+/* Màu chuỗi: 4 ô đầu bảng màu phân loại, thứ tự cố định; lưới và chữ dùng màu chữ, không dùng màu dữ liệu. */
+.viz-root {
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --chart-grid: #e6eaee;
+  --chart-text: #607080;
+  --chart-ink: #25396f;
+}
+
+.dashboard {
+  display: grid;
+  gap: 20px;
+}
+
+.dashboard .content-panel + .content-panel {
+  margin-top: 0;
+}
+
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  border-radius: var(--radius-card);
+  padding: 18px 20px;
+  color: inherit;
+  background: var(--card-bg);
+  text-decoration: none;
+  transition: box-shadow 0.15s;
+}
+
+a.stat-card:hover,
+a.stat-card:focus-visible {
+  box-shadow: 0 0 0 2px var(--primary-light), 0 6px 18px rgba(37, 57, 111, 0.08);
+}
+
+.stat-card-icon {
+  display: grid;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: var(--radius-menu);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.stat-card-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.stat-card-label {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.stat-card-value {
+  color: var(--heading);
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.stat-card-note {
+  color: #8a97a8;
+  font-size: 0.82rem;
+}
+
+.chart-card h2 {
+  margin: 0;
+}
+
+.chart-card .muted-text {
+  margin: 4px 0 0;
+}
+
+.chart-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.chart-frame {
+  position: relative;
+  margin-top: 12px;
+}
+
+.chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart-grid {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+}
+
+.chart-baseline {
+  stroke: #ced4da;
+  stroke-width: 1;
+}
+
+.chart-axis-text {
+  fill: var(--chart-text);
+  font-size: 12px;
+}
+
+.chart-value-text {
+  fill: var(--chart-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chart-hit {
+  fill: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+.chart-hit:hover,
+.chart-hit:focus-visible {
+  fill: rgba(67, 94, 190, 0.06);
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 14px 0 0;
+  padding: 0;
+  color: var(--chart-text);
+  font-size: 0.88rem;
+  list-style: none;
+}
+
+.chart-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chart-legend i {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.chart-tooltip {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  gap: 4px;
+  min-width: 140px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-menu);
+  padding: 10px 12px;
+  background: var(--card-bg);
+  box-shadow: 0 8px 24px rgba(37, 57, 111, 0.14);
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.chart-tooltip-title {
+  color: var(--chart-text);
+  font-size: 0.82rem;
+}
+
+.chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+
+.chart-tooltip-row i {
+  display: inline-block;
+  width: 12px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.chart-tooltip-row strong {
+  min-width: 52px;
+  color: var(--chart-ink);
+}
+
+.chart-tooltip-row span {
+  color: var(--chart-text);
+}
+
+table.chart-table {
+  min-width: 480px;
+  margin-top: 12px;
+}
+
+.hbar-chart {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hbar-chart li {
+  display: grid;
+  grid-template-columns: minmax(70px, 30%) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+  outline: none;
+}
+
+.hbar-label {
+  overflow: hidden;
+  color: var(--chart-ink);
+  font-size: 0.92rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hbar-track {
+  display: block;
+  min-width: 0;
+}
+
+.hbar-fill {
+  display: block;
+  flex: none;
+  height: 18px;
+  border-radius: 0 4px 4px 0;
+}
+
+.hbar-chart li:hover .hbar-fill,
+.hbar-chart li:focus-visible .hbar-fill {
+  filter: brightness(1.12);
+}
+
+.hbar-value {
+  flex: none;
+  color: var(--chart-ink);
+  font-size: 0.88rem;
+  white-space: nowrap;
 }
 
 /* ---------- Màn hình nhỏ ---------- */
@@ -3436,5 +3755,49 @@ td.danger-cell {
 
   .form-actions .danger-text {
     margin-right: 0;
+  }
+}
+
+/* Màn hình nhỏ: tổng quan & biểu đồ */
+@media (max-width: 900px) {
+  .chart-grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .stat-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .stat-card {
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px;
+  }
+
+  .stat-card-value {
+    font-size: 1.4rem;
+  }
+
+  .hbar-chart li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 10px;
+  }
+
+  .hbar-label {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Điện thoại không hỗ trợ kéo-thả bằng chuột: ẩn thanh ca kéo, vẫn bấm vào ô để xếp ca */
+@media (max-width: 640px) {
+  .shift-palette {
+    display: none;
+  }
+
+  .schedule-search {
+    flex-basis: 100%;
   }
 }

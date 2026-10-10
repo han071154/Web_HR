@@ -7,6 +7,7 @@ import {
   Clock,
   Download,
   FileText,
+  LayoutDashboard,
   Eye,
   LogOut,
   Pencil,
@@ -24,6 +25,7 @@ import CareersPage from './components/CareersPage.jsx';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
 import AttendancePanel from './components/AttendancePanel.jsx';
 import ContractsPanel from './components/ContractsPanel.jsx';
+import DashboardPanel from './components/DashboardPanel.jsx';
 import DepartmentsPanel from './components/DepartmentsPanel.jsx';
 import EmployeeDetail from './components/EmployeeDetail.jsx';
 import EmployeeForm from './components/EmployeeForm.jsx';
@@ -49,6 +51,7 @@ const PAGE_SIZE = 10;
 
 // Menu bên trái: HR thấy các mục quản lý, tài khoản nhân viên (EMPLOYEE) chỉ thấy các mục tự phục vụ.
 const HR_MENU = [
+  { view: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard },
   { view: 'employees', label: 'Nhân sự', icon: Users },
   { view: 'departments', label: 'Phòng ban', icon: Building2 },
   { view: 'positions', label: 'Chức vụ', icon: BriefcaseBusiness },
@@ -67,6 +70,7 @@ const EMPLOYEE_MENU = [
 ];
 
 const pageTitles = {
+  dashboard: { title: 'Tổng quan', subtitle: 'Tình hình nhân sự và chấm công hôm nay' },
   employees: { title: 'Danh sách nhân sự', subtitle: 'Quản lý hồ sơ nhân viên của công ty' },
   departments: { title: 'Phòng ban', subtitle: 'Quản lý danh mục phòng ban' },
   positions: { title: 'Chức vụ', subtitle: 'Quản lý danh mục chức vụ' },
@@ -675,7 +679,9 @@ function Dashboard({ user, onLogout }) {
           </div>
         </header>
 
-        {view === 'employees' ? (
+        {view === 'dashboard' ? (
+          <DashboardPanel />
+        ) : view === 'employees' ? (
           renderEmployees()
         ) : view === 'departments' ? (
           <DepartmentsPanel

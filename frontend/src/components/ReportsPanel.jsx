@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { currentMonthValue, downloadBlob, formatHours, monthRange } from '../format.js';
 import { useLatestRequest } from '../useLatestRequest.js';
+import { HorizontalBarChart } from './charts.jsx';
 
 function StatTile({ label, value, tone = 'primary' }) {
   return (
@@ -73,7 +74,6 @@ export default function ReportsPanel({ departments, showToast }) {
   }
 
   const totalEmployees = headcount.reduce((sum, row) => sum + row.employeeCount, 0);
-  const maxCount = Math.max(1, ...headcount.map((row) => row.employeeCount));
   const totals = workHours.reduce(
     (sum, row) => ({
       hours: sum.hours + row.totalHours,
@@ -93,17 +93,14 @@ export default function ReportsPanel({ departments, showToast }) {
           <span className="muted-text">{totalEmployees} nhân viên đang làm</span>
         </div>
         {headcount.length ? (
-          <ul className="bar-list">
-            {headcount.map((row) => (
-              <li key={row.departmentId}>
-                <span className="bar-label">{row.departmentName}</span>
-                <span className="bar-track" aria-hidden="true">
-                  <span className="bar-fill" style={{ width: `${(row.employeeCount / maxCount) * 100}%` }} />
-                </span>
-                <strong className="bar-value">{row.employeeCount}</strong>
-              </li>
-            ))}
-          </ul>
+          <div className="viz-root">
+            <HorizontalBarChart
+              data={headcount.map((row) => ({ key: row.departmentId, label: row.departmentName, value: row.employeeCount }))}
+              color="var(--series-1)"
+              unit=" người"
+              ariaLabel="Số nhân viên đang làm theo phòng ban"
+            />
+          </div>
         ) : (
           <p className="muted-text">Chưa có phòng ban nào.</p>
         )}
