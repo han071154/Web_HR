@@ -2858,10 +2858,8 @@ table.schedule-grid {
 }
 
 .shift-chip strong {
-  overflow: hidden;
   color: inherit;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
 }
 
 .shift-chip span {
