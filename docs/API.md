@@ -473,8 +473,8 @@ when creating. A shift already used in a schedule cannot be deleted
 ## Work schedules (Lịch phân ca)
 
 An account only has a personal schedule if it is linked to an employee profile
-(`users.employee_id`, set by HR directly in the database for now — there is no self-service
-sign-up flow yet). Calling a `/me*` endpoint from an account without that link returns
+(`users.employee_id`, set directly in the database for now). There is no self-service sign-up:
+accounts are provided by an Admin (backlog HR-007). Calling a `/me*` endpoint from an account without that link returns
 `409 This account is not linked to an employee profile`.
 
 | Method | Path | Roles |

@@ -8,7 +8,7 @@
 | HR-004 | La HR, toi muon sua thong tin nhan vien khi co thay doi. | 3 | High | Done |
 | HR-005 | La HR Manager, toi muon xoa ho so nhan vien khi can don dep du lieu. | 2 | Medium | Done |
 | HR-006 | La HR, toi muon tim kiem va loc nhan vien de thao tac nhanh. | 3 | Medium | Done |
-| HR-007 | La Admin, toi muon quan ly tai khoan nguoi dung. | 5 | High | Todo |
+| HR-007 | La Admin, toi muon quan ly tai khoan nguoi dung (tao tai khoan cap cho nhan vien, gan vai tro, lien ket ho so, khoa/mo khoa). | 5 | High | Todo (thay cho HR-025) |
 | HR-008 | La HR, toi muon quan ly phong ban day du. | 3 | Medium | Done |
 | HR-009 | La HR, toi muon import/export danh sach nhan vien Excel. | 5 | Medium | Todo |
 | HR-010 | La quan ly, toi muon xem bao cao nhan su theo phong ban. | 3 | Medium | Backend done |
@@ -26,7 +26,7 @@
 | HR-022 | La nhan vien, toi muon cham cong theo ca (check-in/check-out). | 5 | High | Backend done |
 | HR-023 | La nhan vien, toi muon gui don nghi phep va quan ly duyet don. | 5 | Medium | Backend done |
 | HR-024 | La DevOps, toi muon CI tu chay smoke test va bo Postman tren PostgreSQL. | 3 | Medium | Done |
-| HR-025 | La nguoi dung moi, toi muon dang ky tai khoan de truy cap he thong. | 3 | High | Todo |
+| HR-025 | La nguoi dung moi, toi muon dang ky tai khoan de truy cap he thong. | 3 | High | Bo (11/10/2026): he thong noi bo, nhan vien khong tu dang ky; Admin cap tai khoan qua HR-007 |
 | HR-026 | La nguoi dung, toi muon refresh token va dang xuat de phien dang nhap an toan. | 2 | High | Done |
 | HR-027 | La nguoi dung, toi muon doi hoac dat lai mat khau de giu an toan tai khoan. | 3 | Low | Todo |
 | HR-028 | La Admin, toi muon lien ket tai khoan voi ho so nhan vien (vai tro EMPLOYEE) de nhan vien xem duoc du lieu cua minh. | 3 | High | Backend done |
