@@ -1125,6 +1125,17 @@ td span {
   font-size: 0.85rem;
 }
 
+/* Bảng rộng hơn khung thì cuộn ngang: ghim cột thao tác (sửa, duyệt, xóa) ở mép phải để nút luôn
+   nhìn thấy, vd bảng Chấm công / Nghỉ phép ở màn 1366×768 trước đây ẩn mất nút Sửa, Từ chối. */
+.table-wrap td.cell-actions,
+.table-wrap table:has(td.cell-actions) th:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: var(--card-bg);
+  box-shadow: -8px 0 8px -8px rgba(33, 37, 41, 0.18);
+}
+
 table.compact-table {
   min-width: 560px;
 }
@@ -2916,13 +2927,11 @@ table.shifts-table {
   min-width: 820px;
 }
 
+/* Không vượt 920px để vừa vùng nội dung màn 1366×768 (~940px), không phải cuộn ngang. */
 table.requests-table,
-table.attendance-table {
-  min-width: 1040px;
-}
-
+table.attendance-table,
 table.leave-table {
-  min-width: 980px;
+  min-width: 920px;
 }
 
 table.summary-table,
@@ -3659,8 +3668,11 @@ table.chart-table {
   }
 
   .responsive-table td.cell-actions {
+    position: static;
     justify-content: flex-end;
     padding-top: 10px;
+    background: none;
+    box-shadow: none;
   }
 
   .responsive-table td[colspan] {
