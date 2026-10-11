@@ -247,6 +247,22 @@ export function formatClock(value) {
   return new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+// Số lớn rút gọn cho ô số liệu: 4764 → "4.764", 289639.9 → "289,6 nghìn", 1250000 → "1,3 triệu".
+export function formatCompact(value) {
+  const number = Number(value) || 0;
+  const format = (n) => new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(n);
+
+  if (Math.abs(number) >= 1000000) {
+    return `${format(number / 1000000)} triệu`;
+  }
+
+  if (Math.abs(number) >= 10000) {
+    return `${format(number / 1000)} nghìn`;
+  }
+
+  return format(number);
+}
+
 // Số giờ: 8 → "8", 7.5 → "7,5" (tối đa 1 chữ số thập phân).
 export function formatHours(value) {
   return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(value || 0);

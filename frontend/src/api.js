@@ -291,6 +291,8 @@ export const api = {
     request(`/leave-requests/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   // Báo cáo (HR-010, HR-038, HR-040).
   reportByDepartment: () => request('/reports/by-department'),
+  // Số liệu tổng hợp sẵn cho trang Tổng quan (WBS 6.3.3, 6.4.5).
+  reportDashboard: (params) => request(`/reports/dashboard${toQuery(params)}`),
   reportWorkHours: (params) => request(`/reports/work-hours${toQuery(params)}`),
   exportWorkHours: (params) => request(`/reports/export${toQuery(params)}`, { blob: true })
 };

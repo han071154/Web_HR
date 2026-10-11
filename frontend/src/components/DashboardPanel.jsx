@@ -4,10 +4,8 @@ import { api } from '../api.js';
 import {
   addDays,
   attendanceStatusLabels,
-  currentMonthValue,
+  formatCompact,
   formatDayMonth,
-  formatHours,
-  monthRange,
   statusLabels,
   todayInputValue
 } from '../format.js';
@@ -60,23 +58,21 @@ export default function DashboardPanel() {
     setError('');
 
     try {
-      const month = monthRange(currentMonthValue());
-      const [attendance, departments, leaves, changes, monthly, ...statusCounts] = await Promise.all([
-        api.attendanceRecords({ from: weekStart, to: today }),
-        api.reportByDepartment(),
-        api.leaveRequests({ status: 'PENDING' }),
-        api.shiftChangeRequests({ status: 'PENDING' }),
-        api.reportWorkHours(month),
-        ...EMPLOYEE_STATUSES.map((status) => api.employees({ status, limit: 1 }))
+      // Số liệu đã tổng hợp sẵn ở backend (GET /reports/dashboard): trước đây tải cả danh sách chấm công
+      // và giờ công từng người để tự đếm, 5.000 nhân viên là ~12 MB mỗi lần mở trang (WBS 6.4.5).
+      const [summary, departments] = await Promise.all([
+        api.reportDashboard({ date: today }),
+        api.reportByDepartment()
       ]);
+      const stats = summary.data;
 
       const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
       const byDay = days.map((day) => {
         const values = {};
 
-        for (const record of attendance.data) {
-          if (record.workDate === day) {
-            values[record.status] = (values[record.status] || 0) + 1;
+        for (const row of stats.attendanceDaily) {
+          if (row.workDate === day) {
+            values[row.status] = row.count;
           }
         }
 
@@ -89,15 +85,15 @@ export default function DashboardPanel() {
         departments: departments.data
           .map((row) => ({ key: row.departmentId, label: row.departmentName, value: row.employeeCount }))
           .sort((a, b) => b.value - a.value),
-        employeeStatus: EMPLOYEE_STATUSES.map((status, index) => ({
+        employeeStatus: EMPLOYEE_STATUSES.map((status) => ({
           key: status,
           label: statusLabels[status],
-          value: statusCounts[index].pagination.total
+          value: stats.employeeStatus[status]
         })),
-        pendingLeaves: leaves.data.length,
-        pendingChanges: changes.data.length,
-        monthHours: monthly.data.reduce((sum, row) => sum + row.totalHours, 0),
-        monthOt: monthly.data.reduce((sum, row) => sum + row.otHours, 0)
+        pendingLeaves: stats.pendingLeaves,
+        pendingChanges: stats.pendingShiftChanges,
+        monthHours: stats.month.totalHours,
+        monthOt: stats.month.otHours
       });
     } catch (err) {
       setError(err.message);
@@ -122,11 +118,11 @@ export default function DashboardPanel() {
   return (
     <div className="viz-root dashboard">
       <div className="stat-cards">
-        <StatCard icon={Users} label="Nhân viên đang làm" value={activeCount} href="#employees" />
+        <StatCard icon={Users} label="Nhân viên đang làm" value={formatCompact(activeCount)} href="#employees" />
         <StatCard
           icon={Clock}
           label="Đi làm hôm nay"
-          value={presentToday}
+          value={formatCompact(presentToday)}
           note={data.todayValues.LATE ? `${data.todayValues.LATE} người đi trễ` : 'Không ai đi trễ'}
           href="#attendance"
         />
@@ -135,8 +131,8 @@ export default function DashboardPanel() {
         <StatCard
           icon={CalendarClock}
           label="Giờ công tháng này"
-          value={`${formatHours(data.monthHours)}h`}
-          note={`Trong đó ${formatHours(data.monthOt)}h tăng ca`}
+          value={`${formatCompact(data.monthHours)} giờ`}
+          note={`Trong đó ${formatCompact(data.monthOt)} giờ tăng ca`}
           href="#reports"
         />
       </div>

@@ -2,7 +2,9 @@ import ExcelJS from 'exceljs';
 import express from 'express';
 import { z } from 'zod';
 import { query } from '../db.js';
+import { config } from '../config.js';
 import { requireRole } from '../middleware/auth.js';
+import { lastDayOfMonth, localDate } from '../utils/localTime.js';
 import { computeWorkHourStats } from '../utils/workHourStats.js';
 
 const router = express.Router();
@@ -19,6 +21,80 @@ const workHoursQuerySchema = z.object({
 
 // Mọi route báo cáo đều cần đăng nhập với vai trò HR trở lên.
 router.use(requireRole(...HR_ROLES));
+
+function shiftDate(date, days) {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+// Số liệu cho trang Tổng quan, đã tổng hợp sẵn bằng SQL (WBS 6.4.5). Trước đây trang này tải toàn bộ
+// danh sách chấm công 7 ngày và giờ công từng nhân viên để tự đếm: 5.000 nhân viên = ~12 MB mỗi lần mở,
+// 50 người mở cùng lúc thì server từ chối kết nối. Response này chỉ vài trăm byte.
+router.get('/dashboard', async (req, res, next) => {
+  try {
+    const date = dateSchema.optional().parse(req.query.date) || localDate();
+    const from = shiftDate(date, -6);
+    const month = date.slice(0, 7);
+    const monthFrom = `${month}-01`;
+    const monthTo = lastDayOfMonth(month);
+
+    const [employeeStatus, attendance, pending, monthTotals] = await Promise.all([
+      query('SELECT status, COUNT(*)::int AS count FROM employees GROUP BY status'),
+      query(
+        `SELECT work_date, status, COUNT(*)::int AS count
+         FROM attendance_records
+         WHERE work_date BETWEEN $1 AND $2
+         GROUP BY work_date, status
+         ORDER BY work_date`,
+        [from, date]
+      ),
+      query(
+        `SELECT
+           (SELECT COUNT(*)::int FROM leave_requests WHERE status = 'PENDING') AS leaves,
+           (SELECT COUNT(*)::int FROM shift_change_requests WHERE status = 'PENDING') AS shift_changes`
+      ),
+      // Cùng cách tính giờ công / OT với utils/workHourStats.js nhưng cộng chung, không chia theo nhân viên.
+      query(
+        `SELECT
+           COALESCE(SUM(EXTRACT(EPOCH FROM (a.check_out - a.check_in)) / 3600.0), 0) AS total_hours,
+           COALESCE(SUM(GREATEST(
+             EXTRACT(EPOCH FROM (a.check_out - a.check_in)) / 3600.0
+               - COALESCE(EXTRACT(EPOCH FROM (s.end_time - s.start_time)) / 3600.0, $3),
+             0
+           )), 0) AS ot_hours
+         FROM attendance_records a
+         LEFT JOIN work_schedules ws ON ws.id = a.schedule_id
+         LEFT JOIN work_shifts s ON s.id = ws.shift_id
+         WHERE a.work_date BETWEEN $1 AND $2
+           AND a.check_in IS NOT NULL
+           AND a.check_out IS NOT NULL`,
+        [monthFrom, monthTo, config.defaultStandardWorkHours]
+      )
+    ]);
+
+    const statusCounts = Object.fromEntries(employeeStatus.rows.map((row) => [row.status, row.count]));
+
+    res.json({
+      data: {
+        date,
+        from,
+        employeeStatus: {
+          ACTIVE: statusCounts.ACTIVE || 0,
+          ON_LEAVE: statusCounts.ON_LEAVE || 0,
+          RESIGNED: statusCounts.RESIGNED || 0,
+          TERMINATED: statusCounts.TERMINATED || 0
+        },
+        attendanceDaily: attendance.rows.map((row) => ({ workDate: row.work_date, status: row.status, count: row.count })),
+        pendingLeaves: pending.rows[0].leaves,
+        pendingShiftChanges: pending.rows[0].shift_changes,
+        month: { from: monthFrom, to: monthTo, totalHours: Number(monthTotals.rows[0].total_hours), otHours: Number(monthTotals.rows[0].ot_hours) }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 router.get('/by-department', async (req, res, next) => {
   try {

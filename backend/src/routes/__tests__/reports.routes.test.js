@@ -98,3 +98,62 @@ describe('GET /api/reports/work-hours', () => {
     expect(response.body.data[0]).toMatchObject({ employeeCode: 'EMP002', workDays: 20, otHours: 4 });
   });
 });
+
+describe('GET /api/reports/dashboard', () => {
+  const app = createApp();
+
+  beforeEach(() => {
+    query.mockReset();
+  });
+
+  it('rejects non-HR roles', async () => {
+    const response = await request(app)
+      .get('/api/reports/dashboard')
+      .set('Authorization', `Bearer ${tokenFor('EMPLOYEE')}`);
+
+    expect(response.status).toBe(403);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('validates the date format', async () => {
+    const response = await request(app)
+      .get('/api/reports/dashboard?date=11/10/2026')
+      .set('Authorization', `Bearer ${tokenFor('HR_STAFF')}`);
+
+    expect(response.status).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('returns pre-aggregated numbers for the last 7 days and the month', async () => {
+    query
+      .mockResolvedValueOnce({ rows: [{ status: 'ACTIVE', count: 4763 }, { status: 'RESIGNED', count: 250 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          { work_date: '2026-10-06', status: 'PRESENT', count: 3900 },
+          { work_date: '2026-10-06', status: 'LATE', count: 420 }
+        ]
+      })
+      .mockResolvedValueOnce({ rows: [{ leaves: 3, shift_changes: 2 }] })
+      .mockResolvedValueOnce({ rows: [{ total_hours: '727.25', ot_hours: '35.6' }] });
+
+    const response = await request(app)
+      .get('/api/reports/dashboard?date=2026-10-11')
+      .set('Authorization', `Bearer ${tokenFor('HR_STAFF')}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({
+      date: '2026-10-11',
+      from: '2026-10-05',
+      employeeStatus: { ACTIVE: 4763, ON_LEAVE: 0, RESIGNED: 250, TERMINATED: 0 },
+      attendanceDaily: [
+        { workDate: '2026-10-06', status: 'PRESENT', count: 3900 },
+        { workDate: '2026-10-06', status: 'LATE', count: 420 }
+      ],
+      pendingLeaves: 3,
+      pendingShiftChanges: 2,
+      month: { from: '2026-10-01', to: '2026-10-31', totalHours: 727.25, otHours: 35.6 }
+    });
+    // Ngày lọc chấm công: 7 ngày tính cả hôm nay.
+    expect(query.mock.calls[1][1]).toEqual(['2026-10-05', '2026-10-11']);
+  });
+});

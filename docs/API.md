@@ -586,10 +586,16 @@ All routes require ADMIN, HR_MANAGER or HR_STAFF.
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/reports/by-department` | Active employee headcount per department |
+| GET | `/reports/dashboard?date=` | Pre-aggregated numbers for the HR dashboard (see below) |
 | GET | `/reports/work-hours?from=&to=&employeeId=&departmentId=` | Work-hour stats (see Attendance) for a date range |
 | GET | `/reports/export?from=&to=&employeeId=&departmentId=` | Same stats as `.xlsx` |
 
-`from`/`to` are required `YYYY-MM-DD` dates. The employee list itself is exported separately via
+`GET /reports/dashboard` (`date` optional, defaults to today in `APP_TIMEZONE`) returns
+`{ date, from, employeeStatus: { ACTIVE, ON_LEAVE, RESIGNED, TERMINATED }, attendanceDaily: [{ workDate, status, count }],
+pendingLeaves, pendingShiftChanges, month: { from, to, totalHours, otHours } }` — counts for the 7 days ending on
+`date` and work-hour totals for its month, aggregated in SQL (a few hundred bytes even with 5,000 employees).
+
+For `work-hours` and `export`, `from`/`to` are required `YYYY-MM-DD` dates. The employee list itself is exported separately via
 `GET /employees/export` (Excel only — no PDF export is implemented, per project decision).
 
 ## Error behavior
