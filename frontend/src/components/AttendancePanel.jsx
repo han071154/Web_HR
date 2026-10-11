@@ -9,21 +9,19 @@ import {
   formatClock,
   formatDate,
   formatHours,
+  addDays,
   monthRange,
-  toDateTimeInputValue
+  todayInputValue,
+  toDateTimeInputValue,
+  workedHours
 } from '../format.js';
 import FormDialog from './FormDialog.jsx';
+import Pagination from './Pagination.jsx';
 import TabBar from './TabBar.jsx';
 import { useLatestRequest } from '../useLatestRequest.js';
 
-// Số giờ làm thực tế của một bản ghi (giờ ra − giờ vào), chưa chấm ra thì trả null.
-function workedHours(record) {
-  if (!record.checkIn || !record.checkOut) {
-    return null;
-  }
-
-  return (new Date(record.checkOut) - new Date(record.checkIn)) / 3600000;
-}
+// Bảng chấm công chưa có phân trang ở backend: hiển thị theo trang để không vẽ hàng nghìn dòng một lúc.
+const RECORDS_PAGE_SIZE = 50;
 
 // HR sửa chấm công thủ công khi nhân viên quên chấm vào/ra hoặc sai trạng thái.
 function CorrectionDialog({ record, onClose, onSaved, showToast }) {
@@ -39,6 +37,22 @@ function CorrectionDialog({ record, onClose, onSaved, showToast }) {
 
     if (checkIn && checkOut && checkOut <= checkIn) {
       setError('Giờ ra phải sau giờ vào.');
+      return;
+    }
+
+    // Giờ vào phải đúng ngày của bản ghi; giờ ra chậm nhất là sáng hôm sau (ca kết thúc sau nửa đêm).
+    if (checkIn && checkIn.slice(0, 10) !== record.workDate) {
+      setError(`Giờ vào phải thuộc ngày ${formatDate(record.workDate)}.`);
+      return;
+    }
+
+    if (checkOut && checkOut.slice(0, 10) !== record.workDate && checkOut.slice(0, 10) !== addDays(record.workDate, 1)) {
+      setError(`Giờ ra phải thuộc ngày ${formatDate(record.workDate)} hoặc sáng hôm sau.`);
+      return;
+    }
+
+    if (!checkIn && (status === 'PRESENT' || status === 'LATE')) {
+      setError('Trạng thái đúng giờ / đi trễ cần có giờ vào.');
       return;
     }
 
@@ -115,10 +129,12 @@ function CorrectionDialog({ record, onClose, onSaved, showToast }) {
 
 // Bảng chấm công chi tiết từng ngày (HR-022, HR-035), lọc theo khoảng ngày/phòng ban/trạng thái.
 function AttendanceRecords({ departments, showToast }) {
-  const [range, setRange] = useState(() => monthRange(currentMonthValue()));
+  // Mặc định 7 ngày gần nhất (cả tháng của mọi nhân viên có thể lên tới hàng chục nghìn dòng).
+  const [range, setRange] = useState(() => ({ from: addDays(todayInputValue(), -6), to: todayInputValue() }));
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [records, setRecords] = useState([]);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(null);
@@ -147,6 +163,7 @@ function AttendanceRecords({ departments, showToast }) {
       }
 
       setRecords(response.data);
+      setPage(1);
     } catch (err) {
       if (isLatest()) {
         setError(err.message);
@@ -157,6 +174,8 @@ function AttendanceRecords({ departments, showToast }) {
       }
     }
   }, [startRequest, range, departmentFilter, statusFilter]);
+
+  const pageRecords = records.slice((page - 1) * RECORDS_PAGE_SIZE, page * RECORDS_PAGE_SIZE);
 
   useEffect(() => {
     loadRecords();
@@ -214,7 +233,7 @@ function AttendanceRecords({ departments, showToast }) {
                 <td colSpan="9">Đang tải dữ liệu</td>
               </tr>
             ) : records.length ? (
-              records.map((record) => {
+              pageRecords.map((record) => {
                 const hours = workedHours(record);
 
                 return (
@@ -263,6 +282,8 @@ function AttendanceRecords({ departments, showToast }) {
         </table>
       </div>
 
+      <Pagination page={page} pageSize={RECORDS_PAGE_SIZE} total={records.length} unit="bản ghi" onChange={setPage} />
+
       {editing && (
         <CorrectionDialog
           record={editing}
@@ -292,6 +313,8 @@ function MonthlySummary({ departments, showToast }) {
     const isLatest = startRequest();
 
     if (!month) {
+      setRows([]);
+      setLoading(false);
       return;
     }
 
@@ -345,7 +368,7 @@ function MonthlySummary({ departments, showToast }) {
           ))}
         </select>
         <div className="toolbar-actions">
-          <button type="button" className="ghost-button" onClick={handleExport} disabled={!rows.length}>
+          <button type="button" className="ghost-button" onClick={handleExport} disabled={!month || !rows.length}>
             <Download size={17} aria-hidden="true" />
             Xuất Excel
           </button>

@@ -1,7 +1,7 @@
 import { Download } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { currentMonthValue, downloadBlob, formatHours, monthRange } from '../format.js';
+import { currentMonthValue, downloadBlob, formatCompact, formatHours, monthRange } from '../format.js';
 import { useLatestRequest } from '../useLatestRequest.js';
 import { HorizontalBarChart } from './charts.jsx';
 
@@ -90,7 +90,7 @@ export default function ReportsPanel({ departments, showToast }) {
       <section className="content-panel">
         <div className="section-header">
           <h2>Nhân sự theo phòng ban</h2>
-          <span className="muted-text">{totalEmployees} nhân viên đang làm</span>
+          <span className="muted-text">{formatCompact(totalEmployees)} nhân viên đang làm đã có phòng ban</span>
         </div>
         {headcount.length ? (
           <div className="viz-root">
@@ -136,10 +136,10 @@ export default function ReportsPanel({ departments, showToast }) {
         </div>
 
         <div className="stat-tiles">
-          <StatTile label="Nhân viên có chấm công" value={workHours.length} />
-          <StatTile label="Tổng giờ công" value={`${formatHours(totals.hours)}h`} tone="success" />
-          <StatTile label="Giờ tăng ca (OT)" value={`${formatHours(totals.ot)}h`} tone="info" />
-          <StatTile label="Lượt đi trễ" value={totals.late} tone="warning" />
+          <StatTile label="Nhân viên có chấm công" value={formatCompact(workHours.length)} />
+          <StatTile label="Tổng giờ công" value={`${formatCompact(totals.hours)} giờ`} tone="success" />
+          <StatTile label="Giờ tăng ca (OT)" value={`${formatCompact(totals.ot)} giờ`} tone="info" />
+          <StatTile label="Lượt đi trễ" value={formatCompact(totals.late)} tone="warning" />
         </div>
 
         <div className="table-wrap">

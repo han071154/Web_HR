@@ -68,7 +68,7 @@ export function StackedColumnChart({ data, series, unit = '', ariaLabel }) {
 
   return (
     <div className="chart-frame">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={ariaLabel} className="chart-svg">
+      <svg viewBox={`0 0 ${width} ${height}`} role="group" aria-label={ariaLabel} className="chart-svg">
         {ticks.map((tick) => {
           const y = padding.top + plotHeight - scale(tick);
           return (
@@ -117,6 +117,7 @@ export function StackedColumnChart({ data, series, unit = '', ariaLabel }) {
                 height={plotHeight}
                 className="chart-hit"
                 tabIndex="0"
+                aria-label={`${item.label}: ${series.map((s) => `${s.label} ${item.values[s.key] || 0}`).join(', ')}`}
                 onPointerEnter={() =>
                   setTip({
                     left: ((padding.left + band * (index + 0.5)) / width) * 100,
@@ -167,7 +168,12 @@ export function HorizontalBarChart({ data, color, unit = '', ariaLabel }) {
             onPointerEnter={() =>
               setTip({ left: 50, top: index * 36, title: item.label, rows: [{ label: unit.trim() || 'Giá trị', value: item.value }] })
             }
+            onFocus={() =>
+              setTip({ left: 50, top: index * 36, title: item.label, rows: [{ label: unit.trim() || 'Giá trị', value: item.value }] })
+            }
             onPointerLeave={() => setTip(null)}
+            onBlur={() => setTip(null)}
+            aria-label={`${item.label}: ${item.value}${unit}`}
           >
             <span className="hbar-label" title={item.label}>
               {item.label}

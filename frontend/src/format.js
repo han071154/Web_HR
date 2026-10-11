@@ -247,6 +247,15 @@ export function formatClock(value) {
   return new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+// Số giờ làm thực tế của một bản ghi chấm công (giờ ra − giờ vào); chưa chấm đủ vào/ra thì trả null.
+export function workedHours(record) {
+  if (!record?.checkIn || !record?.checkOut) {
+    return null;
+  }
+
+  return (new Date(record.checkOut) - new Date(record.checkIn)) / 3600000;
+}
+
 // Số lớn rút gọn cho ô số liệu: 4764 → "4.764", 289639.9 → "289,6 nghìn", 1250000 → "1,3 triệu".
 export function formatCompact(value) {
   const number = Number(value) || 0;

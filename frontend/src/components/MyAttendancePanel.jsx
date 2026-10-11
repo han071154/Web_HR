@@ -13,16 +13,9 @@ import {
   formatHours,
   formatTime,
   monthRange,
-  todayInputValue
+  todayInputValue,
+  workedHours
 } from '../format.js';
-
-function workedHours(record) {
-  if (!record?.checkIn || !record?.checkOut) {
-    return null;
-  }
-
-  return (new Date(record.checkOut) - new Date(record.checkIn)) / 3600000;
-}
 
 // Đồng hồ hiện giờ, cập nhật mỗi 30 giây.
 function useNow() {
@@ -57,6 +50,7 @@ export default function MyAttendancePanel({ showToast }) {
       ]);
       setTodaySchedule(scheduleResponse.data.find((schedule) => schedule.status === 'SCHEDULED') || null);
       setTodayRecord(recordResponse.data[0] || null);
+      setError('');
     } catch (err) {
       if (isNotLinkedError(err)) {
         setNotLinked(true);
@@ -72,6 +66,8 @@ export default function MyAttendancePanel({ showToast }) {
     const isLatest = startRequest();
 
     if (!month) {
+      setRecords([]);
+      setLoading(false);
       return;
     }
 
@@ -84,6 +80,7 @@ export default function MyAttendancePanel({ showToast }) {
       }
 
       setRecords(response.data);
+      setError('');
     } catch (err) {
       if (isNotLinkedError(err)) {
         setNotLinked(true);
@@ -185,7 +182,7 @@ export default function MyAttendancePanel({ showToast }) {
           {onLeave ? (
             <p className="info-note">Hôm nay bạn đang nghỉ phép.</p>
           ) : !checkedIn ? (
-            <button type="button" className="primary-button large" onClick={() => handleCheck('in')} disabled={busy || Boolean(error)}>
+            <button type="button" className="primary-button large" onClick={() => handleCheck('in')} disabled={busy}>
               <LogIn size={20} aria-hidden="true" />
               {busy ? 'Đang chấm công' : 'Chấm công vào'}
             </button>
