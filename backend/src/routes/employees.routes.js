@@ -13,16 +13,21 @@ import { requireRole } from '../middleware/auth.js';
 import { excelUpload } from '../middleware/excelUpload.js';
 import { diffFields, listAudit, logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
+import { localDate } from '../utils/localTime.js';
+import { dateSchema, moneySchema } from '../utils/validation.js';
 
 const router = express.Router();
 
 const employeeSchema = z.object({
   employeeCode: z.string().min(2).max(40),
-  fullName: z.string().min(2).max(160),
+  fullName: z.string().trim().min(2).max(160),
   email: z.string().email().max(160),
   phone: z.string().max(40).optional().nullable(),
   gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional().nullable(),
-  dateOfBirth: z.string().optional().nullable(),
+  dateOfBirth: dateSchema
+    .refine((value) => value < localDate(), 'Date of birth must be in the past')
+    .optional()
+    .nullable(),
   // CMND 9 số hoặc CCCD 12 số.
   idNumber: z.string().trim().regex(/^(\d{9}|\d{12})$/, 'ID number must have 9 or 12 digits').optional().nullable(),
   departmentId: z.string().uuid().optional().nullable(),
@@ -32,8 +37,8 @@ const employeeSchema = z.object({
   position: z.string().min(2).max(120).optional(),
   employmentType: z.enum(EMPLOYMENT_TYPES),
   status: z.enum(['ACTIVE', 'ON_LEAVE', 'RESIGNED', 'TERMINATED']),
-  hireDate: z.string().min(10),
-  baseSalary: z.coerce.number().min(0),
+  hireDate: dateSchema,
+  baseSalary: moneySchema,
   address: z.string().optional().nullable()
 });
 
@@ -158,7 +163,7 @@ function parsePagination(req) {
   return { page, limit, offset: (page - 1) * limit };
 }
 
-router.get('/', async (req, res, next) => {
+router.get('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
   try {
     const { whereSql, values } = buildEmployeeFilters(req);
     const { page, limit, offset } = parsePagination(req);
@@ -186,7 +191,7 @@ router.get('/', async (req, res, next) => {
 
 // Danh sách rút gọn (không JOIN phòng ban/quản lý) cho ô chọn quản lý trực tiếp, gợi ý mã NV
 // kế tiếp và danh sách chức vụ tự do — nhẹ hơn nhiều so với GET / nên không cần phân trang.
-router.get('/lookup', async (req, res, next) => {
+router.get('/lookup', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
   try {
     const result = await query(
       `SELECT id, employee_code, full_name, position, status
@@ -426,7 +431,7 @@ router.post('/import', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), excelUplo
   }
 });
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
   try {
     const employee = await findEmployee(req.params.id, req);
 
@@ -441,7 +446,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // Lịch sử thay đổi của một nhân viên (mới nhất trước).
-router.get('/:id/history', async (req, res, next) => {
+router.get('/:id/history', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
   try {
     const exists = await query('SELECT 1 FROM employees WHERE id = $1', [req.params.id]);
 

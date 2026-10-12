@@ -61,8 +61,8 @@ minutes per IP (`429 Too many login attempts, please try again later`).
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/departments` | Any authenticated role |
-| GET | `/departments/:id` | Any authenticated role |
+| GET | `/departments` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/departments/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | POST | `/departments` | ADMIN, HR_MANAGER |
 | PUT | `/departments/:id` | ADMIN, HR_MANAGER |
 | DELETE | `/departments/:id` | ADMIN, HR_MANAGER |
@@ -85,10 +85,10 @@ A department that still has employees cannot be deleted: `DELETE` returns `409`
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/employees?search=&status=&departmentId=&position=&page=&limit=` | Any authenticated role |
-| GET | `/employees/lookup` | Any authenticated role |
-| GET | `/employees/:id` | Any authenticated role |
-| GET | `/employees/:id/history` | Any authenticated role |
+| GET | `/employees?search=&status=&departmentId=&position=&page=&limit=` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/employees/lookup` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/employees/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/employees/:id/history` | ADMIN, HR_MANAGER, HR_STAFF |
 | GET | `/employees/export?search=&status=&departmentId=&position=` | ADMIN, HR_MANAGER, HR_STAFF |
 | POST | `/employees/import` | ADMIN, HR_MANAGER, HR_STAFF |
 | POST | `/employees` | ADMIN, HR_MANAGER, HR_STAFF |
@@ -190,8 +190,8 @@ Employee statuses: `ACTIVE`, `ON_LEAVE`, `RESIGNED`, `TERMINATED`.
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/positions?departmentId=&active=true` | Any authenticated role |
-| GET | `/positions/:id` | Any authenticated role |
+| GET | `/positions?departmentId=&active=true` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/positions/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | POST | `/positions` | ADMIN, HR_MANAGER |
 | PUT | `/positions/:id` | ADMIN, HR_MANAGER |
 | DELETE | `/positions/:id` | ADMIN, HR_MANAGER |
@@ -214,8 +214,8 @@ Create/update fields:
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/contracts?employeeId=&status=&search=` | Any authenticated role |
-| GET | `/contracts/:id` | Any authenticated role |
+| GET | `/contracts?employeeId=&status=&search=` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/contracts/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | POST | `/contracts` | ADMIN, HR_MANAGER, HR_STAFF |
 | PUT | `/contracts/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | DELETE | `/contracts/:id` | ADMIN, HR_MANAGER |
@@ -341,8 +341,8 @@ not passed appear publicly.
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/jobs?search=&status=&departmentId=` | Any authenticated role |
-| GET | `/jobs/:id` | Any authenticated role |
+| GET | `/jobs?search=&status=&departmentId=` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/jobs/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | POST | `/jobs` | ADMIN, HR_MANAGER, HR_STAFF |
 | PUT | `/jobs/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | DELETE | `/jobs/:id` | ADMIN, HR_MANAGER |
@@ -382,9 +382,9 @@ Create fields (`PUT` accepts any subset):
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/applications?jobId=&status=&search=` | Any authenticated role |
-| GET | `/applications/:id` | Any authenticated role (adds `cvSize` and `history`) |
-| GET | `/applications/:id/cv` | Any authenticated role (PDF; `?inline=1` to preview in the browser) |
+| GET | `/applications?jobId=&status=&search=` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/applications/:id` | ADMIN, HR_MANAGER, HR_STAFF (adds `cvSize` and `history`) |
+| GET | `/applications/:id/cv` | ADMIN, HR_MANAGER, HR_STAFF (PDF; `?inline=1` to preview in the browser) |
 | PATCH | `/applications/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | POST | `/applications/:id/convert` | ADMIN, HR_MANAGER, HR_STAFF |
 | DELETE | `/applications/:id` | ADMIN, HR_MANAGER |

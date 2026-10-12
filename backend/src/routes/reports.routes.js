@@ -6,11 +6,11 @@ import { config } from '../config.js';
 import { requireRole } from '../middleware/auth.js';
 import { lastDayOfMonth, localDate } from '../utils/localTime.js';
 import { computeWorkHourStats } from '../utils/workHourStats.js';
+import { dateSchema } from '../utils/validation.js';
 
 const router = express.Router();
 
 const HR_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must use YYYY-MM-DD');
 
 const workHoursQuerySchema = z.object({
   from: dateSchema,

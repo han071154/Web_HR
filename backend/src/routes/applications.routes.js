@@ -10,6 +10,7 @@ import { removeCvFile } from '../middleware/cvUpload.js';
 import { applicationCode } from '../utils/applicationCode.js';
 import { listAudit, logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
+import { dateSchema, moneySchema } from '../utils/validation.js';
 
 // HR xử lý hồ sơ ứng viên nộp từ trang tuyển dụng công khai (Figma M-08c, M-08d, M-08e).
 // Luồng trạng thái: NEW (Mới nộp) → REVIEWING (Đang xét) → INTERVIEW (Phỏng vấn)
@@ -18,7 +19,6 @@ const router = express.Router();
 
 const HR_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
 const STATUSES = ['NEW', 'REVIEWING', 'INTERVIEW', 'HIRED', 'REJECTED'];
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must use YYYY-MM-DD');
 
 const updateSchema = z.object({
   status: z.enum(STATUSES).optional(),
@@ -35,7 +35,7 @@ const convertSchema = z
     position: z.string().trim().min(2).max(120).optional(),
     employmentType: z.enum(EMPLOYMENT_TYPES).optional(),
     hireDate: dateSchema,
-    baseSalary: z.coerce.number().min(0),
+    baseSalary: moneySchema,
     contractType: z.enum(['PROBATION', 'FIXED_TERM', 'INDEFINITE', 'SEASONAL']),
     contractEndDate: dateSchema.optional().nullable()
   })
@@ -104,7 +104,7 @@ function cvFilePath(application) {
   return path.join(config.cvUploadDir, path.basename(application.cv_path));
 }
 
-router.get('/', async (req, res, next) => {
+router.get('/', requireRole(...HR_ROLES), async (req, res, next) => {
   try {
     const jobId = String(req.query.jobId || '').trim();
     const status = String(req.query.status || '').trim();
@@ -144,7 +144,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // Chi tiết hồ sơ kèm lịch sử xử lý. HR mở xem lần đầu thì đánh dấu đã xem (bỏ chấm xanh ở danh sách).
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', requireRole(...HR_ROLES), async (req, res, next) => {
   try {
     const application = await findApplication(req.params.id);
 
@@ -173,7 +173,7 @@ router.get('/:id', async (req, res, next) => {
 
 // CV có thông tin cá nhân nên chỉ tải qua API có đăng nhập, không để public như avatar.
 // ?inline=1 để trình duyệt hiển thị ngay (xem trước) thay vì tải xuống.
-router.get('/:id/cv', async (req, res, next) => {
+router.get('/:id/cv', requireRole(...HR_ROLES), async (req, res, next) => {
   try {
     const application = await findApplication(req.params.id);
 

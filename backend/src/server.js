@@ -80,10 +80,12 @@ app.use((error, _req, res, _next) => {
   const isDuplicate = error.code === '23505';
   const isForeignKeyError = error.code === '23503';
   const isInvalidDatabaseValue = error.code === '22P02';
+  // 22003 số vượt kiểu cột, 22007/22008 ngày giờ sai hoặc không tồn tại: lỗi dữ liệu gửi lên, không phải lỗi máy chủ.
+  const isOutOfRange = ['22003', '22007', '22008'].includes(error.code);
   const isFileTooLarge = error.code === 'LIMIT_FILE_SIZE';
   const isUploadError = typeof error.code === 'string' && error.code.startsWith('LIMIT_');
   const status = error.status
-    || (isValidationError || isInvalidDatabaseValue ? 400 : null)
+    || (isValidationError || isInvalidDatabaseValue || isOutOfRange ? 400 : null)
     || (isFileTooLarge ? 413 : null)
     || (isUploadError ? 400 : null)
     || (isDuplicate || isForeignKeyError ? 409 : null)
@@ -96,12 +98,21 @@ app.use((error, _req, res, _next) => {
         ? 'Related record does not exist or is still in use'
         : isInvalidDatabaseValue
           ? 'Invalid identifier or database value'
-          : isFileTooLarge
-            ? {
-                cv: `CV must not exceed ${config.cvMaxSizeMb} MB`,
-                file: `Excel file must not exceed ${config.excelMaxSizeMb} MB`
-              }[error.field] || `Avatar must not exceed ${config.avatarMaxSizeMb} MB`
-            : error.message || 'Internal server error';
+          : isOutOfRange
+            ? 'Date, time or number value is out of range'
+            : isFileTooLarge
+              ? {
+                  cv: `CV must not exceed ${config.cvMaxSizeMb} MB`,
+                  file: `Excel file must not exceed ${config.excelMaxSizeMb} MB`
+                }[error.field] || `Avatar must not exceed ${config.avatarMaxSizeMb} MB`
+              : status === 500
+                ? 'Internal server error'
+                : error.message || 'Internal server error';
+
+  // Lỗi 500 không trả chi tiết (tên bảng, câu SQL) cho người gọi API, chỉ ghi ở log máy chủ.
+  if (status === 500) {
+    console.error(error);
+  }
 
   res.status(status).json({
     message,

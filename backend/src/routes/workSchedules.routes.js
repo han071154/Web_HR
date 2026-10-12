@@ -6,11 +6,11 @@ import { requireRole } from '../middleware/auth.js';
 import { logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
 import { getOwnEmployeeId } from '../utils/selfService.js';
+import { dateSchema } from '../utils/validation.js';
 
 const router = express.Router();
 
 const HR_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must use YYYY-MM-DD');
 
 // status không dùng .default(): schema này còn dùng ở PUT qua .partial(), zod áp default ngay cả
 // khi field bị bỏ qua sẽ ghi đè nhầm trạng thái hiện có. Mặc định 'SCHEDULED' áp thủ công khi tạo mới.
@@ -184,6 +184,16 @@ function buildScheduleFilters(req, { forceEmployeeId } = {}) {
   if (to) {
     values.push(to);
     where.push(`ws.work_date <= $${values.length}`);
+  }
+
+  // Lưới lịch tuần chỉ hiện một trang nhân viên: chỉ lấy lịch của các nhân viên đó (trước đây lấy lịch
+  // của mọi người, 5.000 nhân viên = 13 MB mỗi lần mở). Vẫn kèm lịch của người không còn ACTIVE để
+  // lưới hiện dòng cần xử lý. Không áp dụng cho /me (forceEmployeeId), tránh lộ lịch người khác.
+  const employeeIds = String(req.query.employeeIds || '').split(',').map((id) => id.trim()).filter(Boolean);
+
+  if (employeeIds.length && !forceEmployeeId) {
+    values.push(z.array(z.string().uuid()).max(200).parse(employeeIds));
+    where.push(`(ws.employee_id = ANY($${values.length}::uuid[]) OR e.status <> 'ACTIVE')`);
   }
 
   return { whereSql: where.length ? `WHERE ${where.join(' AND ')}` : '', values };

@@ -5,11 +5,11 @@ import { requireRole } from '../middleware/auth.js';
 import { logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
 import { getOwnEmployeeId } from '../utils/selfService.js';
+import { dateSchema } from '../utils/validation.js';
 
 const router = express.Router();
 
 const HR_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must use YYYY-MM-DD');
 
 const createLeaveRequestSchema = z
   .object({
