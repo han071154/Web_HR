@@ -30,6 +30,12 @@ function ShiftForm({ shift, onSubmit, onCancel }) {
       return;
     }
 
+    const toMinutes = (time) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+    if ((Number(form.breakMinutes) || 0) >= toMinutes(form.endTime) - toMinutes(form.startTime)) {
+      setError('Giờ nghỉ giữa ca phải ngắn hơn thời lượng ca.');
+      return;
+    }
+
     setError('');
     setSaving(true);
 

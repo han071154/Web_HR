@@ -90,6 +90,10 @@ export function initials(name) {
   return `${first}${last}`.toUpperCase();
 }
 
+// Cột tiền trong CSDL là NUMERIC(14, 2): lớn hơn mức này API trả lỗi 500 (numeric field overflow).
+export const MAX_MONEY = 999999999999;
+export const MAX_MONEY_MESSAGE = 'Số tiền tối đa là 999.999.999.999 ₫';
+
 export function formatMoney(value) {
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',

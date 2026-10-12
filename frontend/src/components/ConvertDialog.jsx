@@ -1,7 +1,7 @@
 import { UserCheck, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { contractTypeLabels, employmentTypeLabels, toDateInputValue, todayInputValue } from '../format.js';
+import { MAX_MONEY, MAX_MONEY_MESSAGE, contractTypeLabels, employmentTypeLabels, toDateInputValue, todayInputValue } from '../format.js';
 
 // Thời hạn hợp đồng đầu tiên gợi ý theo loại (tháng); HR sửa được ngày kết thúc.
 const DEFAULT_MONTHS = { PROBATION: 2, FIXED_TERM: 12, SEASONAL: 6 };
@@ -83,6 +83,8 @@ export default function ConvertDialog({ application, departments, positions, sug
 
     if (form.baseSalary === '' || Number(form.baseSalary) <= 0) {
       nextErrors.baseSalary = 'Vui lòng nhập lương cơ bản';
+    } else if (Number(form.baseSalary) > MAX_MONEY) {
+      nextErrors.baseSalary = MAX_MONEY_MESSAGE;
     }
 
     if (form.contractType !== 'INDEFINITE' && (!form.contractEndDate || form.contractEndDate < form.hireDate)) {
@@ -255,6 +257,7 @@ export default function ConvertDialog({ application, departments, positions, sug
             <input
               type="number"
               min="0"
+              max={MAX_MONEY}
               step="100000"
               value={form.baseSalary}
               onChange={(event) => updateField('baseSalary', event.target.value)}
