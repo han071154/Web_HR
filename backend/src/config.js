@@ -26,5 +26,14 @@ export const config = {
     .filter(Boolean),
   // Refresh token: hạn dùng dài hơn access token để người dùng không phải đăng nhập lại liên tục.
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'dev_refresh_secret',
-  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d'
+  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
+  // Giới hạn tổng số giờ làm/tuần theo luật lao động khi xếp lịch ca làm việc.
+  maxWeeklyWorkHours: Number(process.env.MAX_WEEKLY_WORK_HOURS || 48),
+  // Check-in trễ hơn giờ bắt đầu ca (theo lịch phân ca) quá số phút này thì tính là đi trễ (LATE).
+  lateThresholdMinutes: Number(process.env.LATE_THRESHOLD_MINUTES || 15),
+  // Không có lịch phân ca cho ngày chấm công thì dùng số giờ chuẩn này để tính giờ OT.
+  defaultStandardWorkHours: Number(process.env.DEFAULT_STANDARD_WORK_HOURS || 8),
+  // Múi giờ của công ty: dùng để xác định "hôm nay" khi chấm công và giờ check-in so với giờ vào ca,
+  // không phụ thuộc giờ của máy chủ (Docker/cloud thường chạy UTC).
+  timezone: process.env.APP_TIMEZONE || 'Asia/Ho_Chi_Minh'
 };

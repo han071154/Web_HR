@@ -17,7 +17,9 @@ async function seedUsers() {
   const users = [
     ['admin@webhr.local', 'admin123', 'Web HR Admin', 'ADMIN'],
     ['manager@webhr.local', 'manager123', 'HR Manager', 'HR_MANAGER'],
-    ['staff@webhr.local', 'staff123', 'HR Staff', 'HR_STAFF']
+    ['staff@webhr.local', 'staff123', 'HR Staff', 'HR_STAFF'],
+    // Tai khoan tu-phuc-vu mau, duoc lien ket voi nhan vien EMP002 trong seed.sql.
+    ['employee@webhr.local', 'employee123', 'Employee Self Service', 'EMPLOYEE']
   ];
 
   for (const [email, password, fullName, role] of users) {

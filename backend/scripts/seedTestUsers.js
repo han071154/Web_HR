@@ -6,7 +6,10 @@ import { pool, query } from '../src/db.js';
 
 const testUsers = [
   { email: 'hrstaff@webhr.local', password: 'staff123', fullName: 'Test HR Staff', role: 'HR_STAFF', isActive: true },
-  { email: 'inactive@webhr.local', password: 'inactive123', fullName: 'Test Inactive User', role: 'HR_STAFF', isActive: false }
+  { email: 'inactive@webhr.local', password: 'inactive123', fullName: 'Test Inactive User', role: 'HR_STAFF', isActive: false },
+  // Vai trò nhân viên nhưng CHƯA liên kết hồ sơ (users.employee_id = NULL): dùng để test thông báo
+  // "Tài khoản chưa được liên kết với hồ sơ nhân viên" ở các màn chấm công / lịch / nghỉ phép.
+  { email: 'unlinked@webhr.local', password: 'unlinked123', fullName: 'Test Unlinked Employee', role: 'EMPLOYEE', isActive: true }
 ];
 
 async function main() {
