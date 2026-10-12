@@ -13,6 +13,30 @@ React Frontend (Vite) -> Express REST API -> PostgreSQL
 
 Chi tiet tung API: xem [API.md](API.md).
 
+## So do trien khai (Docker)
+
+```text
+                 ┌──────────────────────┐
+  Client  ─────> │  frontend (Nginx)    │
+                 │  - serve React build │
+                 │  - proxy /api, /uploads
+                 └─────────┬────────────┘
+                           │ http://backend:4000
+                 ┌─────────▼────────────┐
+                 │  backend (Node 22)   │
+                 │  Express API         │
+                 └─────────┬────────────┘
+                           │ postgres://db:5432
+                 ┌─────────▼────────────┐
+                 │  db (postgres:16)    │
+                 │  volume: postgres_data
+                 └──────────────────────┘
+```
+
+3 service trong `docker-compose.yml` (`db`, `backend`, `frontend`), chi tiet build/deploy xem
+[DEPLOYMENT.md](DEPLOYMENT.md). CI (`docker-build` job) chi build va validate 2 image backend/
+frontend, chua auto-deploy len server that.
+
 ## Frontend
 
 - Thu muc: `frontend/`
@@ -47,8 +71,15 @@ Chi tiet tung API: xem [API.md](API.md).
 | Tuyen dung cong khai | `/public/jobs`, `/public/jobs/:id/applications` | Khong |
 | Quan ly tin tuyen dung | `/jobs` | Co |
 | Ho so ung vien | `/applications`, `/applications/:id/cv`, `/applications/:id/convert` | Co |
+| Ca lam viec | `/work-shifts` | Co |
+| Lich phan ca, doi ca | `/work-schedules` (gom `/me`, `/me/register`, `/change-requests`) | Co |
+| Cham cong | `/attendance-records` (gom `/check-in`, `/check-out`, `/me`, `/monthly-summary`) | Co |
+| Nghi phep | `/leave-requests` (gom `/me`) | Co |
+| Bao cao thong ke | `/reports` (`by-department`, `work-hours`, `export`) | Co |
 
-- Vai tro: `ADMIN`, `HR_MANAGER`, `HR_STAFF` (middleware `requireAuth`, `requireRole`).
+- Vai tro: `ADMIN`, `HR_MANAGER`, `HR_STAFF` (quan tri/HR) va `EMPLOYEE` (tu-phuc-vu: xem lich,
+  cham cong, xin nghi phep — can `users.employee_id` lien ket toi mot ho so nhan vien).
+  Middleware: `requireAuth`, `requireRole`.
 - Danh sach hinh thuc lam viec dung chung: `backend/src/constants.js`.
 
 ## Database
@@ -58,7 +89,7 @@ Chi tiet tung API: xem [API.md](API.md).
 
 | Bang | Noi dung | Lien ket chinh |
 | --- | --- | --- |
-| `users` | Tai khoan dang nhap va vai tro | |
+| `users` | Tai khoan dang nhap va vai tro | `employee_id` -> `employees` (null = tai khoan HR thuan) |
 | `departments` | Phong ban | |
 | `positions` | Danh muc chuc vu | `department_id` -> `departments` |
 | `employees` | Ho so nhan vien | `department_id` -> `departments`, `position_id` -> `positions` |
@@ -66,13 +97,15 @@ Chi tiet tung API: xem [API.md](API.md).
 | `job_postings` | Tin tuyen dung (`DRAFT`, `OPEN`, `CLOSED`) | `department_id` -> `departments` |
 | `applications` | Ho so ung vien nop tu trang tuyen dung | `job_posting_id` -> `job_postings`, `employee_id` -> `employees` |
 | `audit_logs` | Lich su thay doi (ai lam gi, luc nao) cua nhan vien va ho so ung vien | `entity_type` + `entity_id` |
-| `work_shifts` | Danh muc ca lam viec (HR-021) | |
+| `work_shifts` | Danh muc ca lam viec (HR-021, HR-029) | |
 | `work_schedules` | Lich phan ca theo ngay (HR-021) | `employee_id` -> `employees`, `shift_id` -> `work_shifts` |
 | `attendance_records` | Cham cong theo ngay (HR-022) | `employee_id` -> `employees`, `schedule_id` -> `work_schedules` |
 | `leave_requests` | Don nghi phep (HR-023) | `employee_id` -> `employees`, `approved_by` -> `users` |
+| `shift_change_requests` | Yeu cau doi ca, cho HR duyet/tu choi (HR-032) | `employee_id` -> `employees`, `schedule_id` -> `work_schedules`, `requested_shift_id` -> `work_shifts`, `reviewed_by` -> `users` |
 
-4 bang cuoi (`work_shifts`...`leave_requests`) moi chi thiet ke o schema.sql, chua co API/UI —
-HR-021/022/023 trong `BACKLOG.md` van la Todo.
+API cho 5 bang tren da trien khai o tang backend (xem bang nhom API phia tren va [API.md](API.md)).
+Chua co giao dien (frontend) va chua co he thong thong bao (notification) — quyet dinh duyet
+doi ca duoc ghi lai qua `audit_logs`, xem `SECURITY_CHECKLIST.md`.
 
 - Quy tac du lieu:
   - Khong xoa duoc phong ban con nhan vien (API tra `409`).
@@ -95,5 +128,7 @@ HR-021/022/023 trong `BACKLOG.md` van la Todo.
 ## CI
 
 - File: `.github/workflows/ci.yml`. Chay khi push len `main`, `master`, `Dev`, `feature` va khi tao pull request.
-- Job `build`: `npm ci`, `npm run lint`, `npm run build`.
+- Job `build`: `npm ci`, `npm run lint`, `npm test` (Vitest, mock DB), `npm run build`.
+- Job `docker-build`: build (khong push) 2 Docker image backend/frontend de xac nhan Dockerfile
+  chay duoc — xem [DEPLOYMENT.md](DEPLOYMENT.md).
 - Job `api-tests`: PostgreSQL 16 -> `db:setup` + `db:test-users` -> chay backend -> smoke test -> Postman (Newman).

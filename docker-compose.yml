@@ -16,5 +16,39 @@ services:
       timeout: 5s
       retries: 10
 
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: web_hr_backend
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgres://web_hr:web_hr_password@db:5432/web_hr
+      JWT_SECRET: ${JWT_SECRET:-change_this_secret_in_production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change_this_refresh_secret_in_production}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+    ports:
+      - "${BACKEND_PORT:-4000}:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/backend/uploads
+      - backend_storage:/app/backend/storage
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+    container_name: web_hr_frontend
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
+  backend_uploads:
+  backend_storage:
