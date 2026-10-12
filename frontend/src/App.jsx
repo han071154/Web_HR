@@ -148,6 +148,7 @@ function Dashboard({ user, onLogout }) {
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [referenceLoading, setReferenceLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const importInputRef = useRef(null);
   // Màn hình con của mục Nhân sự: danh sách, chi tiết hoặc form.
@@ -181,24 +182,16 @@ function Dashboard({ user, onLogout }) {
     setLoading(true);
 
     try {
-      const [employeeResponse, lookupResponse, departmentResponse, positionResponse] = await Promise.all([
-        api.employees({
-          page,
-          limit: PAGE_SIZE,
-          search: debouncedSearch,
-          status: statusFilter,
-          departmentId: departmentFilter,
-          position: positionFilter
-        }),
-        api.employeesLookup(),
-        api.departments(),
-        api.positions()
-      ]);
+      const employeeResponse = await api.employees({
+        page,
+        limit: PAGE_SIZE,
+        search: debouncedSearch,
+        status: statusFilter,
+        departmentId: departmentFilter,
+        position: positionFilter
+      });
       setEmployees(employeeResponse.data);
       setTotalEmployees(employeeResponse.pagination.total);
-      setEmployeesLookup(lookupResponse.data);
-      setDepartments(departmentResponse.data);
-      setPositions(positionResponse.data);
 
       // Bộ lọc thu hẹp kết quả làm trang hiện tại vượt quá tổng số trang mới: quay về trang cuối.
       const totalPages = Math.max(1, Math.ceil(employeeResponse.pagination.total / PAGE_SIZE));
@@ -213,13 +206,48 @@ function Dashboard({ user, onLogout }) {
     }
   }, [page, debouncedSearch, statusFilter, departmentFilter, positionFilter]);
 
-  // Tải lại mỗi khi đổi mục menu, đổi trang hoặc đổi bộ lọc.
+  // Danh sách tra cứu (toàn bộ nhân sự rút gọn), phòng ban, chức vụ không đổi theo trang/bộ lọc nên chỉ
+  // tải khi mở mục menu và sau khi thêm/sửa/xóa. Trước đây tải lại cùng mỗi lần đổi trang hoặc gõ tìm kiếm:
+  // 5.000 nhân viên là ~0,76 MB mỗi lần (load test tuần 7).
+  // Danh sách tra cứu chỉ cần ở Nhân sự (gợi ý mã, chọn quản lý), Hợp đồng (chọn nhân viên) và Tuyển dụng
+  // (gợi ý mã khi chuyển ứng viên thành nhân sự); các mục khác chỉ cần phòng ban, chức vụ.
+  const needsLookup = ['employees', 'contracts', 'recruitment'].includes(view);
+  const loadReferenceData = useCallback(async () => {
+    setReferenceLoading(true);
+
+    try {
+      const [lookupResponse, departmentResponse, positionResponse] = await Promise.all([
+        needsLookup ? api.employeesLookup() : null,
+        api.departments(),
+        api.positions()
+      ]);
+      if (lookupResponse) {
+        setEmployeesLookup(lookupResponse.data);
+      }
+      setDepartments(departmentResponse.data);
+      setPositions(positionResponse.data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setReferenceLoading(false);
+    }
+  }, [needsLookup]);
+
+  const reloadAll = useCallback(() => Promise.all([loadData(), loadReferenceData()]), [loadData, loadReferenceData]);
+
+  // Tải lại trang nhân sự khi mở mục Nhân sự, đổi trang hoặc đổi bộ lọc (các mục khác không dùng).
   // Tài khoản nhân viên không dùng danh sách nhân sự/phòng ban nên không tải.
   useEffect(() => {
-    if (!isEmployee) {
+    if (!isEmployee && view === 'employees') {
       loadData();
     }
   }, [loadData, view, isEmployee]);
+
+  useEffect(() => {
+    if (!isEmployee) {
+      loadReferenceData();
+    }
+  }, [loadReferenceData, view, isEmployee]);
 
   useEffect(() => {
     // Menu bên trái đổi trang qua #employees / #departments / #positions trên URL.
@@ -318,7 +346,7 @@ function Dashboard({ user, onLogout }) {
       }
 
       showDetail(saved);
-      loadData();
+      reloadAll();
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -364,7 +392,7 @@ function Dashboard({ user, onLogout }) {
         'success',
         `Đã nhập ${created} nhân viên mới, cập nhật ${updated} nhân viên, bỏ qua ${skipped} dòng lỗi.`
       );
-      await loadData();
+      await reloadAll();
     } catch (err) {
       showToast('error', err.message);
     } finally {
@@ -387,7 +415,7 @@ function Dashboard({ user, onLogout }) {
         showDetail(response.data);
       }
 
-      await loadData();
+      await reloadAll();
     } catch (err) {
       showToast('error', err.message);
     } finally {
@@ -687,8 +715,8 @@ function Dashboard({ user, onLogout }) {
           <DepartmentsPanel
             user={user}
             departments={departments}
-            loading={loading}
-            onChanged={loadData}
+            loading={referenceLoading}
+            onChanged={reloadAll}
             showToast={showToast}
           />
         ) : view === 'positions' ? (
@@ -715,7 +743,7 @@ function Dashboard({ user, onLogout }) {
             departments={departments}
             positions={positions}
             suggestedCode={suggestedCode}
-            onEmployeesChanged={loadData}
+            onEmployeesChanged={reloadAll}
             showToast={showToast}
           />
         )}
