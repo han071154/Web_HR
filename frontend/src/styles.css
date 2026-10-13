@@ -3267,6 +3267,10 @@ td.danger-cell {
   font-weight: 700;
 }
 
+.leave-days .muted-text {
+  font-weight: 400;
+}
+
 /* ---------- Tổng quan & biểu đồ (WBS 6.3.3, 6.3.4) ---------- */
 /* Màu chuỗi: 4 ô đầu bảng màu phân loại, thứ tự cố định; lưới và chữ dùng màu chữ, không dùng màu dữ liệu. */
 .viz-root {

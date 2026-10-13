@@ -596,11 +596,17 @@ monthly totals use the same formula.
 { "leaveType": "ANNUAL", "startDate": "2026-10-20", "endDate": "2026-10-21", "reason": "Optional" }
 ```
 
-Leave types: `ANNUAL`, `SICK`, `UNPAID`, `OTHER`. `endDate` must be on or after `startDate`.
+Leave types: `ANNUAL`, `SICK`, `UNPAID`, `OTHER`. `endDate` must be on or after `startDate`; past dates are
+allowed (sick leave is often reported afterwards).
+
+Leave days are Monday–Friday plus any Saturday/Sunday on which the employee has a `SCHEDULED` shift. Each
+leave request returns `leaveDays` (that count); a range without any leave day (e.g. a weekend with no shift)
+is rejected with `400 The selected dates have no working days`.
+
 New requests start as `PENDING`. `PATCH` (`{ "status": "APPROVED" | "REJECTED" }`) can only be
 called once per request (`409 This leave request has already been reviewed`); approving marks
-every day in the range as `ON_LEAVE` in `attendance-records`, without overwriting a day that
-already has a real attendance record.
+each leave day as `ON_LEAVE` in `attendance-records`. A day already marked `ABSENT` with no check-in/out
+becomes `ON_LEAVE`; a day with a real attendance record (check-in/out) is left unchanged.
 
 ## Reports (Báo cáo thống kê)
 

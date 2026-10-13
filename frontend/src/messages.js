@@ -68,6 +68,7 @@ const exactMessages = {
   'Leave request not found': 'Không tìm thấy đơn nghỉ phép.',
   'This leave request has already been reviewed': 'Đơn nghỉ phép này đã được duyệt trước đó.',
   'End date must be on or after start date': 'Ngày kết thúc phải từ ngày bắt đầu trở đi.',
+  'The selected dates have no working days': 'Khoảng ngày đã chọn không có ngày làm việc nào (thứ 7, chủ nhật không có ca).',
   'Check-out must be after check-in': 'Giờ ra phải sau giờ vào.',
   'Check-in and check-out must be on the attendance date': 'Giờ vào và giờ ra phải nằm trong đúng ngày chấm công.',
   'Date, time or number value is out of range': 'Ngày, giờ hoặc số tiền không hợp lệ.',

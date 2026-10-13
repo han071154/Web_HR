@@ -331,9 +331,20 @@ export function monthRange(month) {
   return { from: `${month}-01`, to: `${month}-${String(lastDay).padStart(2, '0')}` };
 }
 
-// Số ngày của khoảng nghỉ phép (tính cả ngày đầu và ngày cuối).
-export function countDays(from, to) {
-  return Math.round((toLocalDate(to) - toLocalDate(from)) / 86400000) + 1;
+// Số ngày nghỉ của khoảng from → to, cùng quy tắc với backend (BUG-23): thứ 2 → thứ 6, cộng thứ 7 / chủ nhật
+// có trong scheduledDates (ngày nhân viên có lịch phân ca). Chỉ dùng để xem trước khi gửi đơn; số ngày của
+// đơn đã gửi lấy từ leaveDays do backend trả về.
+export function countLeaveDays(from, to, scheduledDates = new Set()) {
+  let count = 0;
+
+  for (let day = from; day <= to; day = addDays(day, 1)) {
+    const weekday = toLocalDate(day).getDay();
+    if ((weekday !== 0 && weekday !== 6) || scheduledDates.has(day)) {
+      count += 1;
+    }
+  }
+
+  return count;
 }
 
 // Tải file (blob) về máy với tên cho trước.

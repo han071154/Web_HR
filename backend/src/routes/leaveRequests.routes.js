@@ -27,9 +27,24 @@ const reviewLeaveRequestSchema = z.object({
   status: z.enum(['APPROVED', 'REJECTED'])
 });
 
+// Ngày được tính là ngày nghỉ của một đơn (BUG-23): thứ 2 → thứ 6, cộng thứ 7 / chủ nhật mà nhân viên có
+// lịch phân ca (nhân viên làm ca cuối tuần). Dùng cho số ngày hiển thị lẫn các ngày ghi Nghỉ phép khi duyệt.
+// Tham số: employee_id, start_date, end_date (biểu thức SQL hoặc $n).
+function leaveDatesSql(employeeId, startDate, endDate) {
+  return `
+    SELECT d::date AS work_date
+    FROM generate_series(${startDate}::date, ${endDate}::date, '1 day') AS d
+    WHERE EXTRACT(ISODOW FROM d) < 6
+       OR EXISTS (
+         SELECT 1 FROM work_schedules ws
+         WHERE ws.employee_id = ${employeeId} AND ws.work_date = d::date AND ws.status = 'SCHEDULED'
+       )`;
+}
+
 const leaveSelectSql = `
   SELECT
     l.*,
+    (SELECT COUNT(*)::int FROM (${leaveDatesSql('l.employee_id', 'l.start_date', 'l.end_date')}) AS leave_dates) AS leave_days,
     e.employee_code,
     e.full_name AS employee_name,
     e.department_id,
@@ -52,6 +67,7 @@ function mapLeaveRequest(row) {
     leaveType: row.leave_type,
     startDate: row.start_date,
     endDate: row.end_date,
+    leaveDays: row.leave_days,
     reason: row.reason,
     status: row.status,
     approvedBy: row.approved_by,
@@ -82,6 +98,17 @@ router.post('/', async (req, res, next) => {
   try {
     const employeeId = await getOwnEmployeeId(req);
     const body = createLeaveRequestSchema.parse(req.body);
+    // Cho phép chọn ngày đã qua (BUG-24): nghỉ ốm thường báo sau; khi duyệt, ngày đã ghi Vắng chuyển thành
+    // Nghỉ phép. Chỉ chặn khoảng ngày không có ngày làm việc nào (vd chỉ T7–CN mà không có ca).
+    const workingDays = await query(
+      `SELECT COUNT(*)::int AS count FROM (${leaveDatesSql('$1::uuid', '$2', '$3')}) AS leave_dates`,
+      [employeeId, body.startDate, body.endDate]
+    );
+
+    if (!workingDays.rows[0].count) {
+      throw httpError(400, 'The selected dates have no working days');
+    }
+
     const result = await query(
       `INSERT INTO leave_requests (employee_id, leave_type, start_date, end_date, reason)
        VALUES ($1, $2, $3, $4, $5)
@@ -141,8 +168,9 @@ router.get('/:id', requireRole(...HR_ROLES), async (req, res, next) => {
   }
 });
 
-// Duyệt/từ chối đơn nghỉ phép; duyệt thì đánh dấu ON_LEAVE trên bảng chấm công cho các ngày nghỉ
-// (không ghi đè ngày đã có chấm công thật, nhờ ON CONFLICT DO NOTHING).
+// Duyệt/từ chối đơn nghỉ phép; duyệt thì đánh dấu ON_LEAVE trên bảng chấm công cho các ngày nghỉ được tính
+// (leaveDatesSql, không ghi T7/CN không có ca). Ngày đã bị ghi Vắng mà chưa chấm công vào/ra thì chuyển
+// thành Nghỉ phép (BUG-24); ngày đã có chấm công thật giữ nguyên.
 router.patch('/:id', requireRole(...HR_ROLES), async (req, res, next) => {
   try {
     const current = await query('SELECT * FROM leave_requests WHERE id = $1', [req.params.id]);
@@ -168,9 +196,13 @@ router.patch('/:id', requireRole(...HR_ROLES), async (req, res, next) => {
     if (body.status === 'APPROVED') {
       await query(
         `INSERT INTO attendance_records (employee_id, work_date, status)
-         SELECT $1, d::date, 'ON_LEAVE'
-         FROM generate_series($2::date, $3::date, '1 day') AS d
-         ON CONFLICT (employee_id, work_date) DO NOTHING`,
+         SELECT $1, leave_dates.work_date, 'ON_LEAVE'
+         FROM (${leaveDatesSql('$1::uuid', '$2', '$3')}) AS leave_dates
+         ON CONFLICT (employee_id, work_date) DO UPDATE
+           SET status = 'ON_LEAVE', updated_at = NOW()
+           WHERE attendance_records.status = 'ABSENT'
+             AND attendance_records.check_in IS NULL
+             AND attendance_records.check_out IS NULL`,
         [row.employee_id, row.start_date, row.end_date]
       );
     }
