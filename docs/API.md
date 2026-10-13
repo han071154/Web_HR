@@ -25,6 +25,14 @@ Interactive Swagger UI for this section is served at `/api/docs` (task #68).
 | POST | `/auth/login` | None |
 | POST | `/auth/refresh` | None (requires a valid `refreshToken`) |
 | GET | `/auth/me` | Any authenticated role |
+| POST | `/auth/change-password` | Any authenticated role |
+
+HR-027: `POST /auth/change-password` takes `{ currentPassword, newPassword }`. The new password must be
+8–72 characters with at least one letter and one number, and differ from the current one. Wrong current
+password → `400 Current password is incorrect`. Limited to 10 attempts per account per 15 minutes
+(separate from the login limit). On success it returns a new `token` and `refreshToken`; refresh tokens
+issued before the change are rejected from then on (`users.password_changed_at`). Resetting a forgotten
+password is done by an Admin (HR-007).
 
 ```json
 // POST /auth/login
@@ -94,6 +102,13 @@ A department that still has employees cannot be deleted: `DELETE` returns `409`
 | POST | `/employees` | ADMIN, HR_MANAGER, HR_STAFF |
 | PUT | `/employees/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | DELETE | `/employees/:id` | ADMIN, HR_MANAGER |
+| GET | `/employees/me` | Any authenticated role linked to an employee profile |
+| PUT | `/employees/me` | Any authenticated role linked to an employee profile |
+
+HR-011: `GET /employees/me` returns the caller's own employee profile (same shape as `GET /employees/:id`).
+`PUT /employees/me` lets the employee change only `phone` and `address`; any other field is rejected
+with `400`. Changes are recorded in the history as `SELF_UPDATED`. Accounts without a linked profile get
+`409 This account is not linked to an employee profile`.
 
 BUG-06: `GET /employees` is paginated (`page` default `1`, `limit` default `20`, max `100`) and
 returns a `pagination` block alongside `data`:

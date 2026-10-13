@@ -13,6 +13,7 @@ import { requireRole } from '../middleware/auth.js';
 import { excelUpload } from '../middleware/excelUpload.js';
 import { diffFields, listAudit, logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
+import { getOwnEmployeeId } from '../utils/selfService.js';
 import { localDate } from '../utils/localTime.js';
 import { dateSchema, moneySchema } from '../utils/validation.js';
 
@@ -184,6 +185,63 @@ router.get('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res,
       data: result.rows.map((row) => mapEmployee(row, req)),
       pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) }
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// HR-011: nhân viên tự xem hồ sơ của mình và chỉ được tự sửa số điện thoại, địa chỉ. Các trường khác
+// (lương, chức vụ, phòng ban, trạng thái...) vẫn do HR quản lý; gửi kèm trường khác sẽ bị từ chối (strict).
+// Đặt trước /:id để "me" không bị hiểu là id.
+const selfProfileSchema = z
+  .object({
+    phone: z.string().trim().regex(/^[0-9+().\s-]{8,20}$/, 'Invalid phone number').nullable().optional(),
+    address: z.string().trim().max(500).nullable().optional()
+  })
+  .strict();
+
+router.get('/me', async (req, res, next) => {
+  try {
+    const employee = await findEmployee(await getOwnEmployeeId(req), req);
+
+    if (!employee) {
+      throw httpError(404, 'Employee not found');
+    }
+
+    res.json({ data: employee });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/me', async (req, res, next) => {
+  try {
+    const employeeId = await getOwnEmployeeId(req);
+    const body = selfProfileSchema.parse(req.body);
+    const before = await findEmployee(employeeId, req);
+
+    if (!before) {
+      throw httpError(404, 'Employee not found');
+    }
+
+    const values = {
+      phone: Object.hasOwn(body, 'phone') ? body.phone || null : before.phone,
+      address: Object.hasOwn(body, 'address') ? body.address || null : before.address
+    };
+    await query('UPDATE employees SET phone = $1, address = $2, updated_at = NOW() WHERE id = $3', [
+      values.phone,
+      values.address,
+      employeeId
+    ]);
+
+    const updated = await findEmployee(employeeId, req);
+    const changes = diffFields(before, updated, ['phone', 'address']);
+
+    if (Object.keys(changes).length) {
+      await logAudit({ entityType: 'EMPLOYEE', entityId: employeeId, action: 'SELF_UPDATED', details: { fields: changes }, user: req.user });
+    }
+
+    res.json({ data: updated });
   } catch (error) {
     next(error);
   }

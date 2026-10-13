@@ -91,6 +91,8 @@ function describe(entry) {
       return { title: details.applicationCode ? `Tạo hồ sơ từ hồ sơ ứng viên ${details.applicationCode}` : 'Tạo hồ sơ' };
     case 'UPDATED':
       return { title: `Cập nhật ${fieldList(details.fields)}`, lines: changeLines(details.fields) };
+    case 'SELF_UPDATED':
+      return { title: `Nhân viên tự cập nhật ${fieldList(details.fields)}` };
     case 'AVATAR_UPDATED':
       return { title: 'Cập nhật ảnh đại diện' };
     case 'AVATAR_REMOVED':

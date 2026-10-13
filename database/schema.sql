@@ -177,6 +177,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS users_employee_id_key
   ON users (employee_id)
   WHERE employee_id IS NOT NULL;
 
+-- Doi mat khau (HR-027): refresh token cap truoc thoi diem nay bi tu choi, nen cac phien dang nhap
+-- cu (vd tren may khac) khong lam moi duoc nua sau khi doi mat khau.
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
+
 -- Ca lam viec & cham cong/nghi phep (HR-021, HR-022, HR-023): module Tuan 5-6 (Ca lam viec,
 -- Cham cong & nghi phep, Bao cao thong ke).
 CREATE TABLE IF NOT EXISTS work_shifts (

@@ -66,7 +66,13 @@ const exactMessages = {
   'Attendance already recorded for this date': 'Ngày này đã có bản ghi chấm công.',
   'Leave request not found': 'Không tìm thấy đơn nghỉ phép.',
   'This leave request has already been reviewed': 'Đơn nghỉ phép này đã được duyệt trước đó.',
-  'End date must be on or after start date': 'Ngày kết thúc phải từ ngày bắt đầu trở đi.'
+  'End date must be on or after start date': 'Ngày kết thúc phải từ ngày bắt đầu trở đi.',
+  'Check-out must be after check-in': 'Giờ ra phải sau giờ vào.',
+  'Check-in and check-out must be on the attendance date': 'Giờ vào và giờ ra phải nằm trong đúng ngày chấm công.',
+  'Date, time or number value is out of range': 'Ngày, giờ hoặc số tiền không hợp lệ.',
+  'Current password is incorrect': 'Mật khẩu hiện tại không đúng.',
+  'Too many password change attempts, please try again later': 'Bạn đã thử đổi mật khẩu quá nhiều lần. Vui lòng thử lại sau 15 phút.',
+  'New password must be different from the current password': 'Mật khẩu mới phải khác mật khẩu hiện tại.'
 };
 
 // "Weekly work hour limit exceeded (max 48h/week)": số giờ lấy từ cấu hình backend.
@@ -132,7 +138,9 @@ const fieldLabels = {
   reason: 'Lý do',
   from: 'Từ ngày',
   to: 'Đến ngày',
-  month: 'Tháng'
+  month: 'Tháng',
+  currentPassword: 'Mật khẩu hiện tại',
+  newPassword: 'Mật khẩu mới'
 };
 
 const statusMessages = {
