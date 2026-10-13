@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import {
   addDays,
+  approvalStatusClass,
   formatDate,
   formatDayMonth,
   formatHours,
@@ -18,6 +19,12 @@ import FormDialog from './FormDialog.jsx';
 import { isNotLinkedError } from '../messages.js';
 import NotLinkedNotice from './NotLinkedNotice.jsx';
 import { useLatestRequest } from '../useLatestRequest.js';
+
+const changeRequestLabels = {
+  PENDING: 'Đổi ca: chờ duyệt',
+  APPROVED: 'Đổi ca: đã duyệt',
+  REJECTED: 'Đổi ca: bị từ chối'
+};
 
 function shiftLabel(shift) {
   return `${shift.name} (${formatTime(shift.startTime)} – ${formatTime(shift.endTime)})`;
@@ -90,7 +97,7 @@ function ChangeDialog({ schedule, shifts, onClose, onSent, showToast }) {
         reason: reason.trim() || null
       });
       showToast('success', 'Đã gửi yêu cầu đổi ca. Vui lòng chờ phòng nhân sự duyệt.');
-      onSent(schedule.id);
+      onSent();
     } catch (err) {
       setError(err.message);
       setBusy(false);
@@ -155,8 +162,7 @@ export default function MySchedulePanel({ showToast }) {
   const [notLinked, setNotLinked] = useState(false);
   const [registering, setRegistering] = useState(null);
   const [changing, setChanging] = useState(null);
-  // Chưa có API cho nhân viên xem lại yêu cầu đổi ca, nên chỉ nhớ các yêu cầu vừa gửi trong phiên này.
-  const [sentRequests, setSentRequests] = useState([]);
+  const [changeRequests, setChangeRequests] = useState([]);
 
   const days = useMemo(() => weekDates(weekStart), [weekStart]);
   const today = todayInputValue();
@@ -170,12 +176,14 @@ export default function MySchedulePanel({ showToast }) {
     setError('');
 
     try {
-      const response = await api.mySchedules({ from: days[0], to: days[6] });
+      const range = { from: days[0], to: days[6] };
+      const [response, requests] = await Promise.all([api.mySchedules(range), api.myShiftChangeRequests(range)]);
       if (!isLatest()) {
         return;
       }
 
       setSchedules(response.data);
+      setChangeRequests(requests.data);
     } catch (err) {
       if (isNotLinkedError(err)) {
         setNotLinked(true);
@@ -203,6 +211,16 @@ export default function MySchedulePanel({ showToast }) {
   }, []);
 
   const byDate = useMemo(() => new Map(schedules.map((schedule) => [schedule.workDate, schedule])), [schedules]);
+  // Yêu cầu đổi ca mới nhất của từng lịch (API trả mới nhất trước).
+  const latestRequest = useMemo(() => {
+    const map = new Map();
+    for (const changeRequest of changeRequests) {
+      if (!map.has(changeRequest.scheduleId)) {
+        map.set(changeRequest.scheduleId, changeRequest);
+      }
+    }
+    return map;
+  }, [changeRequests]);
   const weekHours = schedules
     .filter((schedule) => schedule.status === 'SCHEDULED')
     .reduce((total, schedule) => total + shiftHours(schedule), 0);
@@ -250,6 +268,7 @@ export default function MySchedulePanel({ showToast }) {
           const schedule = byDate.get(day);
           const isPast = day < today;
           const isScheduled = schedule?.status === 'SCHEDULED';
+          const changeRequest = schedule && latestRequest.get(schedule.id);
 
           return (
             <li key={day} className={`my-day${day === today ? ' is-today' : ''}${isPast ? ' is-past' : ''}`}>
@@ -285,15 +304,20 @@ export default function MySchedulePanel({ showToast }) {
                     Đăng ký ca
                   </button>
                 )}
-                {!isPast && isScheduled &&
-                  (sentRequests.includes(schedule.id) ? (
-                    <span className="status-pill status-on_leave">Đã gửi yêu cầu đổi ca</span>
-                  ) : (
-                    <button type="button" className="ghost-button" onClick={() => setChanging(schedule)}>
-                      <Repeat size={17} aria-hidden="true" />
-                      Xin đổi ca
-                    </button>
-                  ))}
+                {changeRequest && (
+                  <span
+                    className={`status-pill ${approvalStatusClass[changeRequest.status]}`}
+                    title={changeRequest.requestedShiftName ? `Xin đổi sang ${changeRequest.requestedShiftName}` : undefined}
+                  >
+                    {changeRequestLabels[changeRequest.status]}
+                  </span>
+                )}
+                {!isPast && isScheduled && changeRequest?.status !== 'PENDING' && (
+                  <button type="button" className="ghost-button" onClick={() => setChanging(schedule)}>
+                    <Repeat size={17} aria-hidden="true" />
+                    Xin đổi ca
+                  </button>
+                )}
               </div>
             </li>
           );
@@ -318,9 +342,9 @@ export default function MySchedulePanel({ showToast }) {
           schedule={changing}
           shifts={shifts}
           onClose={() => setChanging(null)}
-          onSent={(scheduleId) => {
+          onSent={() => {
             setChanging(null);
-            setSentRequests((current) => [...current, scheduleId]);
+            loadWeek();
           }}
           showToast={showToast}
         />

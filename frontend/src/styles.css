@@ -3138,6 +3138,14 @@ td.danger-cell {
   font-size: 0.9rem;
 }
 
+.my-day-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .cancelled-text {
   text-decoration: line-through;
 }

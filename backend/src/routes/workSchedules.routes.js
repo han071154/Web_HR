@@ -199,6 +199,21 @@ function buildScheduleFilters(req, { forceEmployeeId } = {}) {
   return { whereSql: where.length ? `WHERE ${where.join(' AND ')}` : '', values };
 }
 
+const changeRequestSelectSql = `
+  SELECT
+    r.*,
+    e.full_name AS employee_name,
+    ws.work_date,
+    ws.shift_id AS current_shift_id,
+    cs.name AS current_shift_name,
+    rs.name AS requested_shift_name
+  FROM shift_change_requests r
+  JOIN employees e ON e.id = r.employee_id
+  JOIN work_schedules ws ON ws.id = r.schedule_id
+  JOIN work_shifts cs ON cs.id = ws.shift_id
+  LEFT JOIN work_shifts rs ON rs.id = r.requested_shift_id
+`;
+
 // --- Tự-phục vụ (EMPLOYEE) ---------------------------------------------------------------
 
 router.get('/me', async (req, res, next) => {
@@ -211,6 +226,46 @@ router.get('/me', async (req, res, next) => {
     );
 
     res.json({ data: result.rows.map(mapSchedule) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Nhân viên xem lại các yêu cầu đổi ca đã gửi và kết quả duyệt (BUG-15); from/to lọc theo ngày của ca.
+router.get('/me/change-requests', async (req, res, next) => {
+  try {
+    const employeeId = await getOwnEmployeeId(req);
+    const filters = z
+      .object({
+        from: dateSchema.optional(),
+        to: dateSchema.optional(),
+        status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional()
+      })
+      .parse(req.query);
+    const values = [employeeId];
+    const where = ['r.employee_id = $1'];
+
+    if (filters.from) {
+      values.push(filters.from);
+      where.push(`ws.work_date >= $${values.length}`);
+    }
+
+    if (filters.to) {
+      values.push(filters.to);
+      where.push(`ws.work_date <= $${values.length}`);
+    }
+
+    if (filters.status) {
+      values.push(filters.status);
+      where.push(`r.status = $${values.length}`);
+    }
+
+    const result = await query(
+      `${changeRequestSelectSql} WHERE ${where.join(' AND ')} ORDER BY r.created_at DESC`,
+      values
+    );
+
+    res.json({ data: result.rows.map(mapChangeRequest) });
   } catch (error) {
     next(error);
   }
@@ -260,6 +315,15 @@ router.post('/:scheduleId/change-requests', async (req, res, next) => {
       throw httpError(403, 'You can only request a change for your own schedule');
     }
 
+    const pending = await query(
+      `SELECT id FROM shift_change_requests WHERE schedule_id = $1 AND status = 'PENDING'`,
+      [req.params.scheduleId]
+    );
+
+    if (pending.rows[0]) {
+      throw httpError(409, 'A change request for this shift is already pending');
+    }
+
     const result = await query(
       `INSERT INTO shift_change_requests (employee_id, schedule_id, requested_shift_id, reason)
        VALUES ($1, $2, $3, $4)
@@ -280,21 +344,6 @@ router.post('/:scheduleId/change-requests', async (req, res, next) => {
 });
 
 // --- Yêu cầu đổi ca (HR) ------------------------------------------------------------------
-
-const changeRequestSelectSql = `
-  SELECT
-    r.*,
-    e.full_name AS employee_name,
-    ws.work_date,
-    ws.shift_id AS current_shift_id,
-    cs.name AS current_shift_name,
-    rs.name AS requested_shift_name
-  FROM shift_change_requests r
-  JOIN employees e ON e.id = r.employee_id
-  JOIN work_schedules ws ON ws.id = r.schedule_id
-  JOIN work_shifts cs ON cs.id = ws.shift_id
-  LEFT JOIN work_shifts rs ON rs.id = r.requested_shift_id
-`;
 
 router.get('/change-requests', requireRole(...HR_ROLES), async (req, res, next) => {
   try {
@@ -356,7 +405,7 @@ router.patch('/change-requests/:id', requireRole(...HR_ROLES), async (req, res, 
       [body.status, req.user.sub, req.params.id]
     );
     // Không có hạ tầng thông báo (notification) nên ghi nhận quyết định vào audit log;
-    // nhân viên xem kết quả qua GET /api/work-schedules/me hoặc lịch sử yêu cầu đổi ca.
+    // nhân viên xem kết quả qua GET /api/work-schedules/me/change-requests.
     await logAudit({
       entityType: 'SHIFT_CHANGE_REQUEST',
       entityId: req.params.id,

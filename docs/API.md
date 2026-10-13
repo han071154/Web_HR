@@ -496,6 +496,7 @@ accounts are provided by an Admin (backlog HR-007). Calling a `/me*` endpoint fr
 | --- | --- | --- |
 | GET | `/work-schedules/me?from=&to=` | Any authenticated role linked to an employee |
 | POST | `/work-schedules/me/register` | Any authenticated role linked to an employee |
+| GET | `/work-schedules/me/change-requests?from=&to=&status=` | Any authenticated role linked to an employee |
 | POST | `/work-schedules/:scheduleId/change-requests` | Any authenticated role linked to an employee |
 | GET | `/work-schedules?employeeId=&departmentId=&from=&to=` | ADMIN, HR_MANAGER, HR_STAFF |
 | GET | `/work-schedules/:id` | ADMIN, HR_MANAGER, HR_STAFF |
@@ -539,12 +540,13 @@ themselves for an open shift, subject to the same conflict/weekly-limit rules.
 
 `POST /work-schedules/:scheduleId/change-requests` (`{ requestedShiftId?, reason? }`) lets an
 employee request a change on their own schedule entry (`403` if the schedule belongs to someone
-else). `PATCH /work-schedules/change-requests/:id` (`{ "status": "APPROVED" | "REJECTED" }`) lets
+else, `409 A change request for this shift is already pending` if one is still waiting). `PATCH /work-schedules/change-requests/:id` (`{ "status": "APPROVED" | "REJECTED" }`) lets
 HR review it; approving with a `requestedShiftId` updates the underlying schedule's shift
 (re-checking the weekly hour limit) and returns `409 This request has already been reviewed` if
 called twice. There is no notification system yet — the decision is recorded in the audit log
-(`entityType: 'SHIFT_CHANGE_REQUEST'`); the employee sees the result by re-checking
-`GET /work-schedules/me`.
+(`entityType: 'SHIFT_CHANGE_REQUEST'`); the employee sees their own requests and their status
+(`PENDING` / `APPROVED` / `REJECTED`) via `GET /work-schedules/me/change-requests` (newest first; `from`/`to` filter
+by the schedule's work date, `status` is optional) — same fields as the HR list.
 
 ## Attendance (Chấm công)
 

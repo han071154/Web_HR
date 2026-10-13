@@ -273,6 +273,7 @@ export const api = {
   mySchedules: (params) => request(`/work-schedules/me${toQuery(params)}`),
   registerShift: (shiftId, workDate) =>
     request('/work-schedules/me/register', { method: 'POST', body: JSON.stringify({ shiftId, workDate }) }),
+  myShiftChangeRequests: (params) => request(`/work-schedules/me/change-requests${toQuery(params)}`),
   requestShiftChange: (scheduleId, changes) =>
     request(`/work-schedules/${scheduleId}/change-requests`, { method: 'POST', body: JSON.stringify(changes) }),
   // Chấm công (HR-022, HR-035 → HR-037).

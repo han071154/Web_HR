@@ -58,6 +58,7 @@ const exactMessages = {
     'Tài khoản của bạn chưa được liên kết với hồ sơ nhân viên. Hãy liên hệ phòng nhân sự.',
   'You can only request a change for your own schedule': 'Bạn chỉ được xin đổi ca của chính mình.',
   'Shift change request not found': 'Không tìm thấy yêu cầu đổi ca.',
+  'A change request for this shift is already pending': 'Ca này đã có yêu cầu đổi ca đang chờ duyệt.',
   'This request has already been reviewed': 'Yêu cầu này đã được duyệt trước đó.',
   'Already checked in today': 'Hôm nay bạn đã chấm công vào rồi.',
   'You have not checked in today': 'Bạn chưa chấm công vào hôm nay.',

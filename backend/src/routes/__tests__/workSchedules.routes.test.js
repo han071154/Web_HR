@@ -223,3 +223,78 @@ describe('PATCH /api/work-schedules/change-requests/:id', () => {
     expect(response.status).toBe(409);
   });
 });
+
+// BUG-15: nhân viên xem lại yêu cầu đổi ca đã gửi.
+describe('GET /api/work-schedules/me/change-requests', () => {
+  const app = createApp();
+
+  beforeEach(() => {
+    query.mockReset();
+  });
+
+  it('returns only the own requests, filtered by work date', async () => {
+    query.mockResolvedValueOnce({ rows: [{ employee_id: 'emp-1' }] });
+    query.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 'req-1',
+          employee_id: 'emp-1',
+          employee_name: 'Tran Quoc Bao',
+          schedule_id: 'sched-1',
+          work_date: '2026-10-14',
+          current_shift_id: 'shift-1',
+          current_shift_name: 'Ca sang',
+          requested_shift_id: 'shift-2',
+          requested_shift_name: 'Ca chieu',
+          reason: 'Kham benh',
+          status: 'REJECTED'
+        }
+      ]
+    });
+
+    const response = await request(app)
+      .get('/api/work-schedules/me/change-requests?from=2026-10-12&to=2026-10-18')
+      .set('Authorization', `Bearer ${tokenFor('EMPLOYEE')}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([
+      expect.objectContaining({ id: 'req-1', scheduleId: 'sched-1', status: 'REJECTED', requestedShiftName: 'Ca chieu' })
+    ]);
+    const [sql, values] = query.mock.calls[1];
+    expect(sql).toMatch(/r\.employee_id = \$1/);
+    expect(values).toEqual(['emp-1', '2026-10-12', '2026-10-18']);
+  });
+
+  it('rejects an invalid date filter', async () => {
+    query.mockResolvedValueOnce({ rows: [{ employee_id: 'emp-1' }] });
+
+    const response = await request(app)
+      .get('/api/work-schedules/me/change-requests?from=hom-nay')
+      .set('Authorization', `Bearer ${tokenFor('EMPLOYEE')}`);
+
+    expect(response.status).toBe(400);
+  });
+});
+
+describe('POST /api/work-schedules/:scheduleId/change-requests', () => {
+  const app = createApp();
+
+  beforeEach(() => {
+    query.mockReset();
+  });
+
+  it('rejects a second request while one is still pending', async () => {
+    query
+      .mockResolvedValueOnce({ rows: [{ employee_id: 'emp-1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'sched-1', employee_id: 'emp-1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'req-1' }] });
+
+    const response = await request(app)
+      .post('/api/work-schedules/sched-1/change-requests')
+      .set('Authorization', `Bearer ${tokenFor('EMPLOYEE')}`)
+      .send({ reason: 'Kham benh' });
+
+    expect(response.status).toBe(409);
+    expect(query).toHaveBeenCalledTimes(3);
+  });
+});
