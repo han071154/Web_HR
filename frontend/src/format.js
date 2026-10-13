@@ -251,13 +251,10 @@ export function formatClock(value) {
   return new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-// Số giờ làm thực tế của một bản ghi chấm công (giờ ra − giờ vào); chưa chấm đủ vào/ra thì trả null.
+// Giờ công của một bản ghi chấm công do backend tính (giờ ra − giờ vào − giờ nghỉ giữa ca, cùng công thức
+// với tổng hợp tháng); chưa chấm đủ vào/ra thì null.
 export function workedHours(record) {
-  if (!record?.checkIn || !record?.checkOut) {
-    return null;
-  }
-
-  return (new Date(record.checkOut) - new Date(record.checkIn)) / 3600000;
+  return record?.workedHours ?? null;
 }
 
 // Số lớn rút gọn cho ô số liệu: 4764 → "4.764", 289639.9 → "289,6 nghìn", 1250000 → "1,3 triệu".

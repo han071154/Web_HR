@@ -7,7 +7,7 @@ import { logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
 import { lastDayOfMonth, localDate, localMinutesOfDay } from '../utils/localTime.js';
 import { getOwnEmployeeId } from '../utils/selfService.js';
-import { computeWorkHourStats } from '../utils/workHourStats.js';
+import { computeWorkHourStats, workHourExpressions } from '../utils/workHourStats.js';
 import { monthSchema } from '../utils/validation.js';
 
 const router = express.Router();
@@ -21,9 +21,17 @@ const correctionSchema = z.object({
   note: z.string().trim().max(2000).optional().nullable()
 });
 
+// Giờ công từng ngày tính ở backend, cùng công thức với tổng hợp tháng (trừ giờ nghỉ giữa ca). Giá trị
+// cấu hình được nhúng thẳng (đều là số) vì câu SELECT này còn được nối thêm WHERE với tham số $1, $2...
+const recordHours = workHourExpressions(
+  String(Number(config.defaultStandardWorkHours)),
+  String(Number(config.defaultBreakMinutes))
+);
+
 const attendanceSelectSql = `
   SELECT
     a.*,
+    CASE WHEN a.check_in IS NOT NULL AND a.check_out IS NOT NULL THEN ${recordHours.workedHours} END AS worked_hours,
     e.employee_code,
     e.full_name AS employee_name,
     e.department_id,
@@ -49,6 +57,7 @@ function mapAttendance(row) {
     workDate: row.work_date,
     checkIn: row.check_in,
     checkOut: row.check_out,
+    workedHours: row.worked_hours == null ? null : Number(row.worked_hours),
     status: row.status,
     note: row.note,
     createdAt: row.created_at,

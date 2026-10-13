@@ -569,9 +569,15 @@ any subset of `checkIn`, `checkOut` (ISO datetime with offset), `status`, `note`
 
 `GET /attendance-records/monthly-summary` and `GET /reports/work-hours` share the same
 aggregation (see Reports below): `workDays`, `lateCount`, `absentCount`, `totalHours`, `otHours`.
-`otHours` is actual worked time (`checkOut - checkIn`) beyond the shift's standard duration
-(`endTime - startTime` from `work_shifts`), or beyond `DEFAULT_STANDARD_WORK_HOURS` (env var,
-default `8`) when the record has no linked schedule.
+Worked hours of a day = `checkOut - checkIn` minus the break: the shift's `breakMinutes`, or
+`DEFAULT_BREAK_MINUTES` (env var, default `60`) when the record has no linked schedule. The break is only
+deducted when the employee was present for more than half of the shift frame (`endTime - startTime`, or
+`DEFAULT_STANDARD_WORK_HOURS` + default break without a schedule), so a half day is not cut.
+`otHours` is worked hours beyond the shift's standard hours (`endTime - startTime - breakMinutes`), or beyond
+`DEFAULT_STANDARD_WORK_HOURS` (env var, default `8`) without a schedule. Example: 08:00–17:00 on a shift with a
+60-minute break gives 8 worked hours and 0 OT whether or not the day is scheduled. Each attendance record also
+returns `workedHours` (null until both check-in and check-out exist), computed the same way; the dashboard's
+monthly totals use the same formula.
 
 ## Leave requests (Nghỉ phép)
 

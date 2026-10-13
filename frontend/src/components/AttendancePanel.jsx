@@ -388,7 +388,7 @@ function MonthlySummary({ departments, showToast }) {
         </div>
       </div>
 
-      <p className="info-note">Giờ công chỉ cộng những ngày đã chấm công vào và ra đầy đủ. Giờ OT là phần làm vượt giờ chuẩn của ca.</p>
+      <p className="info-note">Giờ công chỉ cộng những ngày đã chấm công vào và ra đầy đủ, đã trừ giờ nghỉ giữa ca. Giờ OT là phần làm vượt giờ chuẩn của ca (khung giờ ca trừ giờ nghỉ).</p>
 
       {error && <p className="form-error">{error}</p>}
 
