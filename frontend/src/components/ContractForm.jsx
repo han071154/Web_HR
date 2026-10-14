@@ -1,6 +1,6 @@
 import { FileSignature } from 'lucide-react';
 import { useState } from 'react';
-import { contractStatusLabels, contractTypeLabels, toDateInputValue, todayInputValue } from '../format.js';
+import { MAX_MONEY, MAX_MONEY_MESSAGE, contractStatusLabels, contractTypeLabels, toDateInputValue, todayInputValue } from '../format.js';
 
 // Thời hạn gợi ý theo loại hợp đồng (bấm để tự điền ngày kết thúc).
 const DURATION_PRESETS = {
@@ -22,6 +22,10 @@ function suggestNumber(employee, startDate) {
 function validate(form) {
   if (!form.employeeId) {
     return 'Vui lòng chọn nhân viên.';
+  }
+
+  if (Number(form.salary) > MAX_MONEY) {
+    return MAX_MONEY_MESSAGE;
   }
 
   if (form.contractType === 'INDEFINITE') {
@@ -220,6 +224,7 @@ export default function ContractForm({ contract, employee, employees = [], error
           <input
             type="number"
             min="0"
+            max={MAX_MONEY}
             step="100000"
             value={form.salary}
             onChange={(event) => updateField('salary', event.target.value)}

@@ -58,6 +58,7 @@ const exactMessages = {
     'Tài khoản của bạn chưa được liên kết với hồ sơ nhân viên. Hãy liên hệ phòng nhân sự.',
   'You can only request a change for your own schedule': 'Bạn chỉ được xin đổi ca của chính mình.',
   'Shift change request not found': 'Không tìm thấy yêu cầu đổi ca.',
+  'A change request for this shift is already pending': 'Ca này đã có yêu cầu đổi ca đang chờ duyệt.',
   'This request has already been reviewed': 'Yêu cầu này đã được duyệt trước đó.',
   'Already checked in today': 'Hôm nay bạn đã chấm công vào rồi.',
   'You have not checked in today': 'Bạn chưa chấm công vào hôm nay.',
@@ -66,7 +67,14 @@ const exactMessages = {
   'Attendance already recorded for this date': 'Ngày này đã có bản ghi chấm công.',
   'Leave request not found': 'Không tìm thấy đơn nghỉ phép.',
   'This leave request has already been reviewed': 'Đơn nghỉ phép này đã được duyệt trước đó.',
-  'End date must be on or after start date': 'Ngày kết thúc phải từ ngày bắt đầu trở đi.'
+  'End date must be on or after start date': 'Ngày kết thúc phải từ ngày bắt đầu trở đi.',
+  'The selected dates have no working days': 'Khoảng ngày đã chọn không có ngày làm việc nào (thứ 7, chủ nhật không có ca).',
+  'Check-out must be after check-in': 'Giờ ra phải sau giờ vào.',
+  'Check-in and check-out must be on the attendance date': 'Giờ vào và giờ ra phải nằm trong đúng ngày chấm công.',
+  'Date, time or number value is out of range': 'Ngày, giờ hoặc số tiền không hợp lệ.',
+  'Current password is incorrect': 'Mật khẩu hiện tại không đúng.',
+  'Too many password change attempts, please try again later': 'Bạn đã thử đổi mật khẩu quá nhiều lần. Vui lòng thử lại sau 15 phút.',
+  'New password must be different from the current password': 'Mật khẩu mới phải khác mật khẩu hiện tại.'
 };
 
 // "Weekly work hour limit exceeded (max 48h/week)": số giờ lấy từ cấu hình backend.
@@ -132,7 +140,9 @@ const fieldLabels = {
   reason: 'Lý do',
   from: 'Từ ngày',
   to: 'Đến ngày',
-  month: 'Tháng'
+  month: 'Tháng',
+  currentPassword: 'Mật khẩu hiện tại',
+  newPassword: 'Mật khẩu mới'
 };
 
 const statusMessages = {

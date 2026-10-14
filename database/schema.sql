@@ -177,6 +177,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS users_employee_id_key
   ON users (employee_id)
   WHERE employee_id IS NOT NULL;
 
+-- Doi mat khau (HR-027): refresh token cap truoc thoi diem nay bi tu choi, nen cac phien dang nhap
+-- cu (vd tren may khac) khong lam moi duoc nua sau khi doi mat khau.
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
+
 -- Ca lam viec & cham cong/nghi phep (HR-021, HR-022, HR-023): module Tuan 5-6 (Ca lam viec,
 -- Cham cong & nghi phep, Bao cao thong ke).
 CREATE TABLE IF NOT EXISTS work_shifts (
@@ -254,6 +259,9 @@ CREATE INDEX IF NOT EXISTS idx_work_schedules_shift_id ON work_schedules(shift_i
 CREATE INDEX IF NOT EXISTS idx_work_schedules_work_date ON work_schedules(work_date);
 CREATE INDEX IF NOT EXISTS idx_attendance_records_employee_date ON attendance_records(employee_id, work_date);
 CREATE INDEX IF NOT EXISTS idx_attendance_records_work_date ON attendance_records(work_date);
+-- Xóa lịch phân ca (kể cả khi xóa nhân viên) phải tìm chấm công theo schedule_id (ON DELETE SET NULL):
+-- thiếu index thì mỗi lịch bị xóa là một lần quét cả bảng chấm công.
+CREATE INDEX IF NOT EXISTS idx_attendance_records_schedule_id ON attendance_records(schedule_id);
 CREATE INDEX IF NOT EXISTS idx_leave_requests_employee_id ON leave_requests(employee_id);
 CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status);
 CREATE INDEX IF NOT EXISTS idx_shift_change_requests_employee_id ON shift_change_requests(employee_id);

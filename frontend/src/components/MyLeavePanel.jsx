@@ -1,10 +1,10 @@
 import { Send } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import {
   approvalStatusClass,
   approvalStatusLabels,
-  countDays,
+  countLeaveDays,
   formatDate,
   formatDateTime,
   leaveTypeLabels,
@@ -86,7 +86,36 @@ export default function MyLeavePanel({ showToast }) {
     }
   }
 
-  const days = form.startDate && form.endDate && form.endDate >= form.startDate ? countDays(form.startDate, form.endDate) : 0;
+  const validRange = Boolean(form.startDate && form.endDate && form.endDate >= form.startDate);
+  // Ca cuối tuần của chính mình trong khoảng đã chọn, để xem trước số ngày nghỉ đúng như backend tính.
+  const [weekendShifts, setWeekendShifts] = useState(() => new Set());
+
+  useEffect(() => {
+    if (!validRange || notLinked) {
+      return undefined;
+    }
+
+    let active = true;
+    api
+      .mySchedules({ from: form.startDate, to: form.endDate })
+      .then((response) => {
+        if (active) {
+          setWeekendShifts(
+            new Set(response.data.filter((schedule) => schedule.status === 'SCHEDULED').map((schedule) => schedule.workDate))
+          );
+        }
+      })
+      .catch(() => active && setWeekendShifts(new Set()));
+
+    return () => {
+      active = false;
+    };
+  }, [validRange, notLinked, form.startDate, form.endDate]);
+
+  const days = useMemo(
+    () => (validRange ? countLeaveDays(form.startDate, form.endDate, weekendShifts) : 0),
+    [validRange, form.startDate, form.endDate, weekendShifts]
+  );
 
   if (notLinked) {
     return <NotLinkedNotice />;
@@ -110,7 +139,10 @@ export default function MyLeavePanel({ showToast }) {
                 ))}
               </select>
             </label>
-            <span className="leave-days">{days ? `Tổng cộng ${days} ngày` : ''}</span>
+            <span className="leave-days">
+              {validRange ? `Tổng cộng ${days} ngày làm việc` : ''}
+              {validRange && <span className="muted-text block">Không tính thứ 7, chủ nhật (trừ ngày bạn có ca)</span>}
+            </span>
             <label>
               Từ ngày
               <input type="date" value={form.startDate} onChange={(event) => updateField('startDate', event.target.value)} required />
@@ -181,7 +213,7 @@ export default function MyLeavePanel({ showToast }) {
                         ? formatDate(request.startDate)
                         : `${formatDate(request.startDate)} – ${formatDate(request.endDate)}`}
                     </td>
-                    <td data-label="Số ngày">{countDays(request.startDate, request.endDate)}</td>
+                    <td data-label="Số ngày">{request.leaveDays}</td>
                     <td data-label="Lý do" className={request.reason ? '' : 'muted-cell'}>
                       {request.reason || 'Không ghi lý do'}
                     </td>

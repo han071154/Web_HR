@@ -3,11 +3,11 @@ import { z } from 'zod';
 import { query } from '../db.js';
 import { requireRole } from '../middleware/auth.js';
 import { httpError } from '../utils/httpError.js';
+import { timeSchema } from '../utils/validation.js';
 
 const router = express.Router();
 
 const HR_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
-const timeSchema = z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Time must use HH:mm');
 
 // breakMinutes/isActive không dùng .default() ở đây: schema này còn được tái dùng ở PUT qua
 // .partial(), mà zod áp default ngay cả khi field bị bỏ qua — sẽ ghi đè nhầm giá trị hiện có.
@@ -27,6 +27,15 @@ const shiftSchema = shiftFieldsSchema.superRefine((shift, context) => {
       code: z.ZodIssueCode.custom,
       path: ['endTime'],
       message: 'End time must be after start time'
+    });
+  }
+
+  const minutes = (time) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+  if (shift.endTime > shift.startTime && (shift.breakMinutes ?? 0) >= minutes(shift.endTime) - minutes(shift.startTime)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['breakMinutes'],
+      message: 'Break must be shorter than the shift'
     });
   }
 });

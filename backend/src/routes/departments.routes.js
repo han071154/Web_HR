@@ -34,7 +34,7 @@ function mapDepartment(row) {
   };
 }
 
-router.get('/', async (_req, res, next) => {
+router.get('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (_req, res, next) => {
   try {
     const result = await query(
       `${departmentSelectSql}
@@ -48,7 +48,7 @@ router.get('/', async (_req, res, next) => {
   }
 });
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
   try {
     const result = await query(
       `${departmentSelectSql}

@@ -33,6 +33,8 @@ export const config = {
   lateThresholdMinutes: Number(process.env.LATE_THRESHOLD_MINUTES || 15),
   // Không có lịch phân ca cho ngày chấm công thì dùng số giờ chuẩn này để tính giờ OT.
   defaultStandardWorkHours: Number(process.env.DEFAULT_STANDARD_WORK_HOURS || 8),
+  // Không có lịch phân ca thì coi giờ nghỉ giữa ca là số phút này khi tính giờ công (BUG-26).
+  defaultBreakMinutes: Number(process.env.DEFAULT_BREAK_MINUTES ?? 60),
   // Múi giờ của công ty: dùng để xác định "hôm nay" khi chấm công và giờ check-in so với giờ vào ca,
   // không phụ thuộc giờ của máy chủ (Docker/cloud thường chạy UTC).
   timezone: process.env.APP_TIMEZONE || 'Asia/Ho_Chi_Minh'

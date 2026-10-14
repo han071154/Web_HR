@@ -177,4 +177,90 @@ describe('POST /api/auth/refresh', () => {
 
     expect(response.status).toBe(401);
   });
+
+  it('rejects refresh tokens issued before the password was changed (HR-027)', async () => {
+    const oldRefresh = jwt.sign({ sub: 'user-1', type: 'refresh', iat: Math.floor(Date.now() / 1000) - 3600 }, config.jwtRefreshSecret);
+    query.mockResolvedValueOnce({ rows: [await activeUserRow({ password_changed_at: new Date(Date.now() - 60000) })] });
+
+    const response = await request(app).post('/api/auth/refresh').send({ refreshToken: oldRefresh });
+
+    expect(response.status).toBe(401);
+  });
+});
+
+describe('POST /api/auth/change-password (HR-027)', () => {
+  const app = createApp();
+  const token = () =>
+    jwt.sign({ sub: 'user-1', email: 'admin@webhr.local', fullName: 'Web HR Admin', role: 'ADMIN' }, config.jwtSecret);
+
+  beforeEach(() => {
+    query.mockReset();
+  });
+
+  it('rejects requests without a token', async () => {
+    const response = await request(app)
+      .post('/api/auth/change-password')
+      .send({ currentPassword: PASSWORD, newPassword: 'NewPass123' });
+
+    expect(response.status).toBe(401);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('rejects a wrong current password without changing anything', async () => {
+    query.mockResolvedValueOnce({ rows: [await activeUserRow()] });
+
+    const response = await request(app)
+      .post('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token()}`)
+      .send({ currentPassword: 'wrongPass1', newPassword: 'NewPass123' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('Current password is incorrect');
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects weak new passwords (too short, no number, no letter)', async () => {
+    for (const newPassword of ['Ab1', 'onlyletters', '12345678']) {
+      const response = await request(app)
+        .post('/api/auth/change-password')
+        .set('Authorization', `Bearer ${token()}`)
+        .send({ currentPassword: PASSWORD, newPassword });
+
+      expect(response.status).toBe(400);
+    }
+
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('rejects reusing the current password', async () => {
+    query.mockResolvedValueOnce({ rows: [await activeUserRow({ password_hash: await bcrypt.hash('SamePass123', 4) })] });
+
+    const response = await request(app)
+      .post('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token()}`)
+      .send({ currentPassword: 'SamePass123', newPassword: 'SamePass123' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('New password must be different from the current password');
+  });
+
+  it('stores a bcrypt hash of the new password and returns fresh tokens', async () => {
+    query
+      .mockResolvedValueOnce({ rows: [await activeUserRow()] })
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE users
+      .mockResolvedValueOnce({ rows: [] }); // audit log
+
+    const response = await request(app)
+      .post('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token()}`)
+      .send({ currentPassword: PASSWORD, newPassword: 'NewPass123' });
+
+    expect(response.status).toBe(200);
+    expect(jwt.verify(response.body.token, config.jwtSecret).sub).toBe('user-1');
+    expect(jwt.verify(response.body.refreshToken, config.jwtRefreshSecret).type).toBe('refresh');
+    const [sql, [hash, id]] = query.mock.calls[1];
+    expect(sql).toMatch(/UPDATE users SET password_hash/);
+    expect(id).toBe('user-1');
+    expect(await bcrypt.compare('NewPass123', hash)).toBe(true);
+  });
 });

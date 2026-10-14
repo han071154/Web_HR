@@ -7,6 +7,7 @@ import {
   Clock,
   Download,
   FileText,
+  KeyRound,
   LayoutDashboard,
   Eye,
   LogOut,
@@ -16,10 +17,12 @@ import {
   Search,
   Trash2,
   Upload,
+  UserRound,
   Users
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, clearSession, getStoredUser, getToken, setUnauthorizedHandler } from './api.js';
+import AccountPanel from './components/AccountPanel.jsx';
 import Avatar from './components/Avatar.jsx';
 import CareersPage from './components/CareersPage.jsx';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
@@ -60,13 +63,15 @@ const HR_MENU = [
   { view: 'shifts', label: 'Ca làm việc', icon: CalendarDays },
   { view: 'attendance', label: 'Chấm công', icon: Clock },
   { view: 'leave', label: 'Nghỉ phép', icon: Plane },
-  { view: 'reports', label: 'Báo cáo', icon: BarChart3 }
+  { view: 'reports', label: 'Báo cáo', icon: BarChart3 },
+  { view: 'account', label: 'Tài khoản', icon: KeyRound }
 ];
 
 const EMPLOYEE_MENU = [
   { view: 'my-attendance', label: 'Chấm công', icon: Clock },
   { view: 'my-schedule', label: 'Lịch làm việc', icon: CalendarDays },
-  { view: 'my-leave', label: 'Nghỉ phép', icon: Plane }
+  { view: 'my-leave', label: 'Nghỉ phép', icon: Plane },
+  { view: 'my-profile', label: 'Hồ sơ của tôi', icon: UserRound }
 ];
 
 const pageTitles = {
@@ -82,7 +87,9 @@ const pageTitles = {
   reports: { title: 'Báo cáo', subtitle: 'Thống kê nhân sự và giờ công' },
   'my-attendance': { title: 'Chấm công', subtitle: 'Chấm công vào/ra và xem bảng công của bạn' },
   'my-schedule': { title: 'Lịch làm việc', subtitle: 'Xem ca được xếp, đăng ký ca hoặc xin đổi ca' },
-  'my-leave': { title: 'Nghỉ phép', subtitle: 'Gửi đơn xin nghỉ và theo dõi kết quả duyệt' }
+  'my-leave': { title: 'Nghỉ phép', subtitle: 'Gửi đơn xin nghỉ và theo dõi kết quả duyệt' },
+  'my-profile': { title: 'Hồ sơ của tôi', subtitle: 'Xem hồ sơ, cập nhật thông tin liên hệ và đổi mật khẩu' },
+  account: { title: 'Tài khoản', subtitle: 'Thông tin tài khoản đăng nhập và đổi mật khẩu' }
 };
 
 function menuFor(user) {
@@ -148,6 +155,7 @@ function Dashboard({ user, onLogout }) {
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [referenceLoading, setReferenceLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const importInputRef = useRef(null);
   // Màn hình con của mục Nhân sự: danh sách, chi tiết hoặc form.
@@ -181,24 +189,16 @@ function Dashboard({ user, onLogout }) {
     setLoading(true);
 
     try {
-      const [employeeResponse, lookupResponse, departmentResponse, positionResponse] = await Promise.all([
-        api.employees({
-          page,
-          limit: PAGE_SIZE,
-          search: debouncedSearch,
-          status: statusFilter,
-          departmentId: departmentFilter,
-          position: positionFilter
-        }),
-        api.employeesLookup(),
-        api.departments(),
-        api.positions()
-      ]);
+      const employeeResponse = await api.employees({
+        page,
+        limit: PAGE_SIZE,
+        search: debouncedSearch,
+        status: statusFilter,
+        departmentId: departmentFilter,
+        position: positionFilter
+      });
       setEmployees(employeeResponse.data);
       setTotalEmployees(employeeResponse.pagination.total);
-      setEmployeesLookup(lookupResponse.data);
-      setDepartments(departmentResponse.data);
-      setPositions(positionResponse.data);
 
       // Bộ lọc thu hẹp kết quả làm trang hiện tại vượt quá tổng số trang mới: quay về trang cuối.
       const totalPages = Math.max(1, Math.ceil(employeeResponse.pagination.total / PAGE_SIZE));
@@ -213,13 +213,48 @@ function Dashboard({ user, onLogout }) {
     }
   }, [page, debouncedSearch, statusFilter, departmentFilter, positionFilter]);
 
-  // Tải lại mỗi khi đổi mục menu, đổi trang hoặc đổi bộ lọc.
+  // Danh sách tra cứu (toàn bộ nhân sự rút gọn), phòng ban, chức vụ không đổi theo trang/bộ lọc nên chỉ
+  // tải khi mở mục menu và sau khi thêm/sửa/xóa. Trước đây tải lại cùng mỗi lần đổi trang hoặc gõ tìm kiếm:
+  // 5.000 nhân viên là ~0,76 MB mỗi lần (load test tuần 7).
+  // Danh sách tra cứu chỉ cần ở Nhân sự (gợi ý mã, chọn quản lý), Hợp đồng (chọn nhân viên) và Tuyển dụng
+  // (gợi ý mã khi chuyển ứng viên thành nhân sự); các mục khác chỉ cần phòng ban, chức vụ.
+  const needsLookup = ['employees', 'contracts', 'recruitment'].includes(view);
+  const loadReferenceData = useCallback(async () => {
+    setReferenceLoading(true);
+
+    try {
+      const [lookupResponse, departmentResponse, positionResponse] = await Promise.all([
+        needsLookup ? api.employeesLookup() : null,
+        api.departments(),
+        api.positions()
+      ]);
+      if (lookupResponse) {
+        setEmployeesLookup(lookupResponse.data);
+      }
+      setDepartments(departmentResponse.data);
+      setPositions(positionResponse.data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setReferenceLoading(false);
+    }
+  }, [needsLookup]);
+
+  const reloadAll = useCallback(() => Promise.all([loadData(), loadReferenceData()]), [loadData, loadReferenceData]);
+
+  // Tải lại trang nhân sự khi mở mục Nhân sự, đổi trang hoặc đổi bộ lọc (các mục khác không dùng).
   // Tài khoản nhân viên không dùng danh sách nhân sự/phòng ban nên không tải.
   useEffect(() => {
-    if (!isEmployee) {
+    if (!isEmployee && view === 'employees') {
       loadData();
     }
   }, [loadData, view, isEmployee]);
+
+  useEffect(() => {
+    if (!isEmployee) {
+      loadReferenceData();
+    }
+  }, [loadReferenceData, view, isEmployee]);
 
   useEffect(() => {
     // Menu bên trái đổi trang qua #employees / #departments / #positions trên URL.
@@ -318,7 +353,7 @@ function Dashboard({ user, onLogout }) {
       }
 
       showDetail(saved);
-      loadData();
+      reloadAll();
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -364,7 +399,7 @@ function Dashboard({ user, onLogout }) {
         'success',
         `Đã nhập ${created} nhân viên mới, cập nhật ${updated} nhân viên, bỏ qua ${skipped} dòng lỗi.`
       );
-      await loadData();
+      await reloadAll();
     } catch (err) {
       showToast('error', err.message);
     } finally {
@@ -387,7 +422,7 @@ function Dashboard({ user, onLogout }) {
         showDetail(response.data);
       }
 
-      await loadData();
+      await reloadAll();
     } catch (err) {
       showToast('error', err.message);
     } finally {
@@ -687,8 +722,8 @@ function Dashboard({ user, onLogout }) {
           <DepartmentsPanel
             user={user}
             departments={departments}
-            loading={loading}
-            onChanged={loadData}
+            loading={referenceLoading}
+            onChanged={reloadAll}
             showToast={showToast}
           />
         ) : view === 'positions' ? (
@@ -709,13 +744,15 @@ function Dashboard({ user, onLogout }) {
           <MySchedulePanel showToast={showToast} />
         ) : view === 'my-leave' ? (
           <MyLeavePanel showToast={showToast} />
+        ) : view === 'my-profile' || view === 'account' ? (
+          <AccountPanel user={user} showToast={showToast} />
         ) : (
           <RecruitmentPanel
             user={user}
             departments={departments}
             positions={positions}
             suggestedCode={suggestedCode}
-            onEmployeesChanged={loadData}
+            onEmployeesChanged={reloadAll}
             showToast={showToast}
           />
         )}

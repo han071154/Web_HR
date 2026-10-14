@@ -4,12 +4,12 @@ import { EMPLOYMENT_TYPES } from '../constants.js';
 import { query } from '../db.js';
 import { requireRole } from '../middleware/auth.js';
 import { httpError } from '../utils/httpError.js';
+import { dateSchema, moneySchema } from '../utils/validation.js';
 
 // Quản lý tin tuyển dụng phía HR (cần đăng nhập). Trang công khai đọc tin qua publicJobs.routes.js.
 const router = express.Router();
 
 const HR_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must use YYYY-MM-DD');
 const optionalText = (max) => z.string().trim().max(max).optional().nullable();
 
 const jobFieldsSchema = z.object({
@@ -18,8 +18,8 @@ const jobFieldsSchema = z.object({
   departmentId: z.string().uuid().optional().nullable(),
   employmentType: z.enum(EMPLOYMENT_TYPES),
   quantity: z.coerce.number().int().min(1).max(1000),
-  salaryMin: z.coerce.number().min(0).optional().nullable(),
-  salaryMax: z.coerce.number().min(0).optional().nullable(),
+  salaryMin: moneySchema.optional().nullable(),
+  salaryMax: moneySchema.optional().nullable(),
   experience: optionalText(120),
   location: optionalText(255),
   workingTime: optionalText(255),
@@ -121,7 +121,7 @@ function jobValues(job) {
   ];
 }
 
-router.get('/', async (req, res, next) => {
+router.get('/', requireRole(...HR_ROLES), async (req, res, next) => {
   try {
     const search = String(req.query.search || '').trim();
     const status = String(req.query.status || '').trim();
@@ -158,7 +158,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', requireRole(...HR_ROLES), async (req, res, next) => {
   try {
     const job = await findJob(req.params.id);
 

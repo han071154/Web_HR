@@ -134,6 +134,7 @@ function AttendanceRecords({ departments, showToast }) {
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [records, setRecords] = useState([]);
+  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -156,14 +157,18 @@ function AttendanceRecords({ departments, showToast }) {
         from: range.from,
         to: range.to,
         departmentId: departmentFilter,
-        status: statusFilter
+        status: statusFilter,
+        // Phân trang ở máy chủ: tải cả 7 ngày của mọi nhân viên rồi mới chia trang thì 5.000 nhân viên
+        // là ~10 MB mỗi lần mở màn này (load test tuần 7).
+        page,
+        limit: RECORDS_PAGE_SIZE
       });
       if (!isLatest()) {
         return;
       }
 
       setRecords(response.data);
-      setPage(1);
+      setTotal(response.pagination.total);
     } catch (err) {
       if (isLatest()) {
         setError(err.message);
@@ -173,9 +178,15 @@ function AttendanceRecords({ departments, showToast }) {
         setLoading(false);
       }
     }
-  }, [startRequest, range, departmentFilter, statusFilter]);
+  }, [startRequest, range, departmentFilter, statusFilter, page]);
 
-  const pageRecords = records.slice((page - 1) * RECORDS_PAGE_SIZE, page * RECORDS_PAGE_SIZE);
+  // Đổi bộ lọc thì quay về trang 1 (cùng một lần render nên chỉ tải một lần).
+  function changeFilter(setter) {
+    return (value) => {
+      setter(value);
+      setPage(1);
+    };
+  }
 
   useEffect(() => {
     loadRecords();
@@ -186,13 +197,13 @@ function AttendanceRecords({ departments, showToast }) {
       <div className="toolbar toolbar-top">
         <label className="inline-field">
           Từ
-          <input type="date" value={range.from} max={range.to} onChange={(event) => setRange({ ...range, from: event.target.value })} />
+          <input type="date" value={range.from} max={range.to} onChange={(event) => changeFilter(setRange)({ ...range, from: event.target.value })} />
         </label>
         <label className="inline-field">
           Đến
-          <input type="date" value={range.to} min={range.from} onChange={(event) => setRange({ ...range, to: event.target.value })} />
+          <input type="date" value={range.to} min={range.from} onChange={(event) => changeFilter(setRange)({ ...range, to: event.target.value })} />
         </label>
-        <select value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)} aria-label="Lọc theo phòng ban">
+        <select value={departmentFilter} onChange={(event) => changeFilter(setDepartmentFilter)(event.target.value)} aria-label="Lọc theo phòng ban">
           <option value="">Tất cả phòng ban</option>
           {departments.map((department) => (
             <option value={department.id} key={department.id}>
@@ -200,7 +211,7 @@ function AttendanceRecords({ departments, showToast }) {
             </option>
           ))}
         </select>
-        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Lọc theo trạng thái">
+        <select value={statusFilter} onChange={(event) => changeFilter(setStatusFilter)(event.target.value)} aria-label="Lọc theo trạng thái">
           <option value="">Tất cả trạng thái</option>
           {Object.entries(attendanceStatusLabels).map(([value, label]) => (
             <option value={value} key={value}>
@@ -233,7 +244,7 @@ function AttendanceRecords({ departments, showToast }) {
                 <td colSpan="9">Đang tải dữ liệu</td>
               </tr>
             ) : records.length ? (
-              pageRecords.map((record) => {
+              records.map((record) => {
                 const hours = workedHours(record);
 
                 return (
@@ -282,7 +293,7 @@ function AttendanceRecords({ departments, showToast }) {
         </table>
       </div>
 
-      <Pagination page={page} pageSize={RECORDS_PAGE_SIZE} total={records.length} unit="bản ghi" onChange={setPage} />
+      <Pagination page={page} pageSize={RECORDS_PAGE_SIZE} total={total} unit="bản ghi" onChange={setPage} />
 
       {editing && (
         <CorrectionDialog
@@ -304,6 +315,7 @@ function MonthlySummary({ departments, showToast }) {
   const [month, setMonth] = useState(currentMonthValue);
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [rows, setRows] = useState([]);
+  const [rowsPage, setRowsPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -328,6 +340,7 @@ function MonthlySummary({ departments, showToast }) {
       }
 
       setRows(response.data);
+      setRowsPage(1);
     } catch (err) {
       if (isLatest()) {
         setError(err.message);
@@ -375,7 +388,7 @@ function MonthlySummary({ departments, showToast }) {
         </div>
       </div>
 
-      <p className="info-note">Giờ công chỉ cộng những ngày đã chấm công vào và ra đầy đủ. Giờ OT là phần làm vượt giờ chuẩn của ca.</p>
+      <p className="info-note">Giờ công chỉ cộng những ngày đã chấm công vào và ra đầy đủ, đã trừ giờ nghỉ giữa ca. Giờ OT là phần làm vượt giờ chuẩn của ca (khung giờ ca trừ giờ nghỉ).</p>
 
       {error && <p className="form-error">{error}</p>}
 
@@ -397,7 +410,7 @@ function MonthlySummary({ departments, showToast }) {
                 <td colSpan="6">Đang tải dữ liệu</td>
               </tr>
             ) : rows.length ? (
-              rows.map((row) => (
+              rows.slice((rowsPage - 1) * RECORDS_PAGE_SIZE, rowsPage * RECORDS_PAGE_SIZE).map((row) => (
                 <tr key={row.employeeId}>
                   <td className="cell-main">
                     <strong>{row.employeeName}</strong>
@@ -422,6 +435,7 @@ function MonthlySummary({ departments, showToast }) {
           </tbody>
         </table>
       </div>
+      <Pagination page={rowsPage} pageSize={RECORDS_PAGE_SIZE} total={rows.length} unit="nhân viên" onChange={setRowsPage} />
     </section>
   );
 }

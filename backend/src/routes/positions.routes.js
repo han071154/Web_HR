@@ -36,7 +36,7 @@ function mapPosition(row) {
   };
 }
 
-router.get('/', async (req, res, next) => {
+router.get('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
   try {
     const departmentId = String(req.query.departmentId || '').trim();
     const active = String(req.query.active || '').trim();
@@ -66,7 +66,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
   try {
     const result = await query(`${positionSelectSql} WHERE p.id = $1`, [req.params.id]);
 

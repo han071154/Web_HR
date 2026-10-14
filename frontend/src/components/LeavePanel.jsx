@@ -4,7 +4,6 @@ import { api } from '../api.js';
 import {
   approvalStatusClass,
   approvalStatusLabels,
-  countDays,
   formatDate,
   formatDateTime,
   leaveTypeLabels
@@ -125,7 +124,7 @@ export default function LeavePanel({ showToast }) {
                       ? formatDate(request.startDate)
                       : `${formatDate(request.startDate)} – ${formatDate(request.endDate)}`}
                   </td>
-                  <td data-label="Số ngày">{countDays(request.startDate, request.endDate)}</td>
+                  <td data-label="Số ngày">{request.leaveDays}</td>
                   <td data-label="Lý do" className={request.reason ? '' : 'muted-cell'}>
                     {request.reason || 'Không ghi lý do'}
                   </td>

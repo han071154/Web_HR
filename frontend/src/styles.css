@@ -2934,6 +2934,16 @@ table.leave-table {
   min-width: 920px;
 }
 
+/* Bảng Yêu cầu đổi ca có 8 cột, tiêu đề không xuống dòng: với lề 20.8px mỗi bên bảng rộng 968px,
+   vượt khung 939px ở màn 1366×768 nên vẫn phải cuộn ngang. Thu lề ngang cho vừa (dạng thẻ ≤ 640px giữ nguyên). */
+@media (min-width: 641px) {
+  table.requests-table th,
+  table.requests-table td {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+
 table.summary-table,
 table.my-attendance-table,
 table.my-leave-table {
@@ -3128,6 +3138,14 @@ td.danger-cell {
   font-size: 0.9rem;
 }
 
+.my-day-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .cancelled-text {
   text-decoration: line-through;
 }
@@ -3247,6 +3265,10 @@ td.danger-cell {
   padding-bottom: 8px;
   color: var(--primary);
   font-weight: 700;
+}
+
+.leave-days .muted-text {
+  font-weight: 400;
 }
 
 /* ---------- Tổng quan & biểu đồ (WBS 6.3.3, 6.3.4) ---------- */

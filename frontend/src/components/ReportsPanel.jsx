@@ -4,6 +4,10 @@ import { api } from '../api.js';
 import { currentMonthValue, downloadBlob, formatCompact, formatHours, monthRange } from '../format.js';
 import { useLatestRequest } from '../useLatestRequest.js';
 import { HorizontalBarChart } from './charts.jsx';
+import Pagination from './Pagination.jsx';
+
+// Chỉ vẽ một trang của bảng: 5.000 nhân viên = 5.000 dòng làm trình duyệt khựng (tổng và biểu đồ vẫn tính trên đủ dữ liệu).
+const ROWS_PAGE_SIZE = 50;
 
 function StatTile({ label, value, tone = 'primary' }) {
   return (
@@ -20,6 +24,7 @@ export default function ReportsPanel({ departments, showToast }) {
   const [range, setRange] = useState(() => monthRange(currentMonthValue()));
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [workHours, setWorkHours] = useState([]);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -49,6 +54,7 @@ export default function ReportsPanel({ departments, showToast }) {
       }
 
       setWorkHours(response.data);
+      setPage(1);
     } catch (err) {
       if (isLatest()) {
         setError(err.message);
@@ -160,7 +166,7 @@ export default function ReportsPanel({ departments, showToast }) {
                   <td colSpan="6">Đang tải dữ liệu</td>
                 </tr>
               ) : workHours.length ? (
-                workHours.map((row) => (
+                workHours.slice((page - 1) * ROWS_PAGE_SIZE, page * ROWS_PAGE_SIZE).map((row) => (
                   <tr key={row.employeeId}>
                     <td className="cell-main">
                       <strong>{row.employeeName}</strong>
@@ -185,6 +191,7 @@ export default function ReportsPanel({ departments, showToast }) {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={ROWS_PAGE_SIZE} total={workHours.length} unit="nhân viên" onChange={setPage} />
       </section>
     </>
   );

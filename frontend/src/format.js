@@ -90,6 +90,10 @@ export function initials(name) {
   return `${first}${last}`.toUpperCase();
 }
 
+// Cột tiền trong CSDL là NUMERIC(14, 2): lớn hơn mức này API trả lỗi 500 (numeric field overflow).
+export const MAX_MONEY = 999999999999;
+export const MAX_MONEY_MESSAGE = 'Số tiền tối đa là 999.999.999.999 ₫';
+
 export function formatMoney(value) {
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
@@ -247,13 +251,10 @@ export function formatClock(value) {
   return new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-// Số giờ làm thực tế của một bản ghi chấm công (giờ ra − giờ vào); chưa chấm đủ vào/ra thì trả null.
+// Giờ công của một bản ghi chấm công do backend tính (giờ ra − giờ vào − giờ nghỉ giữa ca, cùng công thức
+// với tổng hợp tháng); chưa chấm đủ vào/ra thì null.
 export function workedHours(record) {
-  if (!record?.checkIn || !record?.checkOut) {
-    return null;
-  }
-
-  return (new Date(record.checkOut) - new Date(record.checkIn)) / 3600000;
+  return record?.workedHours ?? null;
 }
 
 // Số lớn rút gọn cho ô số liệu: 4764 → "4.764", 289639.9 → "289,6 nghìn", 1250000 → "1,3 triệu".
@@ -330,9 +331,20 @@ export function monthRange(month) {
   return { from: `${month}-01`, to: `${month}-${String(lastDay).padStart(2, '0')}` };
 }
 
-// Số ngày của khoảng nghỉ phép (tính cả ngày đầu và ngày cuối).
-export function countDays(from, to) {
-  return Math.round((toLocalDate(to) - toLocalDate(from)) / 86400000) + 1;
+// Số ngày nghỉ của khoảng from → to, cùng quy tắc với backend (BUG-23): thứ 2 → thứ 6, cộng thứ 7 / chủ nhật
+// có trong scheduledDates (ngày nhân viên có lịch phân ca). Chỉ dùng để xem trước khi gửi đơn; số ngày của
+// đơn đã gửi lấy từ leaveDays do backend trả về.
+export function countLeaveDays(from, to, scheduledDates = new Set()) {
+  let count = 0;
+
+  for (let day = from; day <= to; day = addDays(day, 1)) {
+    const weekday = toLocalDate(day).getDay();
+    if ((weekday !== 0 && weekday !== 6) || scheduledDates.has(day)) {
+      count += 1;
+    }
+  }
+
+  return count;
 }
 
 // Tải file (blob) về máy với tên cho trước.
