@@ -164,6 +164,26 @@ function parsePagination(req) {
   return { page, limit, offset: (page - 1) * limit };
 }
 
+// HR Staff không quản lý hồ sơ nhân sự nhưng cần danh sách tên để xếp ca: chỉ trả các trường làm việc,
+// không có lương, CCCD, ngày sinh, địa chỉ.
+function mapEmployeeForStaff(row, req) {
+  const employee = mapEmployee(row, req);
+
+  return {
+    id: employee.id,
+    employeeCode: employee.employeeCode,
+    fullName: employee.fullName,
+    email: employee.email,
+    phone: employee.phone,
+    departmentId: employee.departmentId,
+    departmentName: employee.departmentName,
+    position: employee.position,
+    status: employee.status,
+    avatarUrl: employee.avatarUrl
+  };
+}
+
+// Các API hồ sơ nhân sự còn lại (chi tiết, thêm, sửa, xóa, nhập/xuất, lịch sử, ảnh) chỉ HR Manager/Admin.
 router.get('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
   try {
     const { whereSql, values } = buildEmployeeFilters(req);
@@ -182,7 +202,7 @@ router.get('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res,
     );
 
     res.json({
-      data: result.rows.map((row) => mapEmployee(row, req)),
+      data: result.rows.map((row) => (req.user.role === 'HR_STAFF' ? mapEmployeeForStaff(row, req) : mapEmployee(row, req))),
       pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) }
     });
   } catch (error) {
@@ -249,7 +269,7 @@ router.put('/me', async (req, res, next) => {
 
 // Danh sách rút gọn (không JOIN phòng ban/quản lý) cho ô chọn quản lý trực tiếp, gợi ý mã NV
 // kế tiếp và danh sách chức vụ tự do — nhẹ hơn nhiều so với GET / nên không cần phân trang.
-router.get('/lookup', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
+router.get('/lookup', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
   try {
     const result = await query(
       `SELECT id, employee_code, full_name, position, status
@@ -289,7 +309,7 @@ const EXPORT_COLUMNS = [
 ];
 
 // HR-009: xuất danh sách nhân sự ra Excel theo cùng bộ lọc đang xem trên danh sách.
-router.get('/export', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
+router.get('/export', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
   try {
     const { whereSql, values } = buildEmployeeFilters(req);
     const result = await query(`${selectEmployeeSql} ${whereSql} ORDER BY e.employee_code ASC`, values);
@@ -351,7 +371,7 @@ function excelCell(value) {
 
 // HR-009: nhập danh sách nhân sự từ Excel (cùng định dạng cột với file xuất ra).
 // Mã NV đã tồn tại thì cập nhật, chưa có thì tạo mới; dòng lỗi được bỏ qua và báo lại trong "errors".
-router.post('/import', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), excelUpload, async (req, res, next) => {
+router.post('/import', requireRole('ADMIN', 'HR_MANAGER'), excelUpload, async (req, res, next) => {
   try {
     if (!req.file) {
       throw httpError(400, 'Excel file is required in the file field');
@@ -489,7 +509,7 @@ router.post('/import', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), excelUplo
   }
 });
 
-router.get('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
+router.get('/:id', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
   try {
     const employee = await findEmployee(req.params.id, req);
 
@@ -504,7 +524,7 @@ router.get('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, r
 });
 
 // Lịch sử thay đổi của một nhân viên (mới nhất trước).
-router.get('/:id/history', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
+router.get('/:id/history', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
   try {
     const exists = await query('SELECT 1 FROM employees WHERE id = $1', [req.params.id]);
 
@@ -518,7 +538,7 @@ router.get('/:id/history', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async
   }
 });
 
-router.post('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
+router.post('/', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
   try {
     const body = createEmployeeSchema.parse(req.body);
     const positionName = body.positionId ? await getPositionName(body.positionId) : body.position;
@@ -558,7 +578,7 @@ router.post('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res
   }
 });
 
-router.put('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
+router.put('/:id', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
   try {
     const body = updateEmployeeSchema.parse(req.body);
     const current = await query('SELECT * FROM employees WHERE id = $1', [req.params.id]);
@@ -669,7 +689,7 @@ router.put('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, r
 
 router.post(
   '/:id/avatar',
-  requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'),
+  requireRole('ADMIN', 'HR_MANAGER'),
   async (req, _res, next) => {
     try {
       const current = await query('SELECT id, avatar_url FROM employees WHERE id = $1', [req.params.id]);
@@ -710,7 +730,7 @@ router.post(
 
 router.delete(
   '/:id/avatar',
-  requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'),
+  requireRole('ADMIN', 'HR_MANAGER'),
   async (req, res, next) => {
     try {
       const current = await query('SELECT avatar_url FROM employees WHERE id = $1', [req.params.id]);

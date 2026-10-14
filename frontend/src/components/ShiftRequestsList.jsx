@@ -3,10 +3,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { approvalStatusClass, approvalStatusLabels, formatDate, formatDateTime } from '../format.js';
 import { useLatestRequest } from '../useLatestRequest.js';
+import { isHrManager } from '../roles.js';
 import EmployeeLink from './EmployeeLink.jsx';
 
 // Yêu cầu đổi ca của nhân viên (HR-032): HR duyệt thì lịch tự đổi sang ca mới.
 export default function ShiftRequestsList({ showToast, onReviewed }) {
+  // HR Staff xem yêu cầu đổi ca; duyệt / từ chối là việc của HR Manager.
+  const canReview = isHrManager();
   const [requests, setRequests] = useState([]);
   const [statusFilter, setStatusFilter] = useState('PENDING');
   const [loading, setLoading] = useState(true);
@@ -119,7 +122,8 @@ export default function ShiftRequestsList({ showToast, onReviewed }) {
                     </span>
                   </td>
                   <td className="cell-actions">
-                    {request.status === 'PENDING' && (
+                    {request.status === 'PENDING' && !canReview && <span className="field-hint">Chờ HR Manager duyệt</span>}
+                    {request.status === 'PENDING' && canReview && (
                       <div className="row-actions">
                         <button
                           type="button"

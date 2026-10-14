@@ -48,27 +48,30 @@ import Toast from './components/Toast.jsx';
 import { CONTRACT_DELETE_ROLES, CONTRACT_EDIT_ROLES } from './contracts.js';
 import { roleLabels, statusLabels } from './format.js';
 
-// Quyền khớp với backend: ai cũng thêm/sửa được, chỉ Admin và HR Manager được xóa.
-const EDIT_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
+// Quyền khớp với backend: hồ sơ nhân sự do HR Manager/Admin quản lý (HR Staff không có mục Nhân sự).
+const EDIT_ROLES = ['ADMIN', 'HR_MANAGER'];
 const DELETE_ROLES = ['ADMIN', 'HR_MANAGER'];
 
 const PAGE_SIZE = 10;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Menu bên trái: HR thấy các mục quản lý, tài khoản nhân viên (EMPLOYEE) chỉ thấy các mục tự phục vụ.
+// Menu bên trái: HR Manager/Admin thấy mọi mục quản lý; HR Staff chỉ thấy các mục vận hành hằng ngày
+// (managerOnly bị ẩn, backend cũng chặn); tài khoản nhân viên (EMPLOYEE) chỉ thấy các mục tự phục vụ.
 const HR_MENU = [
   { view: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard },
-  { view: 'employees', label: 'Nhân sự', icon: Users },
-  { view: 'departments', label: 'Phòng ban', icon: Building2 },
-  { view: 'positions', label: 'Chức vụ', icon: BriefcaseBusiness },
-  { view: 'contracts', label: 'Hợp đồng', icon: FileText },
-  { view: 'recruitment', label: 'Tuyển dụng', icon: ClipboardList },
+  { view: 'employees', label: 'Nhân sự', icon: Users, managerOnly: true },
+  { view: 'departments', label: 'Phòng ban', icon: Building2, managerOnly: true },
+  { view: 'positions', label: 'Chức vụ', icon: BriefcaseBusiness, managerOnly: true },
+  { view: 'contracts', label: 'Hợp đồng', icon: FileText, managerOnly: true },
+  { view: 'recruitment', label: 'Tuyển dụng', icon: ClipboardList, managerOnly: true },
   { view: 'shifts', label: 'Ca làm việc', icon: CalendarDays },
   { view: 'attendance', label: 'Chấm công', icon: Clock },
   { view: 'leave', label: 'Nghỉ phép', icon: Plane },
-  { view: 'reports', label: 'Báo cáo', icon: BarChart3 },
+  { view: 'reports', label: 'Báo cáo', icon: BarChart3, managerOnly: true },
   { view: 'account', label: 'Tài khoản', icon: KeyRound }
 ];
+
+const HR_STAFF_MENU = HR_MENU.filter((item) => !item.managerOnly);
 
 const EMPLOYEE_MENU = [
   { view: 'my-attendance', label: 'Chấm công', icon: Clock },
@@ -96,7 +99,11 @@ const pageTitles = {
 };
 
 function menuFor(user) {
-  return user?.role === 'EMPLOYEE' ? EMPLOYEE_MENU : HR_MENU;
+  if (user?.role === 'EMPLOYEE') {
+    return EMPLOYEE_MENU;
+  }
+
+  return user?.role === 'HR_STAFF' ? HR_STAFF_MENU : HR_MENU;
 }
 
 // Đường dẫn trong app: #<mục menu>, hoặc #employees/<id> để mở thẳng chi tiết một nhân viên (link từ

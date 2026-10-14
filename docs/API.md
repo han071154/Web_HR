@@ -16,6 +16,12 @@ returned as `YYYY-MM-DD` strings.
 
 Run `npm run db:setup` to create or refresh these accounts.
 
+**HR roles by function (since 2026-10-14):** HR_MANAGER (and ADMIN) manage employee records, contracts,
+recruitment and the work-hour report, and approve leave and shift-change requests. HR_STAFF runs daily
+operations only: shifts and schedules, attendance (view, edit, monthly summary, Excel export), viewing leave
+and shift-change requests, the dashboard. HR_STAFF still gets `GET /employees` for scheduling, without
+`baseSalary`, `idNumber`, `dateOfBirth` and `address`.
+
 ## Auth
 
 Interactive Swagger UI for this section is served at `/api/docs` (task #68).
@@ -94,13 +100,13 @@ A department that still has employees cannot be deleted: `DELETE` returns `409`
 | Method | Path | Roles |
 | --- | --- | --- |
 | GET | `/employees?search=&status=&departmentId=&position=&page=&limit=` | ADMIN, HR_MANAGER, HR_STAFF |
-| GET | `/employees/lookup` | ADMIN, HR_MANAGER, HR_STAFF |
-| GET | `/employees/:id` | ADMIN, HR_MANAGER, HR_STAFF |
-| GET | `/employees/:id/history` | ADMIN, HR_MANAGER, HR_STAFF |
-| GET | `/employees/export?search=&status=&departmentId=&position=` | ADMIN, HR_MANAGER, HR_STAFF |
-| POST | `/employees/import` | ADMIN, HR_MANAGER, HR_STAFF |
-| POST | `/employees` | ADMIN, HR_MANAGER, HR_STAFF |
-| PUT | `/employees/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/employees/lookup` | ADMIN, HR_MANAGER |
+| GET | `/employees/:id` | ADMIN, HR_MANAGER |
+| GET | `/employees/:id/history` | ADMIN, HR_MANAGER |
+| GET | `/employees/export?search=&status=&departmentId=&position=` | ADMIN, HR_MANAGER |
+| POST | `/employees/import` | ADMIN, HR_MANAGER |
+| POST | `/employees` | ADMIN, HR_MANAGER |
+| PUT | `/employees/:id` | ADMIN, HR_MANAGER |
 | DELETE | `/employees/:id` | ADMIN, HR_MANAGER |
 | GET | `/employees/me` | Any authenticated role linked to an employee profile |
 | PUT | `/employees/me` | Any authenticated role linked to an employee profile |
@@ -229,10 +235,10 @@ Create/update fields:
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/contracts?employeeId=&status=&search=` | ADMIN, HR_MANAGER, HR_STAFF |
-| GET | `/contracts/:id` | ADMIN, HR_MANAGER, HR_STAFF |
-| POST | `/contracts` | ADMIN, HR_MANAGER, HR_STAFF |
-| PUT | `/contracts/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/contracts?employeeId=&status=&search=` | ADMIN, HR_MANAGER |
+| GET | `/contracts/:id` | ADMIN, HR_MANAGER |
+| POST | `/contracts` | ADMIN, HR_MANAGER |
+| PUT | `/contracts/:id` | ADMIN, HR_MANAGER |
 | DELETE | `/contracts/:id` | ADMIN, HR_MANAGER |
 
 Create/update fields:
@@ -273,8 +279,8 @@ JPEG, PNG, and WebP images up to 5 MB are accepted.
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| POST | `/employees/:id/avatar` | ADMIN, HR_MANAGER, HR_STAFF |
-| DELETE | `/employees/:id/avatar` | ADMIN, HR_MANAGER, HR_STAFF |
+| POST | `/employees/:id/avatar` | ADMIN, HR_MANAGER |
+| DELETE | `/employees/:id/avatar` | ADMIN, HR_MANAGER |
 
 The upload response contains the updated employee and an absolute `avatarUrl`.
 Employee list/detail responses also include `avatarUrl`.
@@ -356,10 +362,10 @@ not passed appear publicly.
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/jobs?search=&status=&departmentId=` | ADMIN, HR_MANAGER, HR_STAFF |
-| GET | `/jobs/:id` | ADMIN, HR_MANAGER, HR_STAFF |
-| POST | `/jobs` | ADMIN, HR_MANAGER, HR_STAFF |
-| PUT | `/jobs/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/jobs?search=&status=&departmentId=` | ADMIN, HR_MANAGER |
+| GET | `/jobs/:id` | ADMIN, HR_MANAGER |
+| POST | `/jobs` | ADMIN, HR_MANAGER |
+| PUT | `/jobs/:id` | ADMIN, HR_MANAGER |
 | DELETE | `/jobs/:id` | ADMIN, HR_MANAGER |
 
 Create fields (`PUT` accepts any subset):
@@ -397,11 +403,11 @@ Create fields (`PUT` accepts any subset):
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/applications?jobId=&status=&search=` | ADMIN, HR_MANAGER, HR_STAFF |
-| GET | `/applications/:id` | ADMIN, HR_MANAGER, HR_STAFF (adds `cvSize` and `history`) |
-| GET | `/applications/:id/cv` | ADMIN, HR_MANAGER, HR_STAFF (PDF; `?inline=1` to preview in the browser) |
-| PATCH | `/applications/:id` | ADMIN, HR_MANAGER, HR_STAFF |
-| POST | `/applications/:id/convert` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/applications?jobId=&status=&search=` | ADMIN, HR_MANAGER |
+| GET | `/applications/:id` | ADMIN, HR_MANAGER (adds `cvSize` and `history`) |
+| GET | `/applications/:id/cv` | ADMIN, HR_MANAGER (PDF; `?inline=1` to preview in the browser) |
+| PATCH | `/applications/:id` | ADMIN, HR_MANAGER |
+| POST | `/applications/:id/convert` | ADMIN, HR_MANAGER |
 | DELETE | `/applications/:id` | ADMIN, HR_MANAGER |
 
 `search` matches name, email, phone or application code (`HS-000123` or `123`).
@@ -506,7 +512,7 @@ accounts are provided by an Admin (backlog HR-007). Calling a `/me*` endpoint fr
 | PUT | `/work-schedules/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | DELETE | `/work-schedules/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | GET | `/work-schedules/change-requests?status=` | ADMIN, HR_MANAGER, HR_STAFF |
-| PATCH | `/work-schedules/change-requests/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| PATCH | `/work-schedules/change-requests/:id` | ADMIN, HR_MANAGER |
 
 Create/update fields:
 
@@ -589,7 +595,7 @@ monthly totals use the same formula.
 | POST | `/leave-requests` | Any authenticated role linked to an employee |
 | GET | `/leave-requests?employeeId=&status=` | ADMIN, HR_MANAGER, HR_STAFF |
 | GET | `/leave-requests/:id` | ADMIN, HR_MANAGER, HR_STAFF |
-| PATCH | `/leave-requests/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| PATCH | `/leave-requests/:id` | ADMIN, HR_MANAGER |
 
 ```json
 // POST /leave-requests
@@ -610,7 +616,7 @@ becomes `ON_LEAVE`; a day with a real attendance record (check-in/out) is left u
 
 ## Reports (Báo cáo thống kê)
 
-All routes require ADMIN, HR_MANAGER or HR_STAFF.
+All routes require ADMIN, HR_MANAGER or HR_STAFF, except `/reports/work-hours` (ADMIN, HR_MANAGER only).
 
 | Method | Path | Description |
 | --- | --- | --- |

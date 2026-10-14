@@ -8,8 +8,8 @@ import ConvertDialog from './ConvertDialog.jsx';
 import EmployeeLink from './EmployeeLink.jsx';
 import HistoryTimeline from './HistoryTimeline.jsx';
 
-// Quyền khớp với backend: HR nào cũng xử lý hồ sơ và chuyển thành nhân sự được.
-const EDIT_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
+// Quyền khớp với backend: chỉ HR Manager/Admin xử lý hồ sơ và chuyển thành nhân sự.
+const EDIT_ROLES = ['ADMIN', 'HR_MANAGER'];
 
 // Các bước trên thanh tiến trình; bước cuối là kết quả (Đậu hoặc Trượt).
 const STEPS = ['NEW', 'REVIEWING', 'INTERVIEW', 'RESULT'];

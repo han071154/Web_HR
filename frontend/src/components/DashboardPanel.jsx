@@ -1,6 +1,7 @@
 import { CalendarClock, Clock, Plane, Repeat, Users } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { isHrManager } from '../roles.js';
 import {
   addDays,
   attendanceStatusLabels,
@@ -48,6 +49,8 @@ function StatCard({ icon, label, value, note, href }) {
 
 // Trang Tổng quan cho HR (WBS 6.3.3, 6.3.4): số liệu nhanh trong ngày và biểu đồ.
 export default function DashboardPanel() {
+  // HR Staff không có mục Nhân sự, Báo cáo: thẻ số liệu tương ứng không bấm được.
+  const canManage = isHrManager();
   const today = todayInputValue();
   const weekStart = addDays(today, -6);
   const [data, setData] = useState(null);
@@ -118,7 +121,7 @@ export default function DashboardPanel() {
   return (
     <div className="viz-root dashboard">
       <div className="stat-cards">
-        <StatCard icon={Users} label="Nhân viên đang làm" value={formatCompact(activeCount)} href="#employees" />
+        <StatCard icon={Users} label="Nhân viên đang làm" value={formatCompact(activeCount)} href={canManage ? '#employees' : undefined} />
         <StatCard
           icon={Clock}
           label="Đi làm hôm nay"
@@ -133,7 +136,7 @@ export default function DashboardPanel() {
           label="Giờ công tháng này"
           value={`${formatCompact(data.monthHours)} giờ`}
           note={`Trong đó ${formatCompact(data.monthOt)} giờ tăng ca`}
-          href="#reports"
+          href={canManage ? '#reports' : undefined}
         />
       </div>
 

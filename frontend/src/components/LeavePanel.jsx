@@ -8,12 +8,15 @@ import {
   formatDateTime,
   leaveTypeLabels
 } from '../format.js';
+import { isHrManager } from '../roles.js';
 import ConfirmDialog from './ConfirmDialog.jsx';
 import EmployeeLink from './EmployeeLink.jsx';
 import { useLatestRequest } from '../useLatestRequest.js';
 
 // Duyệt đơn nghỉ phép (HR-023). Duyệt xong thì các ngày nghỉ được ghi "Nghỉ phép" trong bảng chấm công.
 export default function LeavePanel({ showToast }) {
+  // HR Staff xem danh sách đơn; duyệt / từ chối là việc của HR Manager.
+  const canReview = isHrManager();
   const [requests, setRequests] = useState([]);
   const [statusFilter, setStatusFilter] = useState('PENDING');
   const [loading, setLoading] = useState(true);
@@ -139,7 +142,8 @@ export default function LeavePanel({ showToast }) {
                     </span>
                   </td>
                   <td className="cell-actions">
-                    {request.status === 'PENDING' && (
+                    {request.status === 'PENDING' && !canReview && <span className="field-hint">Chờ HR Manager duyệt</span>}
+                    {request.status === 'PENDING' && canReview && (
                       <div className="row-actions">
                         <button
                           type="button"

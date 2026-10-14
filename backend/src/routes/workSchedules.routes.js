@@ -369,7 +369,8 @@ router.get('/change-requests', requireRole(...HR_ROLES), async (req, res, next) 
 });
 
 // HR duyệt/từ chối yêu cầu đổi ca; duyệt thì cập nhật luôn ca mới cho lịch phân ca gốc.
-router.patch('/change-requests/:id', requireRole(...HR_ROLES), async (req, res, next) => {
+// Duyệt/từ chối đổi ca là quyết định của HR Manager; HR Staff chỉ xem danh sách yêu cầu.
+router.patch('/change-requests/:id', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
   try {
     const body = reviewChangeRequestSchema.parse(req.body);
     const current = await query('SELECT * FROM shift_change_requests WHERE id = $1', [req.params.id]);
