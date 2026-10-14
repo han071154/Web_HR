@@ -25,6 +25,14 @@ Interactive Swagger UI for this section is served at `/api/docs` (task #68).
 | POST | `/auth/login` | None |
 | POST | `/auth/refresh` | None (requires a valid `refreshToken`) |
 | GET | `/auth/me` | Any authenticated role |
+| POST | `/auth/change-password` | Any authenticated role |
+
+HR-027: `POST /auth/change-password` takes `{ currentPassword, newPassword }`. The new password must be
+8–72 characters with at least one letter and one number, and differ from the current one. Wrong current
+password → `400 Current password is incorrect`. Limited to 10 attempts per account per 15 minutes
+(separate from the login limit). On success it returns a new `token` and `refreshToken`; refresh tokens
+issued before the change are rejected from then on (`users.password_changed_at`). Resetting a forgotten
+password is done by an Admin (HR-007).
 
 ```json
 // POST /auth/login
@@ -61,8 +69,8 @@ minutes per IP (`429 Too many login attempts, please try again later`).
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/departments` | Any authenticated role |
-| GET | `/departments/:id` | Any authenticated role |
+| GET | `/departments` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/departments/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | POST | `/departments` | ADMIN, HR_MANAGER |
 | PUT | `/departments/:id` | ADMIN, HR_MANAGER |
 | DELETE | `/departments/:id` | ADMIN, HR_MANAGER |
@@ -85,15 +93,22 @@ A department that still has employees cannot be deleted: `DELETE` returns `409`
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/employees?search=&status=&departmentId=&position=&page=&limit=` | Any authenticated role |
-| GET | `/employees/lookup` | Any authenticated role |
-| GET | `/employees/:id` | Any authenticated role |
-| GET | `/employees/:id/history` | Any authenticated role |
+| GET | `/employees?search=&status=&departmentId=&position=&page=&limit=` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/employees/lookup` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/employees/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/employees/:id/history` | ADMIN, HR_MANAGER, HR_STAFF |
 | GET | `/employees/export?search=&status=&departmentId=&position=` | ADMIN, HR_MANAGER, HR_STAFF |
 | POST | `/employees/import` | ADMIN, HR_MANAGER, HR_STAFF |
 | POST | `/employees` | ADMIN, HR_MANAGER, HR_STAFF |
 | PUT | `/employees/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | DELETE | `/employees/:id` | ADMIN, HR_MANAGER |
+| GET | `/employees/me` | Any authenticated role linked to an employee profile |
+| PUT | `/employees/me` | Any authenticated role linked to an employee profile |
+
+HR-011: `GET /employees/me` returns the caller's own employee profile (same shape as `GET /employees/:id`).
+`PUT /employees/me` lets the employee change only `phone` and `address`; any other field is rejected
+with `400`. Changes are recorded in the history as `SELF_UPDATED`. Accounts without a linked profile get
+`409 This account is not linked to an employee profile`.
 
 BUG-06: `GET /employees` is paginated (`page` default `1`, `limit` default `20`, max `100`) and
 returns a `pagination` block alongside `data`:
@@ -190,8 +205,8 @@ Employee statuses: `ACTIVE`, `ON_LEAVE`, `RESIGNED`, `TERMINATED`.
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/positions?departmentId=&active=true` | Any authenticated role |
-| GET | `/positions/:id` | Any authenticated role |
+| GET | `/positions?departmentId=&active=true` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/positions/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | POST | `/positions` | ADMIN, HR_MANAGER |
 | PUT | `/positions/:id` | ADMIN, HR_MANAGER |
 | DELETE | `/positions/:id` | ADMIN, HR_MANAGER |
@@ -214,8 +229,8 @@ Create/update fields:
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/contracts?employeeId=&status=&search=` | Any authenticated role |
-| GET | `/contracts/:id` | Any authenticated role |
+| GET | `/contracts?employeeId=&status=&search=` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/contracts/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | POST | `/contracts` | ADMIN, HR_MANAGER, HR_STAFF |
 | PUT | `/contracts/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | DELETE | `/contracts/:id` | ADMIN, HR_MANAGER |
@@ -341,8 +356,8 @@ not passed appear publicly.
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/jobs?search=&status=&departmentId=` | Any authenticated role |
-| GET | `/jobs/:id` | Any authenticated role |
+| GET | `/jobs?search=&status=&departmentId=` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/jobs/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | POST | `/jobs` | ADMIN, HR_MANAGER, HR_STAFF |
 | PUT | `/jobs/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | DELETE | `/jobs/:id` | ADMIN, HR_MANAGER |
@@ -382,9 +397,9 @@ Create fields (`PUT` accepts any subset):
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/applications?jobId=&status=&search=` | Any authenticated role |
-| GET | `/applications/:id` | Any authenticated role (adds `cvSize` and `history`) |
-| GET | `/applications/:id/cv` | Any authenticated role (PDF; `?inline=1` to preview in the browser) |
+| GET | `/applications?jobId=&status=&search=` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/applications/:id` | ADMIN, HR_MANAGER, HR_STAFF (adds `cvSize` and `history`) |
+| GET | `/applications/:id/cv` | ADMIN, HR_MANAGER, HR_STAFF (PDF; `?inline=1` to preview in the browser) |
 | PATCH | `/applications/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | POST | `/applications/:id/convert` | ADMIN, HR_MANAGER, HR_STAFF |
 | DELETE | `/applications/:id` | ADMIN, HR_MANAGER |
@@ -481,6 +496,7 @@ accounts are provided by an Admin (backlog HR-007). Calling a `/me*` endpoint fr
 | --- | --- | --- |
 | GET | `/work-schedules/me?from=&to=` | Any authenticated role linked to an employee |
 | POST | `/work-schedules/me/register` | Any authenticated role linked to an employee |
+| GET | `/work-schedules/me/change-requests?from=&to=&status=` | Any authenticated role linked to an employee |
 | POST | `/work-schedules/:scheduleId/change-requests` | Any authenticated role linked to an employee |
 | GET | `/work-schedules?employeeId=&departmentId=&from=&to=` | ADMIN, HR_MANAGER, HR_STAFF |
 | GET | `/work-schedules/:id` | ADMIN, HR_MANAGER, HR_STAFF |
@@ -524,12 +540,13 @@ themselves for an open shift, subject to the same conflict/weekly-limit rules.
 
 `POST /work-schedules/:scheduleId/change-requests` (`{ requestedShiftId?, reason? }`) lets an
 employee request a change on their own schedule entry (`403` if the schedule belongs to someone
-else). `PATCH /work-schedules/change-requests/:id` (`{ "status": "APPROVED" | "REJECTED" }`) lets
+else, `409 A change request for this shift is already pending` if one is still waiting). `PATCH /work-schedules/change-requests/:id` (`{ "status": "APPROVED" | "REJECTED" }`) lets
 HR review it; approving with a `requestedShiftId` updates the underlying schedule's shift
 (re-checking the weekly hour limit) and returns `409 This request has already been reviewed` if
 called twice. There is no notification system yet — the decision is recorded in the audit log
-(`entityType: 'SHIFT_CHANGE_REQUEST'`); the employee sees the result by re-checking
-`GET /work-schedules/me`.
+(`entityType: 'SHIFT_CHANGE_REQUEST'`); the employee sees their own requests and their status
+(`PENDING` / `APPROVED` / `REJECTED`) via `GET /work-schedules/me/change-requests` (newest first; `from`/`to` filter
+by the schedule's work date, `status` is optional) — same fields as the HR list.
 
 ## Attendance (Chấm công)
 
@@ -554,9 +571,15 @@ any subset of `checkIn`, `checkOut` (ISO datetime with offset), `status`, `note`
 
 `GET /attendance-records/monthly-summary` and `GET /reports/work-hours` share the same
 aggregation (see Reports below): `workDays`, `lateCount`, `absentCount`, `totalHours`, `otHours`.
-`otHours` is actual worked time (`checkOut - checkIn`) beyond the shift's standard duration
-(`endTime - startTime` from `work_shifts`), or beyond `DEFAULT_STANDARD_WORK_HOURS` (env var,
-default `8`) when the record has no linked schedule.
+Worked hours of a day = `checkOut - checkIn` minus the break: the shift's `breakMinutes`, or
+`DEFAULT_BREAK_MINUTES` (env var, default `60`) when the record has no linked schedule. The break is only
+deducted when the employee was present for more than half of the shift frame (`endTime - startTime`, or
+`DEFAULT_STANDARD_WORK_HOURS` + default break without a schedule), so a half day is not cut.
+`otHours` is worked hours beyond the shift's standard hours (`endTime - startTime - breakMinutes`), or beyond
+`DEFAULT_STANDARD_WORK_HOURS` (env var, default `8`) without a schedule. Example: 08:00–17:00 on a shift with a
+60-minute break gives 8 worked hours and 0 OT whether or not the day is scheduled. Each attendance record also
+returns `workedHours` (null until both check-in and check-out exist), computed the same way; the dashboard's
+monthly totals use the same formula.
 
 ## Leave requests (Nghỉ phép)
 
@@ -573,11 +596,17 @@ default `8`) when the record has no linked schedule.
 { "leaveType": "ANNUAL", "startDate": "2026-10-20", "endDate": "2026-10-21", "reason": "Optional" }
 ```
 
-Leave types: `ANNUAL`, `SICK`, `UNPAID`, `OTHER`. `endDate` must be on or after `startDate`.
+Leave types: `ANNUAL`, `SICK`, `UNPAID`, `OTHER`. `endDate` must be on or after `startDate`; past dates are
+allowed (sick leave is often reported afterwards).
+
+Leave days are Monday–Friday plus any Saturday/Sunday on which the employee has a `SCHEDULED` shift. Each
+leave request returns `leaveDays` (that count); a range without any leave day (e.g. a weekend with no shift)
+is rejected with `400 The selected dates have no working days`.
+
 New requests start as `PENDING`. `PATCH` (`{ "status": "APPROVED" | "REJECTED" }`) can only be
 called once per request (`409 This leave request has already been reviewed`); approving marks
-every day in the range as `ON_LEAVE` in `attendance-records`, without overwriting a day that
-already has a real attendance record.
+each leave day as `ON_LEAVE` in `attendance-records`. A day already marked `ABSENT` with no check-in/out
+becomes `ON_LEAVE`; a day with a real attendance record (check-in/out) is left unchanged.
 
 ## Reports (Báo cáo thống kê)
 

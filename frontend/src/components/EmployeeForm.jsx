@@ -1,6 +1,14 @@
 import { Check, Upload } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { employmentTypeLabels, genderLabels, statusLabels, toDateInputValue, todayInputValue } from '../format.js';
+import {
+  MAX_MONEY,
+  MAX_MONEY_MESSAGE,
+  employmentTypeLabels,
+  genderLabels,
+  statusLabels,
+  toDateInputValue,
+  todayInputValue
+} from '../format.js';
 import Avatar from './Avatar.jsx';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -47,6 +55,11 @@ function toFormState(employee, suggestedCode) {
   };
 }
 
+// "2008-02-29" + 15 năm → "2023-02-29": vẫn so sánh chuỗi đúng thứ tự nên không cần chuẩn hóa ngày.
+function addYears(date, years) {
+  return `${Number(date.slice(0, 4)) + years}${date.slice(4)}`;
+}
+
 function validate(form) {
   const errors = {};
   const required = {
@@ -80,8 +93,17 @@ function validate(form) {
     errors.idNumber = 'CCCD gồm 12 chữ số (hoặc CMND 9 chữ số)';
   }
 
+  // Ngày dạng YYYY-MM-DD so sánh chuỗi được. Bộ luật Lao động: người lao động từ đủ 15 tuổi.
+  if (!errors.dateOfBirth && form.dateOfBirth >= todayInputValue()) {
+    errors.dateOfBirth = 'Ngày sinh phải trước hôm nay';
+  } else if (!errors.dateOfBirth && !errors.hireDate && form.hireDate < addYears(form.dateOfBirth, 15)) {
+    errors.dateOfBirth = 'Nhân viên phải đủ 15 tuổi vào ngày vào làm';
+  }
+
   if (Number(form.baseSalary) < 0) {
     errors.baseSalary = 'Lương không được âm';
+  } else if (Number(form.baseSalary) > MAX_MONEY) {
+    errors.baseSalary = MAX_MONEY_MESSAGE;
   }
 
   return errors;
@@ -266,17 +288,17 @@ export default function EmployeeForm({ employee, employees = [], departments, po
       <div className="form-grid">
         <label>
           <span>Họ và tên <em className="required">*</em></span>
-          <input {...fieldProps('fullName')} placeholder="Nguyễn Văn An" />
+          <input {...fieldProps('fullName')} maxLength={160} placeholder="Nguyễn Văn An" />
           {fieldError('fullName')}
         </label>
         <label>
           <span>Mã nhân viên <em className="required">*</em></span>
-          <input {...fieldProps('employeeCode')} placeholder={suggestedCode ? `Tự sinh: ${suggestedCode}` : 'NV001'} />
+          <input {...fieldProps('employeeCode')} maxLength={40} placeholder={suggestedCode ? `Tự sinh: ${suggestedCode}` : 'NV001'} />
           {fieldError('employeeCode')}
         </label>
         <label>
           <span>Ngày sinh <em className="required">*</em></span>
-          <input {...fieldProps('dateOfBirth')} type="date" />
+          <input {...fieldProps('dateOfBirth')} type="date" max={todayInputValue()} />
           {fieldError('dateOfBirth')}
         </label>
         <label>
@@ -298,7 +320,7 @@ export default function EmployeeForm({ employee, employees = [], departments, po
         </label>
         <label>
           <span>Email <em className="required">*</em></span>
-          <input {...fieldProps('email')} type="email" placeholder="an.nv@example.com" />
+          <input {...fieldProps('email')} type="email" maxLength={160} placeholder="an.nv@example.com" />
           {fieldError('email')}
         </label>
         <label>
@@ -374,7 +396,7 @@ export default function EmployeeForm({ employee, employees = [], departments, po
         </label>
         <label>
           <span>Lương cơ bản (VNĐ)</span>
-          <input {...fieldProps('baseSalary')} type="number" min="0" step="100000" />
+          <input {...fieldProps('baseSalary')} type="number" min="0" max={MAX_MONEY} step="100000" />
           {fieldError('baseSalary')}
         </label>
         <label className="span-2">

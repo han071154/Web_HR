@@ -5,7 +5,8 @@ import { z } from 'zod';
 import { config } from '../config.js';
 import { query } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
-import { authLimiter } from '../middleware/rateLimit.js';
+import { authLimiter, passwordChangeLimiter } from '../middleware/rateLimit.js';
+import { logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
 
 const router = express.Router();
@@ -17,6 +18,17 @@ const loginSchema = z.object({
 
 const refreshSchema = z.object({
   refreshToken: z.string().min(1)
+});
+
+// Mật khẩu mới: 8–72 ký tự (bcrypt chỉ dùng 72 byte đầu), có cả chữ và số.
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(72, 'Password must be at most 72 characters')
+    .regex(/[A-Za-z]/, 'Password must contain a letter')
+    .regex(/\d/, 'Password must contain a number')
 });
 
 function signAccessToken(user) {
@@ -155,12 +167,17 @@ router.post('/refresh', authLimiter, async (req, res, next) => {
     }
 
     const result = await query(
-      'SELECT id, email, full_name, role, is_active FROM users WHERE id = $1',
+      'SELECT id, email, full_name, role, is_active, password_changed_at FROM users WHERE id = $1',
       [payload.sub]
     );
     const user = result.rows[0];
 
     if (!user || !user.is_active) {
+      throw httpError(401, 'Invalid or expired refresh token');
+    }
+
+    // Đã đổi mật khẩu sau khi cấp refresh token này → phiên cũ hết hiệu lực (iat tính bằng giây).
+    if (user.password_changed_at && payload.iat * 1000 < new Date(user.password_changed_at).getTime()) {
       throw httpError(401, 'Invalid or expired refresh token');
     }
 
@@ -185,6 +202,65 @@ router.post('/refresh', authLimiter, async (req, res, next) => {
  */
 router.get('/me', requireAuth, (req, res) => {
   res.json({ user: req.user });
+});
+
+/**
+ * @openapi
+ * /auth/change-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Đổi mật khẩu của chính tài khoản đang đăng nhập (HR-027)
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword]
+ *             properties:
+ *               currentPassword: { type: string }
+ *               newPassword: { type: string, minLength: 8, maxLength: 72, description: 'Có cả chữ và số' }
+ *     responses:
+ *       200: { description: Đã đổi mật khẩu; trả token và refreshToken mới cho phiên hiện tại }
+ *       400: { description: Mật khẩu cũ sai hoặc mật khẩu mới không hợp lệ }
+ *       401: { description: Chưa đăng nhập }
+ */
+// Giới hạn riêng theo tài khoản (passwordChangeLimiter) để không dò được mật khẩu hiện tại qua API này.
+router.post('/change-password', requireAuth, passwordChangeLimiter, async (req, res, next) => {
+  try {
+    const body = changePasswordSchema.parse(req.body);
+    const result = await query('SELECT id, email, password_hash, full_name, role, is_active FROM users WHERE id = $1', [
+      req.user.sub
+    ]);
+    const user = result.rows[0];
+
+    if (!user || !user.is_active) {
+      throw httpError(401, 'Invalid or expired token');
+    }
+
+    if (!(await bcrypt.compare(body.currentPassword, user.password_hash))) {
+      throw httpError(400, 'Current password is incorrect');
+    }
+
+    if (body.newPassword === body.currentPassword) {
+      throw httpError(400, 'New password must be different from the current password');
+    }
+
+    const passwordHash = await bcrypt.hash(body.newPassword, 12);
+    // Lùi 1 giây: token mới cấp ngay bên dưới có iat (giây, làm tròn xuống) không bị coi là "trước khi đổi".
+    await query(
+      `UPDATE users SET password_hash = $1, password_changed_at = NOW() - INTERVAL '1 second', updated_at = NOW()
+       WHERE id = $2`,
+      [passwordHash, user.id]
+    );
+    await logAudit({ entityType: 'USER', entityId: user.id, action: 'PASSWORD_CHANGED', user: req.user });
+
+    res.json({ token: signAccessToken(user), refreshToken: signRefreshToken(user) });
+  } catch (error) {
+    next(error);
+  }
 });
 
 export default router;

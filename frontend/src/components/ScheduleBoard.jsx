@@ -293,10 +293,15 @@ export default function ScheduleBoard({ departments, shifts, showToast }) {
     setError('');
 
     try {
-      const [employeeResponse, scheduleResponse] = await Promise.all([
-        api.employees({ status: 'ACTIVE', departmentId: departmentFilter, limit: 100 }),
-        api.workSchedules({ from: days[0], to: days[6], departmentId: departmentFilter })
-      ]);
+      // Chỉ lấy lịch của các nhân viên đang hiện trên lưới (tối đa 100): lấy lịch của mọi người thì
+      // 5.000 nhân viên là ~13 MB mỗi lần mở tuần (load test tuần 7).
+      const employeeResponse = await api.employees({ status: 'ACTIVE', departmentId: departmentFilter, limit: 100 });
+      const scheduleResponse = await api.workSchedules({
+        from: days[0],
+        to: days[6],
+        departmentId: departmentFilter,
+        employeeIds: employeeResponse.data.map((employee) => employee.id).join(',')
+      });
       if (!isLatest()) {
         return;
       }

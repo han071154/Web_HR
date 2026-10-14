@@ -5,12 +5,12 @@ import { query } from '../db.js';
 import { config } from '../config.js';
 import { requireRole } from '../middleware/auth.js';
 import { lastDayOfMonth, localDate } from '../utils/localTime.js';
-import { computeWorkHourStats } from '../utils/workHourStats.js';
+import { computeWorkHourStats, workHourExpressions } from '../utils/workHourStats.js';
+import { dateSchema } from '../utils/validation.js';
 
 const router = express.Router();
 
 const HR_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must use YYYY-MM-DD');
 
 const workHoursQuerySchema = z.object({
   from: dateSchema,
@@ -38,6 +38,7 @@ router.get('/dashboard', async (req, res, next) => {
     const month = date.slice(0, 7);
     const monthFrom = `${month}-01`;
     const monthTo = lastDayOfMonth(month);
+    const monthHours = workHourExpressions('$3', '$4');
 
     const [employeeStatus, attendance, pending, monthTotals] = await Promise.all([
       query('SELECT status, COUNT(*)::int AS count FROM employees GROUP BY status'),
@@ -57,19 +58,15 @@ router.get('/dashboard', async (req, res, next) => {
       // Cùng cách tính giờ công / OT với utils/workHourStats.js nhưng cộng chung, không chia theo nhân viên.
       query(
         `SELECT
-           COALESCE(SUM(EXTRACT(EPOCH FROM (a.check_out - a.check_in)) / 3600.0), 0) AS total_hours,
-           COALESCE(SUM(GREATEST(
-             EXTRACT(EPOCH FROM (a.check_out - a.check_in)) / 3600.0
-               - COALESCE(EXTRACT(EPOCH FROM (s.end_time - s.start_time)) / 3600.0, $3),
-             0
-           )), 0) AS ot_hours
+           COALESCE(SUM(${monthHours.workedHours}), 0) AS total_hours,
+           COALESCE(SUM(${monthHours.otHours}), 0) AS ot_hours
          FROM attendance_records a
          LEFT JOIN work_schedules ws ON ws.id = a.schedule_id
          LEFT JOIN work_shifts s ON s.id = ws.shift_id
          WHERE a.work_date BETWEEN $1 AND $2
            AND a.check_in IS NOT NULL
            AND a.check_out IS NOT NULL`,
-        [monthFrom, monthTo, config.defaultStandardWorkHours]
+        [monthFrom, monthTo, config.defaultStandardWorkHours, config.defaultBreakMinutes]
       )
     ]);
 

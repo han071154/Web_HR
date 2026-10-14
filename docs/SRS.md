@@ -45,11 +45,15 @@ Web HR la he thong ho tro bo phan nhan su quan ly thong tin nhan vien va cac du 
 - Nhan vien check-in/check-out; he thong tu xac dinh di tre (qua `LATE_THRESHOLD_MINUTES` phut so
   voi gio bat dau ca theo lich phan ca) hoac binh thuong.
 - HR sua chua cham cong thu cong khi nhan vien quen check-in/check-out.
-- He thong tinh gio lam them (OT) = gio lam thuc te tru gio chuan cua ca (hoac
+- Gio cong moi ngay = gio ra - gio vao - gio nghi giua ca (cua ca theo lich phan ca, hoac
+  `DEFAULT_BREAK_MINUTES` neu khong co lich; chi tru khi co mat qua nua khung gio ca).
+- He thong tinh gio lam them (OT) = gio cong tru gio chuan cua ca (khung gio ca - gio nghi, hoac
   `DEFAULT_STANDARD_WORK_HOURS` neu khong co lich phan ca).
 - Nhan vien gui don xin nghi phep (theo loai: nam, om, khong luong, khac); HR duyet hoac tu choi.
-  Duyet thi danh dau `ON_LEAVE` cho cac ngay nghi tren bang cham cong (khong ghi de ngay da co
-  cham cong that).
+  So ngay nghi = cac ngay thu 2 - thu 6, cong thu 7 / chu nhat ma nhan vien co lich phan ca.
+  Duoc xin nghi cho ngay da qua (nghi om bao sau). Duyet thi danh dau `ON_LEAVE` cho cac ngay nghi
+  tren bang cham cong; ngay da ghi Vang (chua cham cong) chuyen thanh Nghi phep, ngay da co cham
+  cong that giu nguyen.
 - Xem bang cong ca nhan va bang cong tong hop theo thang (so ngay cong, so ngay tre, so ngay
   vang, tong gio cong, gio OT).
 

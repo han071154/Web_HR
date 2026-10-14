@@ -12,7 +12,7 @@
 | HR-008 | La HR, toi muon quan ly phong ban day du. | 3 | Medium | Done |
 | HR-009 | La HR, toi muon import/export danh sach nhan vien Excel. | 5 | Medium | Todo |
 | HR-010 | La quan ly, toi muon xem bao cao nhan su theo phong ban. | 3 | Medium | Backend done |
-| HR-011 | La nhan vien, toi muon cap nhat thong tin ca nhan. | 3 | Low | Todo |
+| HR-011 | La nhan vien, toi muon cap nhat thong tin ca nhan. | 3 | Low | Done (muc Ho so cua toi: xem ho so, tu sua SDT va dia chi; cac truong khac do HR sua) |
 | HR-012 | La DevOps, toi muon deploy backend va frontend tu GitHub Actions. | 5 | High | Partial (CI build & validate Docker image xong; chua auto-deploy vi chua co server/credentials that, xem docs/DEPLOYMENT.md) |
 | HR-013 | La HR, toi muon quan ly danh muc chuc vu va gan chuc vu cho nhan vien. | 2 | Medium | Done |
 | HR-014 | La HR, toi muon tai anh dai dien cho ho so nhan vien. | 3 | Low | Done |
@@ -28,7 +28,7 @@
 | HR-024 | La DevOps, toi muon CI tu chay smoke test va bo Postman tren PostgreSQL. | 3 | Medium | Done |
 | HR-025 | La nguoi dung moi, toi muon dang ky tai khoan de truy cap he thong. | 3 | High | Bo (11/10/2026): he thong noi bo, nhan vien khong tu dang ky; Admin cap tai khoan qua HR-007 |
 | HR-026 | La nguoi dung, toi muon refresh token va dang xuat de phien dang nhap an toan. | 2 | High | Done |
-| HR-027 | La nguoi dung, toi muon doi hoac dat lai mat khau de giu an toan tai khoan. | 3 | Low | Todo |
+| HR-027 | La nguoi dung, toi muon doi hoac dat lai mat khau de giu an toan tai khoan. | 3 | Low | Done phan doi mat khau (moi vai tro); dat lai khi quen mat khau do Admin lam, cho HR-007 |
 | HR-028 | La Admin, toi muon lien ket tai khoan voi ho so nhan vien (vai tro EMPLOYEE) de nhan vien xem duoc du lieu cua minh. | 3 | High | Backend done |
 | HR-029 | La Admin/HR, toi muon tao va sua loai ca (ten ca, khung gio) lam co so xep lich. | 3 | High | Backend done |
 | HR-030 | La HR, toi muon he thong canh bao khi trung ca hoac vuot gioi han gio lam/tuan theo luat lao dong. | 5 | High | Backend done |

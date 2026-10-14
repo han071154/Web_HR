@@ -273,6 +273,7 @@ export const api = {
   mySchedules: (params) => request(`/work-schedules/me${toQuery(params)}`),
   registerShift: (shiftId, workDate) =>
     request('/work-schedules/me/register', { method: 'POST', body: JSON.stringify({ shiftId, workDate }) }),
+  myShiftChangeRequests: (params) => request(`/work-schedules/me/change-requests${toQuery(params)}`),
   requestShiftChange: (scheduleId, changes) =>
     request(`/work-schedules/${scheduleId}/change-requests`, { method: 'POST', body: JSON.stringify(changes) }),
   // Chấm công (HR-022, HR-035 → HR-037).
@@ -294,5 +295,16 @@ export const api = {
   // Số liệu tổng hợp sẵn cho trang Tổng quan (WBS 6.3.3, 6.4.5).
   reportDashboard: (params) => request(`/reports/dashboard${toQuery(params)}`),
   reportWorkHours: (params) => request(`/reports/work-hours${toQuery(params)}`),
-  exportWorkHours: (params) => request(`/reports/export${toQuery(params)}`, { blob: true })
+  exportWorkHours: (params) => request(`/reports/export${toQuery(params)}`, { blob: true }),
+  // Tài khoản của tôi: hồ sơ cá nhân (HR-011), đổi mật khẩu (HR-027).
+  myProfile: () => request('/employees/me'),
+  updateMyProfile: (changes) => request('/employees/me', { method: 'PUT', body: JSON.stringify(changes) }),
+  changePassword: (currentPassword, newPassword) =>
+    request('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) })
 };
+
+// Sau khi đổi mật khẩu, máy chủ cấp token mới: thay token cũ, giữ nguyên chỗ lưu (có/không ghi nhớ đăng nhập).
+export function replaceToken(token) {
+  const storage = localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
+  storage.setItem(TOKEN_KEY, token);
+}

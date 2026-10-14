@@ -233,3 +233,45 @@ describe('GET /api/attendance-records/monthly-summary', () => {
     expect(query).not.toHaveBeenCalled();
   });
 });
+
+describe('PUT /api/attendance-records/:id (HR correction)', () => {
+  const app = createApp();
+  const record = { id: 'att-1', employee_id: 'emp-1', work_date: '2026-10-12', check_in: null, check_out: null, status: 'PRESENT', note: null };
+
+  beforeEach(() => {
+    query.mockReset();
+  });
+
+  it('rejects a check-out before the check-in', async () => {
+    query.mockResolvedValueOnce({ rows: [record] });
+
+    const response = await request(app)
+      .put('/api/attendance-records/att-1')
+      .set('Authorization', `Bearer ${tokenFor('HR_STAFF')}`)
+      .send({ checkIn: '2026-10-12T17:00:00+07:00', checkOut: '2026-10-12T08:00:00+07:00' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('Check-out must be after check-in');
+  });
+
+  it('rejects times on a different day than the attendance date (Vietnam time)', async () => {
+    query.mockResolvedValueOnce({ rows: [record] });
+
+    // 2026-10-12T18:00Z là 01:00 ngày 13/10 ở Việt Nam.
+    const response = await request(app)
+      .put('/api/attendance-records/att-1')
+      .set('Authorization', `Bearer ${tokenFor('HR_STAFF')}`)
+      .send({ checkIn: '2026-10-12T08:00:00+07:00', checkOut: '2026-10-12T18:00:00Z' });
+
+    expect(response.status).toBe(400);
+  });
+
+  it('rejects a month that does not exist', async () => {
+    const response = await request(app)
+      .get('/api/attendance-records/monthly-summary?month=2026-13')
+      .set('Authorization', `Bearer ${tokenFor('HR_STAFF')}`);
+
+    expect(response.status).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+  });
+});

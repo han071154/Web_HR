@@ -53,6 +53,7 @@ describe('POST /api/leave-requests', () => {
   it('creates a pending leave request', async () => {
     query
       .mockResolvedValueOnce({ rows: [{ employee_id: 'emp-1' }] }) // getOwnEmployeeId
+      .mockResolvedValueOnce({ rows: [{ count: 2 }] }) // working days in range
       .mockResolvedValueOnce({ rows: [{ id: 'leave-1' }] }) // insert
       .mockResolvedValueOnce({
         rows: [
@@ -66,6 +67,7 @@ describe('POST /api/leave-requests', () => {
             leave_type: 'ANNUAL',
             start_date: '2026-10-12',
             end_date: '2026-10-13',
+            leave_days: 2,
             reason: null,
             status: 'PENDING',
             approved_by: null,
@@ -84,7 +86,24 @@ describe('POST /api/leave-requests', () => {
       .send({ leaveType: 'ANNUAL', startDate: '2026-10-12', endDate: '2026-10-13' });
 
     expect(response.status).toBe(201);
-    expect(response.body.data).toMatchObject({ status: 'PENDING', leaveType: 'ANNUAL' });
+    expect(response.body.data).toMatchObject({ status: 'PENDING', leaveType: 'ANNUAL', leaveDays: 2 });
+  });
+
+  // BUG-23: T7–CN không có ca thì không phải ngày làm việc, đơn không có ngày nghỉ nào bị chặn.
+  it('rejects a range without working days', async () => {
+    query
+      .mockResolvedValueOnce({ rows: [{ employee_id: 'emp-1' }] })
+      .mockResolvedValueOnce({ rows: [{ count: 0 }] });
+
+    const response = await request(app)
+      .post('/api/leave-requests')
+      .set('Authorization', `Bearer ${tokenFor('EMPLOYEE')}`)
+      .send({ leaveType: 'ANNUAL', startDate: '2026-10-17', endDate: '2026-10-18' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('The selected dates have no working days');
+    expect(query.mock.calls[1][0]).toMatch(/ISODOW/);
+    expect(query).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -125,5 +144,29 @@ describe('PATCH /api/leave-requests/:id', () => {
       .send({ status: 'REJECTED' });
 
     expect(response.status).toBe(409);
+  });
+
+  // BUG-23/BUG-24: duyệt chỉ ghi Nghỉ phép cho ngày làm việc và chuyển ngày đã ghi Vắng thành Nghỉ phép.
+  it('marks working days as ON_LEAVE and converts absent days when approving', async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{ id: 'leave-1', employee_id: 'emp-1', status: 'PENDING', start_date: '2026-10-09', end_date: '2026-10-12' }]
+      })
+      .mockResolvedValueOnce({ rows: [] }) // update status
+      .mockResolvedValueOnce({ rows: [] }) // attendance upsert
+      .mockResolvedValueOnce({ rows: [{ id: 'leave-1', status: 'APPROVED', leave_days: 2 }] })
+      .mockResolvedValueOnce({ rows: [] }); // audit log
+
+    const response = await request(app)
+      .patch('/api/leave-requests/leave-1')
+      .set('Authorization', `Bearer ${tokenFor('HR_MANAGER')}`)
+      .send({ status: 'APPROVED' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({ status: 'APPROVED', leaveDays: 2 });
+    const [attendanceSql, attendanceValues] = query.mock.calls[2];
+    expect(attendanceSql).toMatch(/ISODOW/);
+    expect(attendanceSql).toMatch(/DO UPDATE[\s\S]*status = 'ABSENT'[\s\S]*check_in IS NULL/);
+    expect(attendanceValues).toEqual(['emp-1', '2026-10-09', '2026-10-12']);
   });
 });

@@ -4,9 +4,9 @@ import { query } from '../db.js';
 import { requireRole } from '../middleware/auth.js';
 import { diffFields, logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
+import { dateSchema, moneySchema } from '../utils/validation.js';
 
 const router = express.Router();
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must use YYYY-MM-DD');
 
 const contractFieldsSchema = z.object({
   contractNumber: z.string().trim().min(2).max(60),
@@ -15,7 +15,7 @@ const contractFieldsSchema = z.object({
   startDate: dateSchema,
   endDate: dateSchema.optional().nullable(),
   signedDate: dateSchema.optional().nullable(),
-  salary: z.coerce.number().min(0),
+  salary: moneySchema,
   status: z.enum(['DRAFT', 'ACTIVE', 'EXPIRED', 'TERMINATED']),
   notes: z.string().trim().max(5000).optional().nullable()
 });
@@ -93,7 +93,7 @@ function mapContract(row) {
   };
 }
 
-router.get('/', async (req, res, next) => {
+router.get('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
   try {
     const employeeId = String(req.query.employeeId || '').trim();
     const status = String(req.query.status || '').trim();
@@ -129,7 +129,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
   try {
     const result = await query(`${contractSelectSql} WHERE c.id = $1`, [req.params.id]);
 

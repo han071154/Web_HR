@@ -1,7 +1,7 @@
 import { ExternalLink, Megaphone, Save } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '../api.js';
-import { employmentTypeLabels, todayInputValue } from '../format.js';
+import { MAX_MONEY, MAX_MONEY_MESSAGE, employmentTypeLabels, todayInputValue } from '../format.js';
 
 const emptyJob = {
   code: '',
@@ -39,6 +39,10 @@ function validate(form) {
 
   if (form.salaryMin !== '' && form.salaryMax !== '' && Number(form.salaryMax) < Number(form.salaryMin)) {
     errors.salaryMax = 'Lương đến phải lớn hơn hoặc bằng lương từ';
+  }
+
+  if (Number(form.salaryMin) > MAX_MONEY || Number(form.salaryMax) > MAX_MONEY) {
+    errors.salaryMax = MAX_MONEY_MESSAGE;
   }
 
   if (form.status === 'OPEN' && form.deadline && form.deadline < todayInputValue()) {
@@ -176,6 +180,7 @@ export default function JobFormPage({ job, departments, onSaved, onCancel, showT
             <input
               type="number"
               min="0"
+              max={MAX_MONEY}
               step="500000"
               value={form.salaryMin ?? ''}
               onChange={(event) => updateField('salaryMin', event.target.value)}
@@ -187,6 +192,7 @@ export default function JobFormPage({ job, departments, onSaved, onCancel, showT
             <input
               type="number"
               min="0"
+              max={MAX_MONEY}
               step="500000"
               value={form.salaryMax ?? ''}
               onChange={(event) => updateField('salaryMax', event.target.value)}

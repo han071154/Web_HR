@@ -7,12 +7,12 @@ import { logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
 import { lastDayOfMonth, localDate, localMinutesOfDay } from '../utils/localTime.js';
 import { getOwnEmployeeId } from '../utils/selfService.js';
-import { computeWorkHourStats } from '../utils/workHourStats.js';
+import { computeWorkHourStats, workHourExpressions } from '../utils/workHourStats.js';
+import { monthSchema } from '../utils/validation.js';
 
 const router = express.Router();
 
 const HR_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
-const monthSchema = z.string().regex(/^\d{4}-\d{2}$/, 'Month must use YYYY-MM');
 
 const correctionSchema = z.object({
   checkIn: z.string().datetime({ offset: true }).optional().nullable(),
@@ -21,9 +21,17 @@ const correctionSchema = z.object({
   note: z.string().trim().max(2000).optional().nullable()
 });
 
+// Giờ công từng ngày tính ở backend, cùng công thức với tổng hợp tháng (trừ giờ nghỉ giữa ca). Giá trị
+// cấu hình được nhúng thẳng (đều là số) vì câu SELECT này còn được nối thêm WHERE với tham số $1, $2...
+const recordHours = workHourExpressions(
+  String(Number(config.defaultStandardWorkHours)),
+  String(Number(config.defaultBreakMinutes))
+);
+
 const attendanceSelectSql = `
   SELECT
     a.*,
+    CASE WHEN a.check_in IS NOT NULL AND a.check_out IS NOT NULL THEN ${recordHours.workedHours} END AS worked_hours,
     e.employee_code,
     e.full_name AS employee_name,
     e.department_id,
@@ -49,6 +57,7 @@ function mapAttendance(row) {
     workDate: row.work_date,
     checkIn: row.check_in,
     checkOut: row.check_out,
+    workedHours: row.worked_hours == null ? null : Number(row.worked_hours),
     status: row.status,
     note: row.note,
     createdAt: row.created_at,
@@ -240,10 +249,27 @@ router.get('/', requireRole(...HR_ROLES), async (req, res, next) => {
       where.push(`a.work_date <= $${values.length}`);
     }
 
-    const result = await query(
-      `${attendanceSelectSql} ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY a.work_date DESC`,
-      values
-    );
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    // Có page/limit thì phân trang ở máy chủ: 7 ngày × 5.000 nhân viên là ~35.000 dòng (~10 MB) mỗi lần
+    // mở Bảng chấm công, đủ làm nghẽn cả API khi nhiều người dùng cùng lúc (load test tuần 7).
+    // Không truyền thì trả hết như cũ cho các nơi khác đang dùng.
+    if (req.query.page !== undefined || req.query.limit !== undefined) {
+      const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+      const limit = Math.min(200, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
+      const [result, count] = await Promise.all([
+        query(
+          `${attendanceSelectSql} ${whereSql} ORDER BY a.work_date DESC, e.full_name ASC, a.id
+           LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+          [...values, limit, (page - 1) * limit]
+        ),
+        query(`SELECT COUNT(*)::int AS total FROM attendance_records a JOIN employees e ON e.id = a.employee_id ${whereSql}`, values)
+      ]);
+
+      return res.json({ data: result.rows.map(mapAttendance), pagination: { page, limit, total: count.rows[0].total } });
+    }
+
+    const result = await query(`${attendanceSelectSql} ${whereSql} ORDER BY a.work_date DESC`, values);
 
     res.json({ data: result.rows.map(mapAttendance) });
   } catch (error) {
@@ -282,6 +308,19 @@ router.put('/:id', requireRole(...HR_ROLES), async (req, res, next) => {
       status: Object.hasOwn(body, 'status') ? body.status : row.status,
       note: Object.hasOwn(body, 'note') ? body.note : row.note
     };
+
+    // Giao diện đã chặn (BUG-19) nhưng API vẫn nhận giờ ra trước giờ vào hoặc giờ ở ngày khác,
+    // làm bảng công tính ra số giờ âm hoặc dài hàng chục giờ.
+    const checkIn = merged.checkIn ? new Date(merged.checkIn) : null;
+    const checkOut = merged.checkOut ? new Date(merged.checkOut) : null;
+
+    if ((checkIn && localDate(checkIn) !== row.work_date) || (checkOut && localDate(checkOut) !== row.work_date)) {
+      throw httpError(400, 'Check-in and check-out must be on the attendance date');
+    }
+
+    if (checkIn && checkOut && checkOut <= checkIn) {
+      throw httpError(400, 'Check-out must be after check-in');
+    }
 
     await query(
       `UPDATE attendance_records
