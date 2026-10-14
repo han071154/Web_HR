@@ -93,7 +93,7 @@ function mapContract(row) {
   };
 }
 
-router.get('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
+router.get('/', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
   try {
     const employeeId = String(req.query.employeeId || '').trim();
     const status = String(req.query.status || '').trim();
@@ -129,7 +129,7 @@ router.get('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res,
   }
 });
 
-router.get('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
+router.get('/:id', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
   try {
     const result = await query(`${contractSelectSql} WHERE c.id = $1`, [req.params.id]);
 
@@ -143,7 +143,7 @@ router.get('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, r
   }
 });
 
-router.post('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
+router.post('/', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
   try {
     const body = contractSchema.parse(req.body);
     await ensureSingleActiveContract(body);
@@ -181,7 +181,7 @@ router.post('/', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res
   }
 });
 
-router.put('/:id', requireRole('ADMIN', 'HR_MANAGER', 'HR_STAFF'), async (req, res, next) => {
+router.put('/:id', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
   try {
     const current = await query('SELECT * FROM employment_contracts WHERE id = $1', [req.params.id]);
 

@@ -1,5 +1,5 @@
 import { Hash, Mail, Pencil, Phone, Plus, Trash2, UserX } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { contractDeadline, contractStatusClass } from '../contracts.js';
 import {
@@ -14,6 +14,7 @@ import {
 import Avatar from './Avatar.jsx';
 import ConfirmDialog from './ConfirmDialog.jsx';
 import ContractForm from './ContractForm.jsx';
+import EmployeeLink from './EmployeeLink.jsx';
 import HistoryTimeline from './HistoryTimeline.jsx';
 
 const EMPTY = 'Chưa cập nhật';
@@ -39,8 +40,11 @@ export default function EmployeeDetail({
   canDeleteContracts,
   onEdit,
   onDeactivate,
-  showToast
+  showToast,
+  openContractId,
+  onContractFormClosed
 }) {
+  const contractsSectionRef = useRef(null);
   const [contracts, setContracts] = useState([]);
   const [contractsLoading, setContractsLoading] = useState(true);
   const [contractsError, setContractsError] = useState('');
@@ -83,6 +87,30 @@ export default function EmployeeDetail({
       ignore = true;
     };
   }, [employee.id, contractsVersion]);
+
+  // Bấm Sửa ở trang Hợp đồng → #employees/<id>/contracts/<contractId>: mở sẵn form sửa hợp đồng đó và
+  // cuộn tới. Không tìm thấy (đã xóa / không thuộc nhân viên này) thì chỉ xem hồ sơ.
+  useEffect(() => {
+    if (!openContractId || contractsLoading) {
+      return;
+    }
+
+    const target = contracts.find((contract) => contract.id === openContractId);
+
+    if (!target) {
+      onContractFormClosed?.();
+      return;
+    }
+
+    setContractFormError('');
+    setEditingContract(target);
+    requestAnimationFrame(() => contractsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }, [openContractId, contractsLoading, contracts, onContractFormClosed]);
+
+  function closeContractForm() {
+    setEditingContract(null);
+    onContractFormClosed?.();
+  }
 
   // Lịch sử thay đổi: tải lại khi hồ sơ vừa được sửa (updatedAt đổi) hoặc hợp đồng thay đổi.
   useEffect(() => {
@@ -130,7 +158,7 @@ export default function EmployeeDetail({
         showToast('success', `Đã thêm hợp đồng ${values.contractNumber}.`);
       }
 
-      setEditingContract(null);
+      closeContractForm();
       setContractsVersion((version) => version + 1);
     } catch (err) {
       setContractFormError(err.message);
@@ -223,7 +251,10 @@ export default function EmployeeDetail({
             rows={[
               ['Phòng ban', employee.departmentName],
               ['Chức vụ', employee.position],
-              ['Quản lý trực tiếp', employee.managerName],
+              [
+                'Quản lý trực tiếp',
+                employee.managerName && <EmployeeLink id={employee.managerId}>{employee.managerName}</EmployeeLink>
+              ],
               ['Ngày vào làm', formatDate(employee.hireDate)],
               ['Hình thức làm việc', employmentTypeLabels[employee.employmentType]],
               ['Lương cơ bản', formatMoney(employee.baseSalary)]
@@ -233,7 +264,7 @@ export default function EmployeeDetail({
       </div>
 
       <div className="detail-bottom">
-        <section className="content-panel">
+        <section className="content-panel" ref={contractsSectionRef}>
           <div className="section-header">
             <h2>Hợp đồng</h2>
             {canEditContracts && (
@@ -252,7 +283,7 @@ export default function EmployeeDetail({
               employee={employee}
               error={contractFormError}
               onSubmit={saveContract}
-              onCancel={() => setEditingContract(null)}
+              onCancel={closeContractForm}
             />
           )}
 

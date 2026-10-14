@@ -16,6 +16,7 @@ import {
   workedHours
 } from '../format.js';
 import FormDialog from './FormDialog.jsx';
+import EmployeeLink from './EmployeeLink.jsx';
 import Pagination from './Pagination.jsx';
 import TabBar from './TabBar.jsx';
 import { useLatestRequest } from '../useLatestRequest.js';
@@ -250,7 +251,7 @@ function AttendanceRecords({ departments, showToast }) {
                 return (
                   <tr key={record.id}>
                     <td className="cell-main">
-                      <strong>{record.employeeName}</strong>
+                      <EmployeeLink id={record.employeeId}>{record.employeeName}</EmployeeLink>
                       <span>{record.departmentName || record.employeeCode}</span>
                     </td>
                     <td data-label="Ngày">{formatDate(record.workDate)}</td>
@@ -413,7 +414,7 @@ function MonthlySummary({ departments, showToast }) {
               rows.slice((rowsPage - 1) * RECORDS_PAGE_SIZE, rowsPage * RECORDS_PAGE_SIZE).map((row) => (
                 <tr key={row.employeeId}>
                   <td className="cell-main">
-                    <strong>{row.employeeName}</strong>
+                    <EmployeeLink id={row.employeeId}>{row.employeeName}</EmployeeLink>
                     <span>{row.employeeCode}</span>
                   </td>
                   <td data-label="Ngày công">{row.workDays}</td>

@@ -17,7 +17,8 @@ import { dateSchema, moneySchema } from '../utils/validation.js';
 // → HIRED (Đậu) hoặc REJECTED (Trượt). Hồ sơ Đậu mới được chuyển thành nhân sự qua /convert.
 const router = express.Router();
 
-const HR_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
+// Tuyển dụng do HR Manager phụ trách; HR Staff chỉ lo vận hành (ca, chấm công, nghỉ phép).
+const HR_ROLES = ['ADMIN', 'HR_MANAGER'];
 const STATUSES = ['NEW', 'REVIEWING', 'INTERVIEW', 'HIRED', 'REJECTED'];
 
 const updateSchema = z.object({

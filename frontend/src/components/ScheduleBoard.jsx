@@ -16,6 +16,7 @@ import {
   weekdayLabels
 } from '../format.js';
 import { toVietnameseError } from '../messages.js';
+import EmployeeLink from './EmployeeLink.jsx';
 import FormDialog from './FormDialog.jsx';
 import { useLatestRequest } from '../useLatestRequest.js';
 
@@ -605,7 +606,7 @@ export default function ScheduleBoard({ departments, shifts, showToast }) {
                 return (
                   <tr key={employee.id}>
                     <td className="sticky-col">
-                      <strong>{employee.fullName}</strong>
+                      <EmployeeLink id={employee.id}>{employee.fullName}</EmployeeLink>
                       <span className="muted-text">{employee.employeeCode}</span>
                     </td>
                     {days.map((day) => {

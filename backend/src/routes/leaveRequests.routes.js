@@ -170,8 +170,8 @@ router.get('/:id', requireRole(...HR_ROLES), async (req, res, next) => {
 
 // Duyệt/từ chối đơn nghỉ phép; duyệt thì đánh dấu ON_LEAVE trên bảng chấm công cho các ngày nghỉ được tính
 // (leaveDatesSql, không ghi T7/CN không có ca). Ngày đã bị ghi Vắng mà chưa chấm công vào/ra thì chuyển
-// thành Nghỉ phép (BUG-24); ngày đã có chấm công thật giữ nguyên.
-router.patch('/:id', requireRole(...HR_ROLES), async (req, res, next) => {
+// thành Nghỉ phép (BUG-24); ngày đã có chấm công thật giữ nguyên. Chỉ HR Manager/Admin duyệt; HR Staff xem.
+router.patch('/:id', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
   try {
     const current = await query('SELECT * FROM leave_requests WHERE id = $1', [req.params.id]);
     const row = current.rows[0];

@@ -17,6 +17,7 @@ import {
 } from '../format.js';
 import ConfirmDialog from './ConfirmDialog.jsx';
 import ContractForm from './ContractForm.jsx';
+import EmployeeLink from './EmployeeLink.jsx';
 
 // Lọc thêm "Cần xử lý": hợp đồng hiệu lực đã quá hạn hoặc sắp hết hạn.
 const ATTENTION_FILTER = 'ATTENTION';
@@ -194,7 +195,7 @@ export default function ContractsPanel({ user, employees, showToast }) {
                 return (
                   <tr key={contract.id}>
                     <td className="cell-main">
-                      <strong>{contract.employeeName}</strong>
+                      <EmployeeLink id={contract.employeeId}>{contract.employeeName}</EmployeeLink>
                       <span>{contract.employeeCode}</span>
                     </td>
                     <td data-label="Số hợp đồng">
@@ -214,13 +215,16 @@ export default function ContractsPanel({ user, employees, showToast }) {
                     {(canEdit || canDelete) && (
                       <td className="cell-actions">
                         <div className="row-actions">
+                          {/* Sửa hợp đồng trong hồ sơ của nhân viên đó (mở sẵn form), không sửa tại đây. */}
                           {canEdit && (
                             <button
                               type="button"
                               className="icon-button success"
-                              onClick={() => openForm(contract)}
-                              title="Sửa"
-                              aria-label="Sửa"
+                              onClick={() => {
+                                window.location.hash = `#employees/${contract.employeeId}/contracts/${contract.id}`;
+                              }}
+                              title="Sửa trong hồ sơ nhân viên"
+                              aria-label="Sửa trong hồ sơ nhân viên"
                             >
                               <Pencil size={17} aria-hidden="true" />
                             </button>
