@@ -1518,7 +1518,7 @@
           }
         },
         {
-          "name": "EMP-21 HR Staff thêm nhân viên (được phép)",
+          "name": "EMP-21 Admin thêm nhân viên (được phép)",
           "event": [
             {
               "listen": "prerequest",
@@ -1551,7 +1551,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{staffToken}}"
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": {
@@ -2270,14 +2270,15 @@
           }
         },
         {
-          "name": "RBAC-13 HR Staff sửa nhân viên (được phép)",
+          "name": "RBAC-13 HR Staff sửa nhân viên (không có quyền)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status code là 200\", () => pm.response.to.have.status(200));"
+                  "pm.test(\"Status code là 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Báo không có quyền\", () => pm.expect(pm.response.json().message).to.eql(\"You do not have permission to perform this action\"));"
                 ]
               }
             }
@@ -2316,7 +2317,7 @@
           }
         },
         {
-          "name": "RBAC-14 HR Staff thêm hợp đồng (được phép)",
+          "name": "RBAC-14 HR Manager thêm hợp đồng (được phép)",
           "event": [
             {
               "listen": "test",
@@ -2338,7 +2339,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{staffToken}}"
+                "value": "Bearer {{managerToken}}"
               }
             ],
             "url": {
