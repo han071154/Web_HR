@@ -25,6 +25,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, clearSession, getStoredUser, getToken, setUnauthorizedHandler } from './api.js';
 import AccountPanel from './components/AccountPanel.jsx';
 import Avatar from './components/Avatar.jsx';
+import BrandLogo from './components/BrandLogo.jsx';
 import CareersPage from './components/CareersPage.jsx';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
 import AttendancePanel from './components/AttendancePanel.jsx';
@@ -800,10 +801,7 @@ function Dashboard({ user, onLogout }) {
     <main className="app-shell">
       <aside className="sidebar">
         <div className="brand-row">
-          <div className="brand-mark">
-            <Users size={20} aria-hidden="true" />
-          </div>
-          <span className="brand-name">WebHR</span>
+          <BrandLogo />
         </div>
         <p className="menu-label">Menu</p>
         <nav ref={navRef}>

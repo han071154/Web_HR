@@ -1,6 +1,7 @@
-import { Lock, Mail, Users } from 'lucide-react';
+import { Lock, Mail } from 'lucide-react';
 import { useState } from 'react';
 import { api, setSession } from '../api.js';
+import BrandLogo, { COMPANY_NAME } from './BrandLogo.jsx';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -59,10 +60,7 @@ export default function LoginPage({ onLogin }) {
       <section className="login-main">
         <div className="login-panel">
           <div className="brand-row">
-            <div className="brand-mark small">
-              <Users size={18} aria-hidden="true" />
-            </div>
-            <span className="brand-name">WebHR</span>
+            <BrandLogo small />
           </div>
 
           <h1>Đăng nhập</h1>
@@ -125,7 +123,7 @@ export default function LoginPage({ onLogin }) {
           </p>
         </div>
 
-        <p className="login-footer">© 2026 WebHR · Nhóm 3, LV24-006</p>
+        <p className="login-footer">© 2026 {COMPANY_NAME} · Nhóm 3, LV24-006</p>
       </section>
 
       <aside className="login-hero" aria-hidden="true">
