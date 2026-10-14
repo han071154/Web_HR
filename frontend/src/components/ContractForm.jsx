@@ -1,6 +1,7 @@
 import { FileSignature } from 'lucide-react';
 import { useState } from 'react';
 import { MAX_MONEY, MAX_MONEY_MESSAGE, contractStatusLabels, contractTypeLabels, toDateInputValue, todayInputValue } from '../format.js';
+import EmployeeLink from './EmployeeLink.jsx';
 
 // Thời hạn gợi ý theo loại hợp đồng (bấm để tự điền ngày kết thúc).
 const DURATION_PRESETS = {
@@ -142,6 +143,11 @@ export default function ContractForm({ contract, employee, employees = [], error
                 </option>
               ))}
             </select>
+            {form.employeeId && (
+              <small className="field-hint">
+                <EmployeeLink id={form.employeeId}>Xem hồ sơ nhân viên →</EmployeeLink>
+              </small>
+            )}
           </label>
         )}
         <label>

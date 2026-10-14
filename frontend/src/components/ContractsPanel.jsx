@@ -215,13 +215,16 @@ export default function ContractsPanel({ user, employees, showToast }) {
                     {(canEdit || canDelete) && (
                       <td className="cell-actions">
                         <div className="row-actions">
+                          {/* Sửa hợp đồng trong hồ sơ của nhân viên đó (mở sẵn form), không sửa tại đây. */}
                           {canEdit && (
                             <button
                               type="button"
                               className="icon-button success"
-                              onClick={() => openForm(contract)}
-                              title="Sửa"
-                              aria-label="Sửa"
+                              onClick={() => {
+                                window.location.hash = `#employees/${contract.employeeId}/contracts/${contract.id}`;
+                              }}
+                              title="Sửa trong hồ sơ nhân viên"
+                              aria-label="Sửa trong hồ sơ nhân viên"
                             >
                               <Pencil size={17} aria-hidden="true" />
                             </button>

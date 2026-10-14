@@ -527,7 +527,7 @@ select.invalid:focus,
 
 /* Tên nhân viên bấm được ở các bảng (Hợp đồng, Chấm công, Nghỉ phép...) → mở hồ sơ #employees/<id>. */
 .employee-link {
-  color: var(--heading);
+  color: var(--primary);
   font-weight: 700;
   text-decoration: none;
 }

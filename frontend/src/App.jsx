@@ -100,14 +100,21 @@ function menuFor(user) {
 
 // Đường dẫn trong app: #<mục menu>, hoặc #employees/<id> để mở thẳng chi tiết một nhân viên (link từ
 // Hợp đồng, Chấm công, Nghỉ phép...; tải lại trang hay bấm Back vẫn giữ đúng nhân viên).
+// #employees/<id>/contracts/<contractId>: nút Sửa ở trang Hợp đồng → mở hồ sơ với form sửa hợp đồng đó.
 function routeFromHash(menu) {
-  const [view, employeeId] = window.location.hash.slice(1).split('/');
+  const [view, employeeId, section, contractId] = window.location.hash.slice(1).split('/');
 
   if (!menu.some((item) => item.view === view)) {
-    return { view: menu[0].view, employeeId: null };
+    return { view: menu[0].view, employeeId: null, contractId: null };
   }
 
-  return { view, employeeId: view === 'employees' && employeeId ? employeeId : null };
+  const isDetail = view === 'employees' && Boolean(employeeId);
+
+  return {
+    view,
+    employeeId: isDetail ? employeeId : null,
+    contractId: isDetail && section === 'contracts' && contractId ? contractId : null
+  };
 }
 
 function screenForRoute(route) {
@@ -178,6 +185,8 @@ function Dashboard({ user, onLogout }) {
   // hoặc form.
   const [screen, setScreen] = useState(() => screenForRoute(routeFromHash(menu)));
   const [detailError, setDetailError] = useState('');
+  // Hợp đồng cần mở sẵn form sửa trong chi tiết nhân viên (từ nút Sửa ở trang Hợp đồng).
+  const [openContractId, setOpenContractId] = useState(() => routeFromHash(menu).contractId);
   // Mục đã mở chi tiết nhân viên (vd 'contracts'): hiện nút "Quay lại" về đúng mục đó.
   const [returnTo, setReturnTo] = useState(null);
   const viewRef = useRef(view);
@@ -193,6 +202,17 @@ function Dashboard({ user, onLogout }) {
     setToast({ id: Date.now(), type, message });
   }, []);
   const closeToast = useCallback(() => setToast(null), []);
+
+  // Đóng form hợp đồng mở từ URL: bỏ phần /contracts/<id> khỏi URL (không thêm lịch sử) để tải lại trang
+  // không mở lại form.
+  const handleContractFormClosed = useCallback(() => {
+    setOpenContractId(null);
+    const [base] = window.location.hash.split('/contracts/');
+
+    if (base !== window.location.hash) {
+      window.history.replaceState(null, '', base);
+    }
+  }, []);
 
   // Gõ tìm kiếm thì chờ 300ms mới gọi API, tránh gọi backend liên tục theo từng phím gõ.
   useEffect(() => {
@@ -292,6 +312,7 @@ function Dashboard({ user, onLogout }) {
       }
 
       setView(route.view);
+      setOpenContractId(route.contractId);
       setScreen((previous) =>
         route.employeeId && previous.type === 'detail' && previous.employeeId === route.employeeId
           ? previous
@@ -587,6 +608,8 @@ function Dashboard({ user, onLogout }) {
           onEdit={beginEdit}
           onDeactivate={(employee) => setConfirmAction({ type: 'deactivate', employee })}
           showToast={showToast}
+          openContractId={openContractId}
+          onContractFormClosed={handleContractFormClosed}
         />
       );
     }
