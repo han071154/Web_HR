@@ -9,6 +9,7 @@ import {
   leaveTypeLabels
 } from '../format.js';
 import ConfirmDialog from './ConfirmDialog.jsx';
+import EmployeeLink from './EmployeeLink.jsx';
 import { useLatestRequest } from '../useLatestRequest.js';
 
 // Duyệt đơn nghỉ phép (HR-023). Duyệt xong thì các ngày nghỉ được ghi "Nghỉ phép" trong bảng chấm công.
@@ -115,7 +116,7 @@ export default function LeavePanel({ showToast }) {
               requests.map((request) => (
                 <tr key={request.id}>
                   <td className="cell-main">
-                    <strong>{request.employeeName}</strong>
+                    <EmployeeLink id={request.employeeId}>{request.employeeName}</EmployeeLink>
                     <span>{request.departmentName || request.employeeCode}</span>
                   </td>
                   <td data-label="Loại nghỉ">{leaveTypeLabels[request.leaveType] || request.leaveType}</td>

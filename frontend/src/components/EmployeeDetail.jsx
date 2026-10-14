@@ -14,6 +14,7 @@ import {
 import Avatar from './Avatar.jsx';
 import ConfirmDialog from './ConfirmDialog.jsx';
 import ContractForm from './ContractForm.jsx';
+import EmployeeLink from './EmployeeLink.jsx';
 import HistoryTimeline from './HistoryTimeline.jsx';
 
 const EMPTY = 'Chưa cập nhật';
@@ -223,7 +224,10 @@ export default function EmployeeDetail({
             rows={[
               ['Phòng ban', employee.departmentName],
               ['Chức vụ', employee.position],
-              ['Quản lý trực tiếp', employee.managerName],
+              [
+                'Quản lý trực tiếp',
+                employee.managerName && <EmployeeLink id={employee.managerId}>{employee.managerName}</EmployeeLink>
+              ],
               ['Ngày vào làm', formatDate(employee.hireDate)],
               ['Hình thức làm việc', employmentTypeLabels[employee.employmentType]],
               ['Lương cơ bản', formatMoney(employee.baseSalary)]

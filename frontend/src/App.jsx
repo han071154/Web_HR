@@ -1,4 +1,5 @@
 import {
+  ArrowLeft,
   BarChart3,
   BriefcaseBusiness,
   Building2,
@@ -51,6 +52,7 @@ const EDIT_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
 const DELETE_ROLES = ['ADMIN', 'HR_MANAGER'];
 
 const PAGE_SIZE = 10;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Menu bên trái: HR thấy các mục quản lý, tài khoản nhân viên (EMPLOYEE) chỉ thấy các mục tự phục vụ.
 const HR_MENU = [
@@ -96,9 +98,20 @@ function menuFor(user) {
   return user?.role === 'EMPLOYEE' ? EMPLOYEE_MENU : HR_MENU;
 }
 
-function viewFromHash(menu) {
-  const view = window.location.hash.slice(1);
-  return menu.some((item) => item.view === view) ? view : menu[0].view;
+// Đường dẫn trong app: #<mục menu>, hoặc #employees/<id> để mở thẳng chi tiết một nhân viên (link từ
+// Hợp đồng, Chấm công, Nghỉ phép...; tải lại trang hay bấm Back vẫn giữ đúng nhân viên).
+function routeFromHash(menu) {
+  const [view, employeeId] = window.location.hash.slice(1).split('/');
+
+  if (!menu.some((item) => item.view === view)) {
+    return { view: menu[0].view, employeeId: null };
+  }
+
+  return { view, employeeId: view === 'employees' && employeeId ? employeeId : null };
+}
+
+function screenForRoute(route) {
+  return route.employeeId ? { type: 'detail', employeeId: route.employeeId, employee: null } : { type: 'list' };
 }
 
 // Gợi ý mã nhân viên kế tiếp: NV007 → NV008 (giữ tiền tố và số chữ số của mã lớn nhất).
@@ -158,16 +171,21 @@ function Dashboard({ user, onLogout }) {
   const [referenceLoading, setReferenceLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const importInputRef = useRef(null);
-  // Màn hình con của mục Nhân sự: danh sách, chi tiết hoặc form.
-  const [screen, setScreen] = useState({ type: 'list' });
+  const menu = menuFor(user);
+  const isEmployee = menu === EMPLOYEE_MENU;
+  const [view, setView] = useState(() => routeFromHash(menu).view);
+  // Màn hình con của mục Nhân sự: danh sách, chi tiết (employeeId; employee = null khi đang tải theo id)
+  // hoặc form.
+  const [screen, setScreen] = useState(() => screenForRoute(routeFromHash(menu)));
+  const [detailError, setDetailError] = useState('');
+  // Mục đã mở chi tiết nhân viên (vd 'contracts'): hiện nút "Quay lại" về đúng mục đó.
+  const [returnTo, setReturnTo] = useState(null);
+  const viewRef = useRef(view);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [confirmAction, setConfirmAction] = useState(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [toast, setToast] = useState(null);
-  const menu = menuFor(user);
-  const isEmployee = menu === EMPLOYEE_MENU;
-  const [view, setView] = useState(() => viewFromHash(menu));
   const canEdit = EDIT_ROLES.includes(user?.role);
   const canDelete = DELETE_ROLES.includes(user?.role);
 
@@ -257,15 +275,72 @@ function Dashboard({ user, onLogout }) {
   }, [loadReferenceData, view, isEmployee]);
 
   useEffect(() => {
-    // Menu bên trái đổi trang qua #employees / #departments / #positions trên URL.
+    viewRef.current = view;
+  }, [view]);
+
+  useEffect(() => {
+    // Menu bên trái đổi trang qua #employees / #departments / #positions trên URL; #employees/<id> mở
+    // chi tiết. Giữ nguyên màn đang có nếu đã đúng nhân viên đó (vd vừa lưu xong rồi đổi URL).
     function handleHashChange() {
-      setView(viewFromHash(menu));
-      setScreen({ type: 'list' });
+      const route = routeFromHash(menu);
+      const from = viewRef.current;
+
+      if (!route.employeeId) {
+        setReturnTo(null);
+      } else if (from !== 'employees') {
+        setReturnTo(from);
+      }
+
+      setView(route.view);
+      setScreen((previous) =>
+        route.employeeId && previous.type === 'detail' && previous.employeeId === route.employeeId
+          ? previous
+          : screenForRoute(route)
+      );
     }
 
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [menu]);
+
+  // Mở chi tiết theo id trên URL (chưa có sẵn dữ liệu nhân viên): tải từ API.
+  const pendingEmployeeId = screen.type === 'detail' && !screen.employee ? screen.employeeId : null;
+
+  useEffect(() => {
+    if (!pendingEmployeeId) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    setDetailError('');
+
+    // Link gõ tay / dán sai (không phải UUID): báo không tìm thấy thay vì lỗi "dữ liệu không hợp lệ".
+    if (!UUID_PATTERN.test(pendingEmployeeId)) {
+      setDetailError('Không tìm thấy nhân viên.');
+      return undefined;
+    }
+
+    api
+      .employee(pendingEmployeeId)
+      .then((response) => {
+        if (!cancelled) {
+          setScreen((previous) =>
+            previous.type === 'detail' && previous.employeeId === pendingEmployeeId
+              ? { ...previous, employee: response.data }
+              : previous
+          );
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setDetailError(err.message);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingEmployeeId]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -298,12 +373,21 @@ function Dashboard({ user, onLogout }) {
 
   const suggestedCode = useMemo(() => nextEmployeeCode(employeesLookup), [employeesLookup]);
 
+  // Đổi URL theo màn đang xem để tải lại trang / nút Back của trình duyệt giữ đúng chỗ.
+  function setHash(hash) {
+    if (window.location.hash !== hash) {
+      window.location.hash = hash;
+    }
+  }
+
   function showList() {
     setScreen({ type: 'list' });
+    setHash('#employees');
   }
 
   function showDetail(employee) {
-    setScreen({ type: 'detail', employee });
+    setScreen({ type: 'detail', employeeId: employee.id, employee });
+    setHash(`#employees/${employee.id}`);
   }
 
   function beginCreate() {
@@ -452,7 +536,12 @@ function Dashboard({ user, onLogout }) {
     if (screen.type === 'detail') {
       return {
         title: 'Chi tiết nhân sự',
-        crumbs: [...listCrumbs, { label: screen.employee.employeeCode }]
+        crumbs: [...listCrumbs, { label: screen.employee?.employeeCode || '…' }],
+        // Mở từ mục khác (vd bấm tên nhân viên ở Hợp đồng): nút quay lại đúng mục đó.
+        back: returnTo && pageTitles[returnTo] && {
+          label: `Quay lại ${pageTitles[returnTo].title}`,
+          onClick: () => setHash(`#${returnTo}`)
+        }
       };
     }
 
@@ -471,6 +560,23 @@ function Dashboard({ user, onLogout }) {
   })();
 
   function renderEmployees() {
+    if (screen.type === 'detail' && !screen.employee) {
+      return (
+        <section className="content-panel">
+          {detailError ? (
+            <>
+              <p className="form-error">Không mở được hồ sơ nhân viên: {detailError}</p>
+              <button type="button" className="ghost-button" onClick={showList}>
+                Về danh sách nhân sự
+              </button>
+            </>
+          ) : (
+            <p className="muted-text">Đang tải hồ sơ nhân viên…</p>
+          )}
+        </section>
+      );
+    }
+
     if (screen.type === 'detail') {
       return (
         <EmployeeDetail
@@ -709,6 +815,12 @@ function Dashboard({ user, onLogout }) {
       <section className="workspace">
         <header className="topbar">
           <div>
+            {header.back && (
+              <button type="button" className="back-link" onClick={header.back.onClick}>
+                <ArrowLeft size={16} aria-hidden="true" />
+                {header.back.label}
+              </button>
+            )}
             <h1>{header.title}</h1>
             {header.crumbs ? <Breadcrumb items={header.crumbs} /> : <p className="page-subtitle">{header.subtitle}</p>}
           </div>

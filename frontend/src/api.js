@@ -141,6 +141,8 @@ export const api = {
   },
   // Danh sách rút gọn, không phân trang: ô chọn quản lý, gợi ý mã NV, danh sách chức vụ tự do.
   employeesLookup: () => request('/employees/lookup'),
+  // Mở chi tiết nhân viên từ đường dẫn #employees/<id> (link từ Hợp đồng, Chấm công...).
+  employee: (id) => request(`/employees/${id}`),
   createEmployee: (employee) =>
     request('/employees', {
       method: 'POST',

@@ -525,6 +525,37 @@ select.invalid:focus,
   text-decoration: underline;
 }
 
+/* Tên nhân viên bấm được ở các bảng (Hợp đồng, Chấm công, Nghỉ phép...) → mở hồ sơ #employees/<id>. */
+.employee-link {
+  color: var(--heading);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.employee-link:hover,
+.employee-link:focus-visible {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+/* Mở chi tiết nhân viên từ mục khác: nút quay lại đúng mục đó, nằm trên tiêu đề trang. */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  border: 0;
+  padding: 0;
+  color: var(--primary);
+  background: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
 .form-error {
   margin: 0;
   border: 1px solid #f5c2c7;
@@ -2838,7 +2869,8 @@ table.schedule-grid {
   text-align: left;
 }
 
-.schedule-grid td.sticky-col strong {
+.schedule-grid td.sticky-col strong,
+.schedule-grid td.sticky-col .employee-link {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import { currentMonthValue, downloadBlob, formatCompact, formatHours, monthRange } from '../format.js';
 import { useLatestRequest } from '../useLatestRequest.js';
 import { HorizontalBarChart } from './charts.jsx';
+import EmployeeLink from './EmployeeLink.jsx';
 import Pagination from './Pagination.jsx';
 
 // Chỉ vẽ một trang của bảng: 5.000 nhân viên = 5.000 dòng làm trình duyệt khựng (tổng và biểu đồ vẫn tính trên đủ dữ liệu).
@@ -169,7 +170,7 @@ export default function ReportsPanel({ departments, showToast }) {
                 workHours.slice((page - 1) * ROWS_PAGE_SIZE, page * ROWS_PAGE_SIZE).map((row) => (
                   <tr key={row.employeeId}>
                     <td className="cell-main">
-                      <strong>{row.employeeName}</strong>
+                      <EmployeeLink id={row.employeeId}>{row.employeeName}</EmployeeLink>
                       <span>{row.employeeCode}</span>
                     </td>
                     <td data-label="Ngày công">{row.workDays}</td>

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { approvalStatusClass, approvalStatusLabels, formatDate, formatDateTime } from '../format.js';
 import { useLatestRequest } from '../useLatestRequest.js';
+import EmployeeLink from './EmployeeLink.jsx';
 
 // Yêu cầu đổi ca của nhân viên (HR-032): HR duyệt thì lịch tự đổi sang ca mới.
 export default function ShiftRequestsList({ showToast, onReviewed }) {
@@ -101,7 +102,7 @@ export default function ShiftRequestsList({ showToast, onReviewed }) {
               requests.map((request) => (
                 <tr key={request.id}>
                   <td className="cell-main">
-                    <strong>{request.employeeName}</strong>
+                    <EmployeeLink id={request.employeeId}>{request.employeeName}</EmployeeLink>
                   </td>
                   <td data-label="Ngày làm">{formatDate(request.workDate)}</td>
                   <td data-label="Ca hiện tại">{request.currentShiftName}</td>
