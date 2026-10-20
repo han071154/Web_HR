@@ -4454,3 +4454,7 @@ table.chart-table {
   min-width: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
+
+.users-table .cell-actions .ghost-button {
+  white-space: nowrap;
+}

@@ -645,6 +645,7 @@ delete — lock the account instead so approvals, attendance edits and history k
 | GET | `/users/employee-options` | Every employee with `linkedUserId` / `linkedUserEmail` (who already has an account) for the link picker |
 | GET | `/users/:id` | Account + `history` (created, role changes, locked / unlocked, password reset) |
 | POST | `/users` | `{ email, role, password, fullName?, employeeId? }` → `201` |
+| POST | `/users/bulk` | `{ employeeIds: [...] }` (1–100) → `{ data: { created, skipped } }` |
 | PATCH | `/users/:id` | Any of `{ fullName, role, employeeId (null = unlink), isActive }` |
 | POST | `/users/:id/reset-password` | `{ newPassword }` → `204` |
 
@@ -662,6 +663,11 @@ Rules:
   refresh tokens issued earlier are rejected (`users.password_changed_at`) and earlier access tokens get
   `401 Invalid or expired token` right away (in-memory list in `utils/sessionRevocation.js`, reloaded from the
   database when the server starts). A locked account cannot log in (`401 Email or password is incorrect`).
+- Bulk grant (`/users/bulk`, tab *Chưa có tài khoản*): each selected profile gets an `EMPLOYEE` account whose email is
+  the profile email (lower-cased) and a random 10-character password with letters and digits. The passwords are
+  returned **once** in `created[].password` so the Admin can download them (the screen saves a UTF-8 CSV for Excel);
+  only bcrypt hashes are stored. Profiles are skipped with a `reason` instead of failing the whole batch:
+  `ALREADY_LINKED`, `EMPLOYEE_NOT_WORKING` (resigned / terminated), `NO_EMAIL`, `EMAIL_TAKEN`, `EMPLOYEE_NOT_FOUND`.
 - Every change is written to `audit_logs` (`entity_type = 'USER'`).
 
 ```json

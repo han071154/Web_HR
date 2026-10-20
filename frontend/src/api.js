@@ -307,6 +307,7 @@ export const api = {
   users: (params) => request(`/users${toQuery(params)}`),
   userEmployeeOptions: () => request('/users/employee-options'),
   createUser: (account) => request('/users', { method: 'POST', body: JSON.stringify(account) }),
+  bulkCreateUsers: (employeeIds) => request('/users/bulk', { method: 'POST', body: JSON.stringify({ employeeIds }) }),
   updateUser: (id, changes) => request(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(changes) }),
   resetUserPassword: (id, newPassword) =>
     request(`/users/${id}/reset-password`, { method: 'POST', body: JSON.stringify({ newPassword }) })

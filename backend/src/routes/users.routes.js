@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'node:crypto';
 import express from 'express';
 import { z } from 'zod';
 import { query } from '../db.js';
@@ -35,6 +36,24 @@ const updateUserSchema = z
   .refine((body) => Object.keys(body).length > 0, 'Nothing to update');
 
 const resetPasswordSchema = z.object({ newPassword: passwordSchema });
+
+// Cấp hàng loạt: mỗi lần tối đa 100 hồ sơ (băm bcrypt ~0,2 s / tài khoản).
+const bulkCreateSchema = z.object({
+  employeeIds: z.array(z.string().uuid()).min(1).max(100)
+});
+
+const INACTIVE_EMPLOYEE_STATUSES = ['RESIGNED', 'TERMINATED'];
+
+// Mật khẩu tạm 10 ký tự có cả chữ và số, bỏ ký tự dễ nhầm (0/O, 1/l/I).
+export function generateTemporaryPassword() {
+  const letters = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ';
+  const digits = '23456789';
+  const all = letters + digits;
+  const chars = Array.from({ length: 10 }, () => all[crypto.randomInt(all.length)]);
+  chars[0] = letters[crypto.randomInt(letters.length)];
+  chars[9] = digits[crypto.randomInt(digits.length)];
+  return chars.join('');
+}
 
 const selectUserSql = `
   SELECT u.id, u.email, u.full_name, u.role, u.is_active, u.employee_id, u.created_at, u.updated_at,
@@ -182,12 +201,12 @@ router.get('/', async (req, res, next) => {
  *     summary: Danh sách nhân viên để liên kết tài khoản, kèm tài khoản đang liên kết (nếu có)
  *     security: [{ bearerAuth: [] }]
  *     responses:
- *       200: { description: 'data: [{ id, employeeCode, fullName, email, departmentName, linkedUserId, linkedUserEmail }]' }
+ *       200: { description: 'data: [{ id, employeeCode, fullName, email, status, position, departmentName, linkedUserId, linkedUserEmail }]' }
  */
 router.get('/employee-options', async (_req, res, next) => {
   try {
     const result = await query(
-      `SELECT e.id, e.employee_code, e.full_name, e.email, e.status, d.name AS department_name,
+      `SELECT e.id, e.employee_code, e.full_name, e.email, e.status, e.position, d.name AS department_name,
               u.id AS linked_user_id, u.email AS linked_user_email
        FROM employees e
        LEFT JOIN departments d ON d.id = e.department_id
@@ -202,6 +221,7 @@ router.get('/employee-options', async (_req, res, next) => {
         fullName: row.full_name,
         email: row.email,
         status: row.status,
+        position: row.position ?? null,
         departmentName: row.department_name ?? null,
         linkedUserId: row.linked_user_id ?? null,
         linkedUserEmail: row.linked_user_email ?? null
@@ -308,6 +328,104 @@ router.post('/', async (req, res, next) => {
     });
 
     res.status(201).json({ data: await findUser(id) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @openapi
+ * /users/bulk:
+ *   post:
+ *     tags: [Users]
+ *     summary: Cấp tài khoản Nhân viên hàng loạt cho các hồ sơ chưa có tài khoản (HR-007)
+ *     description: |
+ *       Mỗi hồ sơ được một tài khoản vai trò EMPLOYEE, email đăng nhập = email trong hồ sơ, mật khẩu ngẫu nhiên.
+ *       Mật khẩu chỉ trả về MỘT LẦN trong phản hồi này (để Admin xuất file gửi nhân viên), không lưu dạng đọc được.
+ *       Hồ sơ đã có tài khoản, đã nghỉ việc, không có email hoặc email đã được tài khoản khác dùng thì bỏ qua và ghi lý do.
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [employeeIds]
+ *             properties:
+ *               employeeIds: { type: array, items: { type: string, format: uuid }, minItems: 1, maxItems: 100 }
+ *     responses:
+ *       200: { description: 'created: [{ id, email, fullName, employeeCode, password }], skipped: [{ employeeId, employeeCode, fullName, reason }]' }
+ *       400: { description: Danh sách rỗng hoặc quá 100 hồ sơ }
+ */
+router.post('/bulk', async (req, res, next) => {
+  try {
+    const { employeeIds } = bulkCreateSchema.parse(req.body);
+    const uniqueIds = [...new Set(employeeIds)];
+    const result = await query(
+      `SELECT e.id, e.employee_code, e.full_name, e.email, e.status,
+              u.id AS linked_user_id, eu.id AS email_user_id
+       FROM employees e
+       LEFT JOIN users u ON u.employee_id = e.id
+       LEFT JOIN users eu ON eu.email = LOWER(e.email)
+       WHERE e.id = ANY($1::uuid[])`,
+      [uniqueIds]
+    );
+    const found = new Map(result.rows.map((row) => [row.id, row]));
+    const created = [];
+    const skipped = [];
+
+    for (const id of uniqueIds) {
+      const employee = found.get(id);
+      const base = { employeeId: id, employeeCode: employee?.employee_code ?? null, fullName: employee?.full_name ?? null };
+      let reason = null;
+
+      if (!employee) {
+        reason = 'EMPLOYEE_NOT_FOUND';
+      } else if (employee.linked_user_id) {
+        reason = 'ALREADY_LINKED';
+      } else if (INACTIVE_EMPLOYEE_STATUSES.includes(employee.status)) {
+        reason = 'EMPLOYEE_NOT_WORKING';
+      } else if (!employee.email) {
+        reason = 'NO_EMAIL';
+      } else if (employee.email_user_id) {
+        reason = 'EMAIL_TAKEN';
+      }
+
+      if (reason) {
+        skipped.push({ ...base, reason });
+        continue;
+      }
+
+      const email = employee.email.trim().toLowerCase();
+      const password = generateTemporaryPassword();
+
+      try {
+        const inserted = await query(
+          `INSERT INTO users (email, password_hash, full_name, role, employee_id)
+           VALUES ($1, $2, $3, 'EMPLOYEE', $4)
+           RETURNING id`,
+          [email, await bcrypt.hash(password, 12), employee.full_name, id]
+        );
+        const userId = inserted.rows[0].id;
+        await logAudit({
+          entityType: 'USER',
+          entityId: userId,
+          action: 'USER_CREATED',
+          details: { email, role: 'EMPLOYEE', employeeId: id, bulk: true },
+          user: req.user
+        });
+        created.push({ id: userId, email, fullName: employee.full_name, employeeCode: employee.employee_code, password });
+      } catch (error) {
+        // Có người vừa tạo trùng (email / hồ sơ) cùng lúc: bỏ qua hồ sơ này, các hồ sơ khác vẫn tiếp tục.
+        if (error.code !== '23505') {
+          throw error;
+        }
+
+        skipped.push({ ...base, reason: error.constraint === 'users_employee_id_key' ? 'ALREADY_LINKED' : 'EMAIL_TAKEN' });
+      }
+    }
+
+    res.json({ data: { created, skipped } });
   } catch (error) {
     next(error);
   }

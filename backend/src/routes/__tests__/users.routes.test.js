@@ -360,3 +360,69 @@ describe('POST /api/users/:id/reset-password', () => {
     ).toBe(404);
   });
 });
+
+describe('POST /api/users/bulk', () => {
+  const E = (n) => `5555555${n}-5555-4555-8555-555555555555`;
+
+  it('cấp tài khoản cho hồ sơ hợp lệ, bỏ qua và ghi lý do cho hồ sơ không cấp được', async () => {
+    const inserts = [];
+    answer([
+      [/WHERE e.id = ANY/, {
+        rows: [
+          { id: E(1), employee_code: 'EMP101', full_name: 'Người Một', email: 'Mot@WebHR.local', status: 'ACTIVE', linked_user_id: null, email_user_id: null },
+          { id: E(2), employee_code: 'EMP102', full_name: 'Đã Có', email: 'hai@webhr.local', status: 'ACTIVE', linked_user_id: USER_ID, email_user_id: USER_ID },
+          { id: E(3), employee_code: 'EMP103', full_name: 'Nghỉ Việc', email: 'ba@webhr.local', status: 'RESIGNED', linked_user_id: null, email_user_id: null },
+          { id: E(4), employee_code: 'EMP104', full_name: 'Không Email', email: null, status: 'ACTIVE', linked_user_id: null, email_user_id: null },
+          { id: E(5), employee_code: 'EMP105', full_name: 'Trùng Email', email: 'admin@webhr.local', status: 'ON_LEAVE', linked_user_id: null, email_user_id: ADMIN_ID }
+        ]
+      }],
+      [/INSERT INTO users/, (params) => { inserts.push(params); return { rows: [{ id: USER_ID }] }; }],
+      [/INSERT INTO audit_logs/, { rows: [] }]
+    ]);
+
+    const response = await request(app)
+      .post('/api/users/bulk')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ employeeIds: [E(1), E(2), E(3), E(4), E(5), E(6), E(1)] });
+
+    expect(response.status).toBe(200);
+    const { created, skipped } = response.body.data;
+    expect(created).toHaveLength(1);
+    expect(created[0]).toMatchObject({ email: 'mot@webhr.local', employeeCode: 'EMP101', fullName: 'Người Một' });
+    expect(created[0].password).toMatch(/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]{10}$/);
+    expect(inserts[0][1]).toMatch(/^\$2[aby]\$/);
+    expect(inserts[0][1]).not.toBe(created[0].password);
+    expect(inserts[0].slice(2)).toEqual(['Người Một', E(1)]);
+    expect(Object.fromEntries(skipped.map((s) => [s.employeeId, s.reason]))).toEqual({
+      [E(2)]: 'ALREADY_LINKED',
+      [E(3)]: 'EMPLOYEE_NOT_WORKING',
+      [E(4)]: 'NO_EMAIL',
+      [E(5)]: 'EMAIL_TAKEN',
+      [E(6)]: 'EMPLOYEE_NOT_FOUND'
+    });
+  });
+
+  it('trùng khi tạo cùng lúc (23505) → bỏ qua hồ sơ đó, không lỗi cả lô', async () => {
+    answer([
+      [/WHERE e.id = ANY/, { rows: [{ id: E(1), employee_code: 'EMP101', full_name: 'A', email: 'a@webhr.local', status: 'ACTIVE', linked_user_id: null, email_user_id: null }] }],
+      [/INSERT INTO users/, () => { throw Object.assign(new Error('duplicate'), { code: '23505', constraint: 'users_employee_id_key' }); }]
+    ]);
+
+    const response = await request(app)
+      .post('/api/users/bulk')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ employeeIds: [E(1)] });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({ created: [], skipped: [{ employeeId: E(1), employeeCode: 'EMP101', fullName: 'A', reason: 'ALREADY_LINKED' }] });
+  });
+
+  it('danh sách rỗng hoặc quá 100 → 400; không phải Admin → 403', async () => {
+    const send = (body, token = adminToken()) => request(app).post('/api/users/bulk').set('Authorization', `Bearer ${token}`).send(body);
+
+    expect((await send({ employeeIds: [] })).status).toBe(400);
+    expect((await send({ employeeIds: Array.from({ length: 101 }, () => E(1)) })).status).toBe(400);
+    expect((await send({ employeeIds: [E(1)] }, tokenFor('HR_MANAGER', USER_ID))).status).toBe(403);
+    expect(query).not.toHaveBeenCalled();
+  });
+});
