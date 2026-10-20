@@ -4441,3 +4441,16 @@ table.chart-table {
     flex-basis: 100%;
   }
 }
+
+/* Ô mật khẩu kèm nút hiện/ẩn và tạo ngẫu nhiên (Quản lý tài khoản, HR-007). */
+.password-input {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.password-input input {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}

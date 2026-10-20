@@ -37,8 +37,8 @@ HR-027: `POST /auth/change-password` takes `{ currentPassword, newPassword }`. T
 8–72 characters with at least one letter and one number, and differ from the current one. Wrong current
 password → `400 Current password is incorrect`. Limited to 10 attempts per account per 15 minutes
 (separate from the login limit). On success it returns a new `token` and `refreshToken`; refresh tokens
-issued before the change are rejected from then on (`users.password_changed_at`). Resetting a forgotten
-password is done by an Admin (HR-007).
+issued before the change are rejected from then on (`users.password_changed_at`), and so are access tokens
+of other sessions. Resetting a forgotten password is done by an Admin (`POST /users/:id/reset-password`, HR-007).
 
 ```json
 // POST /auth/login
@@ -494,8 +494,8 @@ when creating. A shift already used in a schedule cannot be deleted
 ## Work schedules (Lịch phân ca)
 
 An account only has a personal schedule if it is linked to an employee profile
-(`users.employee_id`, set directly in the database for now). There is no self-service sign-up:
-accounts are provided by an Admin (backlog HR-007). Calling a `/me*` endpoint from an account without that link returns
+(`users.employee_id`). There is no self-service sign-up: an Admin creates the account and links it under
+Quản lý tài khoản (`/users`, HR-007). Calling a `/me*` endpoint from an account without that link returns
 `409 This account is not linked to an employee profile`.
 
 | Method | Path | Roles |
@@ -632,6 +632,42 @@ pendingLeaves, pendingShiftChanges, month: { from, to, totalHours, otHours } }` 
 
 For `work-hours` and `export`, `from`/`to` are required `YYYY-MM-DD` dates. The employee list itself is exported separately via
 `GET /employees/export` (Excel only — no PDF export is implemented, per project decision).
+
+## User accounts (Quản lý tài khoản, HR-007)
+
+Admin only (`403` for every other role). Replaces self sign-up (HR-025, dropped): the Admin creates the login,
+picks the role, links it to an employee profile, locks / unlocks it and resets forgotten passwords. There is no
+delete — lock the account instead so approvals, attendance edits and history keep their author.
+
+| Method | Endpoint | Notes |
+| --- | --- | --- |
+| GET | `/users` | `search` (name without accents, email, employee code), `role`, `status=active\|locked`, `linked=yes\|no`, `page`, `limit` (max 100) → `{ data, pagination }` |
+| GET | `/users/employee-options` | Every employee with `linkedUserId` / `linkedUserEmail` (who already has an account) for the link picker |
+| GET | `/users/:id` | Account + `history` (created, role changes, locked / unlocked, password reset) |
+| POST | `/users` | `{ email, role, password, fullName?, employeeId? }` → `201` |
+| PATCH | `/users/:id` | Any of `{ fullName, role, employeeId (null = unlink), isActive }` |
+| POST | `/users/:id/reset-password` | `{ newPassword }` → `204` |
+
+Rules:
+
+- `role` is one of `ADMIN`, `HR_MANAGER`, `HR_STAFF`, `EMPLOYEE`. `EMPLOYEE` accounts must be linked to an employee
+  profile (`400 Employee accounts must be linked to an employee profile`); HR accounts may be linked or not.
+- One account per profile (`409 This employee already has a linked account`), one account per email
+  (`409 Account email already exists`, emails are stored lower-case). Without `fullName` the profile name is used.
+- Passwords follow the same rule as change-password: 8–72 characters with a letter and a number.
+- An Admin cannot lock or change the role of their own account (`409 You cannot lock or change the role of your own
+  account`), cannot reset their own password here (`409 Use change password for your own account`), and the last
+  active Admin cannot be locked or demoted (`409 At least one active admin account is required`).
+- Locking, changing the role or the linked profile, and resetting the password sign the user out everywhere:
+  refresh tokens issued earlier are rejected (`users.password_changed_at`) and earlier access tokens get
+  `401 Invalid or expired token` right away (in-memory list in `utils/sessionRevocation.js`, reloaded from the
+  database when the server starts). A locked account cannot log in (`401 Email or password is incorrect`).
+- Every change is written to `audit_logs` (`entity_type = 'USER'`).
+
+```json
+// POST /users
+{ "email": "yen.ct@webhr.local", "role": "EMPLOYEE", "password": "dY3pv7U3U6", "employeeId": "<employee uuid>" }
+```
 
 ## Error behavior
 

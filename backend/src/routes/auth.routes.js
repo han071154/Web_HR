@@ -8,6 +8,8 @@ import { requireAuth } from '../middleware/auth.js';
 import { authLimiter, passwordChangeLimiter } from '../middleware/rateLimit.js';
 import { logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
+import { revokeSessions } from '../utils/sessionRevocation.js';
+import { passwordSchema } from '../utils/validation.js';
 
 const router = express.Router();
 
@@ -20,15 +22,9 @@ const refreshSchema = z.object({
   refreshToken: z.string().min(1)
 });
 
-// Mật khẩu mới: 8–72 ký tự (bcrypt chỉ dùng 72 byte đầu), có cả chữ và số.
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .max(72, 'Password must be at most 72 characters')
-    .regex(/[A-Za-z]/, 'Password must contain a letter')
-    .regex(/\d/, 'Password must contain a number')
+  newPassword: passwordSchema
 });
 
 function signAccessToken(user) {
@@ -255,6 +251,8 @@ router.post('/change-password', requireAuth, passwordChangeLimiter, async (req, 
        WHERE id = $2`,
       [passwordHash, user.id]
     );
+    // Các phiên khác (máy khác) hết hiệu lực ngay, không chờ access token hết hạn.
+    revokeSessions(user.id, Date.now() - 1000);
     await logAudit({ entityType: 'USER', entityId: user.id, action: 'PASSWORD_CHANGED', user: req.user });
 
     res.json({ token: signAccessToken(user), refreshToken: signRefreshToken(user) });

@@ -24,3 +24,12 @@ export const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$
 // Cột tiền là NUMERIC(14, 2): lớn hơn mức này PostgreSQL báo "numeric field overflow".
 export const MAX_MONEY = 999999999999.99;
 export const moneySchema = z.coerce.number().min(0).max(MAX_MONEY);
+
+// Mật khẩu: 8–72 ký tự (bcrypt chỉ dùng 72 byte đầu), có cả chữ và số. Dùng khi tự đổi mật khẩu (HR-027)
+// và khi Admin cấp tài khoản / đặt lại mật khẩu (HR-007).
+export const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .max(72, 'Password must be at most 72 characters')
+  .regex(/[A-Za-z]/, 'Password must contain a letter')
+  .regex(/\d/, 'Password must contain a number');
