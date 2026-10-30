@@ -18,6 +18,7 @@ import {
   Search,
   Trash2,
   Upload,
+  UserCog,
   UserRound,
   Users
 } from 'lucide-react';
@@ -44,6 +45,7 @@ import PositionsPanel from './components/PositionsPanel.jsx';
 import RecruitmentPanel from './components/RecruitmentPanel.jsx';
 import ReportsPanel from './components/ReportsPanel.jsx';
 import ShiftsPanel from './components/ShiftsPanel.jsx';
+import UsersPanel from './components/UsersPanel.jsx';
 import Toast from './components/Toast.jsx';
 import { CONTRACT_DELETE_ROLES, CONTRACT_EDIT_ROLES } from './contracts.js';
 import { roleLabels, statusLabels } from './format.js';
@@ -55,8 +57,9 @@ const DELETE_ROLES = ['ADMIN', 'HR_MANAGER'];
 const PAGE_SIZE = 10;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Menu bên trái: HR Manager/Admin thấy mọi mục quản lý; HR Staff chỉ thấy các mục vận hành hằng ngày
-// (managerOnly bị ẩn, backend cũng chặn); tài khoản nhân viên (EMPLOYEE) chỉ thấy các mục tự phục vụ.
+// Menu bên trái: Admin thấy mọi mục; HR Manager không thấy mục adminOnly (quản lý tài khoản, HR-007); HR Staff chỉ
+// thấy các mục vận hành hằng ngày (managerOnly bị ẩn, backend cũng chặn); tài khoản nhân viên (EMPLOYEE) chỉ thấy
+// các mục tự phục vụ.
 const HR_MENU = [
   { view: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard },
   { view: 'employees', label: 'Nhân sự', icon: Users, managerOnly: true },
@@ -68,10 +71,12 @@ const HR_MENU = [
   { view: 'attendance', label: 'Chấm công', icon: Clock },
   { view: 'leave', label: 'Nghỉ phép', icon: Plane },
   { view: 'reports', label: 'Báo cáo', icon: BarChart3, managerOnly: true },
+  { view: 'users', label: 'Quản lý tài khoản', icon: UserCog, adminOnly: true },
   { view: 'account', label: 'Tài khoản', icon: KeyRound }
 ];
 
-const HR_STAFF_MENU = HR_MENU.filter((item) => !item.managerOnly);
+const HR_MANAGER_MENU = HR_MENU.filter((item) => !item.adminOnly);
+const HR_STAFF_MENU = HR_MANAGER_MENU.filter((item) => !item.managerOnly);
 
 const EMPLOYEE_MENU = [
   { view: 'my-attendance', label: 'Chấm công', icon: Clock },
@@ -95,7 +100,8 @@ const pageTitles = {
   'my-schedule': { title: 'Lịch làm việc', subtitle: 'Xem ca được xếp, đăng ký ca hoặc xin đổi ca' },
   'my-leave': { title: 'Nghỉ phép', subtitle: 'Gửi đơn xin nghỉ và theo dõi kết quả duyệt' },
   'my-profile': { title: 'Hồ sơ của tôi', subtitle: 'Xem hồ sơ, cập nhật thông tin liên hệ và đổi mật khẩu' },
-  account: { title: 'Tài khoản', subtitle: 'Thông tin tài khoản đăng nhập và đổi mật khẩu' }
+  account: { title: 'Tài khoản', subtitle: 'Thông tin tài khoản đăng nhập và đổi mật khẩu' },
+  users: { title: 'Quản lý tài khoản', subtitle: 'Cấp tài khoản, gán vai trò, liên kết hồ sơ, khóa và đặt lại mật khẩu' }
 };
 
 function menuFor(user) {
@@ -103,7 +109,11 @@ function menuFor(user) {
     return EMPLOYEE_MENU;
   }
 
-  return user?.role === 'HR_STAFF' ? HR_STAFF_MENU : HR_MENU;
+  if (user?.role === 'HR_STAFF') {
+    return HR_STAFF_MENU;
+  }
+
+  return user?.role === 'ADMIN' ? HR_MENU : HR_MANAGER_MENU;
 }
 
 // Đường dẫn trong app: #<mục menu>, hoặc #employees/<id> để mở thẳng chi tiết một nhân viên (link từ
@@ -884,6 +894,8 @@ function Dashboard({ user, onLogout }) {
           <MySchedulePanel showToast={showToast} />
         ) : view === 'my-leave' ? (
           <MyLeavePanel showToast={showToast} />
+        ) : view === 'users' ? (
+          <UsersPanel user={user} showToast={showToast} />
         ) : view === 'my-profile' || view === 'account' ? (
           <AccountPanel user={user} showToast={showToast} />
         ) : (

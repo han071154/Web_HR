@@ -74,7 +74,16 @@ const exactMessages = {
   'Date, time or number value is out of range': 'Ngày, giờ hoặc số tiền không hợp lệ.',
   'Current password is incorrect': 'Mật khẩu hiện tại không đúng.',
   'Too many password change attempts, please try again later': 'Bạn đã thử đổi mật khẩu quá nhiều lần. Vui lòng thử lại sau 15 phút.',
-  'New password must be different from the current password': 'Mật khẩu mới phải khác mật khẩu hiện tại.'
+  'New password must be different from the current password': 'Mật khẩu mới phải khác mật khẩu hiện tại.',
+  // Quản lý tài khoản (HR-007).
+  'User not found': 'Không tìm thấy tài khoản.',
+  'Account email already exists': 'Email này đã có tài khoản đăng nhập. Vui lòng dùng email khác.',
+  'This employee already has a linked account': 'Nhân viên này đã có tài khoản đăng nhập.',
+  'Employee accounts must be linked to an employee profile': 'Tài khoản Nhân viên phải liên kết với một hồ sơ nhân viên.',
+  'Full name is required': 'Vui lòng nhập họ tên.',
+  'You cannot lock or change the role of your own account': 'Bạn không thể tự khóa hoặc tự đổi vai trò tài khoản của mình.',
+  'At least one active admin account is required': 'Hệ thống phải còn ít nhất một tài khoản Quản trị viên đang hoạt động.',
+  'Use change password for your own account': 'Đổi mật khẩu của chính bạn ở mục Tài khoản.'
 };
 
 // "Weekly work hour limit exceeded (max 48h/week)": số giờ lấy từ cấu hình backend.
@@ -89,6 +98,7 @@ const fieldLabels = {
   fullName: 'Họ tên',
   email: 'Email',
   password: 'Mật khẩu',
+  role: 'Vai trò',
   name: 'Tên',
   code: 'Mã',
   description: 'Mô tả',
