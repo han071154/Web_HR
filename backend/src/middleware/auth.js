@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
 import { httpError } from '../utils/httpError.js';
+import { isTokenRevoked } from '../utils/sessionRevocation.js';
 
 export function requireAuth(req, _res, next) {
   const header = req.headers.authorization;
@@ -9,13 +10,21 @@ export function requireAuth(req, _res, next) {
     return next(httpError(401, 'Missing authorization token'));
   }
 
+  let payload;
+
   try {
-    const token = header.slice('Bearer '.length);
-    req.user = jwt.verify(token, config.jwtSecret);
-    return next();
+    payload = jwt.verify(header.slice('Bearer '.length), config.jwtSecret);
   } catch {
     return next(httpError(401, 'Invalid or expired token'));
   }
+
+  // Tài khoản bị khóa / đổi vai trò / đặt lại mật khẩu sau khi token được cấp (HR-007).
+  if (isTokenRevoked(payload)) {
+    return next(httpError(401, 'Invalid or expired token'));
+  }
+
+  req.user = payload;
+  return next();
 }
 
 export function requireRole(...roles) {

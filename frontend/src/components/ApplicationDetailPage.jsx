@@ -5,10 +5,11 @@ import { cvPreviewUrl, downloadCv } from '../cv.js';
 import { applicationStatusClass, applicationStatusLabels, formatDateTime, toDateTimeInputValue } from '../format.js';
 import Avatar from './Avatar.jsx';
 import ConvertDialog from './ConvertDialog.jsx';
+import EmployeeLink from './EmployeeLink.jsx';
 import HistoryTimeline from './HistoryTimeline.jsx';
 
-// Quyền khớp với backend: HR nào cũng xử lý hồ sơ và chuyển thành nhân sự được.
-const EDIT_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
+// Quyền khớp với backend: chỉ HR Manager/Admin xử lý hồ sơ và chuyển thành nhân sự.
+const EDIT_ROLES = ['ADMIN', 'HR_MANAGER'];
 
 // Các bước trên thanh tiến trình; bước cuối là kết quả (Đậu hoặc Trượt).
 const STEPS = ['NEW', 'REVIEWING', 'INTERVIEW', 'RESULT'];
@@ -296,7 +297,13 @@ export default function ApplicationDetailPage({
           <h2>Chuyển thành nhân sự</h2>
           {converted ? (
             <p>
-              Đã chuyển thành nhân viên <strong>{application.employeeCode || '(hồ sơ nhân viên đã bị xóa)'}</strong>.
+              Đã chuyển thành nhân viên{' '}
+              {application.employeeCode ? (
+                <EmployeeLink id={application.employeeId}>{application.employeeCode}</EmployeeLink>
+              ) : (
+                <strong>(hồ sơ nhân viên đã bị xóa)</strong>
+              )}
+              .
             </p>
           ) : (
             <p className="muted-text">

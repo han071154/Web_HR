@@ -16,6 +16,12 @@ returned as `YYYY-MM-DD` strings.
 
 Run `npm run db:setup` to create or refresh these accounts.
 
+**HR roles by function (since 2026-10-14):** HR_MANAGER (and ADMIN) manage employee records, contracts,
+recruitment and the work-hour report, and approve leave and shift-change requests. HR_STAFF runs daily
+operations only: shifts and schedules, attendance (view, edit, monthly summary, Excel export), viewing leave
+and shift-change requests, the dashboard. HR_STAFF still gets `GET /employees` for scheduling, without
+`baseSalary`, `idNumber`, `dateOfBirth` and `address`.
+
 ## Auth
 
 Interactive Swagger UI for this section is served at `/api/docs` (task #68).
@@ -31,8 +37,8 @@ HR-027: `POST /auth/change-password` takes `{ currentPassword, newPassword }`. T
 8–72 characters with at least one letter and one number, and differ from the current one. Wrong current
 password → `400 Current password is incorrect`. Limited to 10 attempts per account per 15 minutes
 (separate from the login limit). On success it returns a new `token` and `refreshToken`; refresh tokens
-issued before the change are rejected from then on (`users.password_changed_at`). Resetting a forgotten
-password is done by an Admin (HR-007).
+issued before the change are rejected from then on (`users.password_changed_at`), and so are access tokens
+of other sessions. Resetting a forgotten password is done by an Admin (`POST /users/:id/reset-password`, HR-007).
 
 ```json
 // POST /auth/login
@@ -94,13 +100,13 @@ A department that still has employees cannot be deleted: `DELETE` returns `409`
 | Method | Path | Roles |
 | --- | --- | --- |
 | GET | `/employees?search=&status=&departmentId=&position=&page=&limit=` | ADMIN, HR_MANAGER, HR_STAFF |
-| GET | `/employees/lookup` | ADMIN, HR_MANAGER, HR_STAFF |
-| GET | `/employees/:id` | ADMIN, HR_MANAGER, HR_STAFF |
-| GET | `/employees/:id/history` | ADMIN, HR_MANAGER, HR_STAFF |
-| GET | `/employees/export?search=&status=&departmentId=&position=` | ADMIN, HR_MANAGER, HR_STAFF |
-| POST | `/employees/import` | ADMIN, HR_MANAGER, HR_STAFF |
-| POST | `/employees` | ADMIN, HR_MANAGER, HR_STAFF |
-| PUT | `/employees/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/employees/lookup` | ADMIN, HR_MANAGER |
+| GET | `/employees/:id` | ADMIN, HR_MANAGER |
+| GET | `/employees/:id/history` | ADMIN, HR_MANAGER |
+| GET | `/employees/export?search=&status=&departmentId=&position=` | ADMIN, HR_MANAGER |
+| POST | `/employees/import` | ADMIN, HR_MANAGER |
+| POST | `/employees` | ADMIN, HR_MANAGER |
+| PUT | `/employees/:id` | ADMIN, HR_MANAGER |
 | DELETE | `/employees/:id` | ADMIN, HR_MANAGER |
 | GET | `/employees/me` | Any authenticated role linked to an employee profile |
 | PUT | `/employees/me` | Any authenticated role linked to an employee profile |
@@ -229,10 +235,10 @@ Create/update fields:
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/contracts?employeeId=&status=&search=` | ADMIN, HR_MANAGER, HR_STAFF |
-| GET | `/contracts/:id` | ADMIN, HR_MANAGER, HR_STAFF |
-| POST | `/contracts` | ADMIN, HR_MANAGER, HR_STAFF |
-| PUT | `/contracts/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/contracts?employeeId=&status=&search=` | ADMIN, HR_MANAGER |
+| GET | `/contracts/:id` | ADMIN, HR_MANAGER |
+| POST | `/contracts` | ADMIN, HR_MANAGER |
+| PUT | `/contracts/:id` | ADMIN, HR_MANAGER |
 | DELETE | `/contracts/:id` | ADMIN, HR_MANAGER |
 
 Create/update fields:
@@ -273,8 +279,8 @@ JPEG, PNG, and WebP images up to 5 MB are accepted.
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| POST | `/employees/:id/avatar` | ADMIN, HR_MANAGER, HR_STAFF |
-| DELETE | `/employees/:id/avatar` | ADMIN, HR_MANAGER, HR_STAFF |
+| POST | `/employees/:id/avatar` | ADMIN, HR_MANAGER |
+| DELETE | `/employees/:id/avatar` | ADMIN, HR_MANAGER |
 
 The upload response contains the updated employee and an absolute `avatarUrl`.
 Employee list/detail responses also include `avatarUrl`.
@@ -356,10 +362,10 @@ not passed appear publicly.
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/jobs?search=&status=&departmentId=` | ADMIN, HR_MANAGER, HR_STAFF |
-| GET | `/jobs/:id` | ADMIN, HR_MANAGER, HR_STAFF |
-| POST | `/jobs` | ADMIN, HR_MANAGER, HR_STAFF |
-| PUT | `/jobs/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/jobs?search=&status=&departmentId=` | ADMIN, HR_MANAGER |
+| GET | `/jobs/:id` | ADMIN, HR_MANAGER |
+| POST | `/jobs` | ADMIN, HR_MANAGER |
+| PUT | `/jobs/:id` | ADMIN, HR_MANAGER |
 | DELETE | `/jobs/:id` | ADMIN, HR_MANAGER |
 
 Create fields (`PUT` accepts any subset):
@@ -397,11 +403,11 @@ Create fields (`PUT` accepts any subset):
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| GET | `/applications?jobId=&status=&search=` | ADMIN, HR_MANAGER, HR_STAFF |
-| GET | `/applications/:id` | ADMIN, HR_MANAGER, HR_STAFF (adds `cvSize` and `history`) |
-| GET | `/applications/:id/cv` | ADMIN, HR_MANAGER, HR_STAFF (PDF; `?inline=1` to preview in the browser) |
-| PATCH | `/applications/:id` | ADMIN, HR_MANAGER, HR_STAFF |
-| POST | `/applications/:id/convert` | ADMIN, HR_MANAGER, HR_STAFF |
+| GET | `/applications?jobId=&status=&search=` | ADMIN, HR_MANAGER |
+| GET | `/applications/:id` | ADMIN, HR_MANAGER (adds `cvSize` and `history`) |
+| GET | `/applications/:id/cv` | ADMIN, HR_MANAGER (PDF; `?inline=1` to preview in the browser) |
+| PATCH | `/applications/:id` | ADMIN, HR_MANAGER |
+| POST | `/applications/:id/convert` | ADMIN, HR_MANAGER |
 | DELETE | `/applications/:id` | ADMIN, HR_MANAGER |
 
 `search` matches name, email, phone or application code (`HS-000123` or `123`).
@@ -488,8 +494,8 @@ when creating. A shift already used in a schedule cannot be deleted
 ## Work schedules (Lịch phân ca)
 
 An account only has a personal schedule if it is linked to an employee profile
-(`users.employee_id`, set directly in the database for now). There is no self-service sign-up:
-accounts are provided by an Admin (backlog HR-007). Calling a `/me*` endpoint from an account without that link returns
+(`users.employee_id`). There is no self-service sign-up: an Admin creates the account and links it under
+Quản lý tài khoản (`/users`, HR-007). Calling a `/me*` endpoint from an account without that link returns
 `409 This account is not linked to an employee profile`.
 
 | Method | Path | Roles |
@@ -506,7 +512,7 @@ accounts are provided by an Admin (backlog HR-007). Calling a `/me*` endpoint fr
 | PUT | `/work-schedules/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | DELETE | `/work-schedules/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | GET | `/work-schedules/change-requests?status=` | ADMIN, HR_MANAGER, HR_STAFF |
-| PATCH | `/work-schedules/change-requests/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| PATCH | `/work-schedules/change-requests/:id` | ADMIN, HR_MANAGER |
 
 Create/update fields:
 
@@ -589,7 +595,7 @@ monthly totals use the same formula.
 | POST | `/leave-requests` | Any authenticated role linked to an employee |
 | GET | `/leave-requests?employeeId=&status=` | ADMIN, HR_MANAGER, HR_STAFF |
 | GET | `/leave-requests/:id` | ADMIN, HR_MANAGER, HR_STAFF |
-| PATCH | `/leave-requests/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| PATCH | `/leave-requests/:id` | ADMIN, HR_MANAGER |
 
 ```json
 // POST /leave-requests
@@ -610,7 +616,7 @@ becomes `ON_LEAVE`; a day with a real attendance record (check-in/out) is left u
 
 ## Reports (Báo cáo thống kê)
 
-All routes require ADMIN, HR_MANAGER or HR_STAFF.
+All routes require ADMIN, HR_MANAGER or HR_STAFF, except `/reports/work-hours` (ADMIN, HR_MANAGER only).
 
 | Method | Path | Description |
 | --- | --- | --- |
@@ -626,6 +632,48 @@ pendingLeaves, pendingShiftChanges, month: { from, to, totalHours, otHours } }` 
 
 For `work-hours` and `export`, `from`/`to` are required `YYYY-MM-DD` dates. The employee list itself is exported separately via
 `GET /employees/export` (Excel only — no PDF export is implemented, per project decision).
+
+## User accounts (Quản lý tài khoản, HR-007)
+
+Admin only (`403` for every other role). Replaces self sign-up (HR-025, dropped): the Admin creates the login,
+picks the role, links it to an employee profile, locks / unlocks it and resets forgotten passwords. There is no
+delete — lock the account instead so approvals, attendance edits and history keep their author.
+
+| Method | Endpoint | Notes |
+| --- | --- | --- |
+| GET | `/users` | `search` (name without accents, email, employee code), `role`, `status=active\|locked`, `linked=yes\|no`, `page`, `limit` (max 100) → `{ data, pagination }` |
+| GET | `/users/employee-options` | Every employee with `linkedUserId` / `linkedUserEmail` (who already has an account) for the link picker |
+| GET | `/users/:id` | Account + `history` (created, role changes, locked / unlocked, password reset) |
+| POST | `/users` | `{ email, role, password, fullName?, employeeId? }` → `201` |
+| POST | `/users/bulk` | `{ employeeIds: [...] }` (1–100) → `{ data: { created, skipped } }` |
+| PATCH | `/users/:id` | Any of `{ fullName, role, employeeId (null = unlink), isActive }` |
+| POST | `/users/:id/reset-password` | `{ newPassword }` → `204` |
+
+Rules:
+
+- `role` is one of `ADMIN`, `HR_MANAGER`, `HR_STAFF`, `EMPLOYEE`. `EMPLOYEE` accounts must be linked to an employee
+  profile (`400 Employee accounts must be linked to an employee profile`); HR accounts may be linked or not.
+- One account per profile (`409 This employee already has a linked account`), one account per email
+  (`409 Account email already exists`, emails are stored lower-case). Without `fullName` the profile name is used.
+- Passwords follow the same rule as change-password: 8–72 characters with a letter and a number.
+- An Admin cannot lock or change the role of their own account (`409 You cannot lock or change the role of your own
+  account`), cannot reset their own password here (`409 Use change password for your own account`), and the last
+  active Admin cannot be locked or demoted (`409 At least one active admin account is required`).
+- Locking, changing the role or the linked profile, and resetting the password sign the user out everywhere:
+  refresh tokens issued earlier are rejected (`users.password_changed_at`) and earlier access tokens get
+  `401 Invalid or expired token` right away (in-memory list in `utils/sessionRevocation.js`, reloaded from the
+  database when the server starts). A locked account cannot log in (`401 Email or password is incorrect`).
+- Bulk grant (`/users/bulk`, tab *Chưa có tài khoản*): each selected profile gets an `EMPLOYEE` account whose email is
+  the profile email (lower-cased) and a random 10-character password with letters and digits. The passwords are
+  returned **once** in `created[].password` so the Admin can download them (the screen saves a UTF-8 CSV for Excel);
+  only bcrypt hashes are stored. Profiles are skipped with a `reason` instead of failing the whole batch:
+  `ALREADY_LINKED`, `EMPLOYEE_NOT_WORKING` (resigned / terminated), `NO_EMAIL`, `EMAIL_TAKEN`, `EMPLOYEE_NOT_FOUND`.
+- Every change is written to `audit_logs` (`entity_type = 'USER'`).
+
+```json
+// POST /users
+{ "email": "yen.ct@webhr.local", "role": "EMPLOYEE", "password": "dY3pv7U3U6", "employeeId": "<employee uuid>" }
+```
 
 ## Error behavior
 

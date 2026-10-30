@@ -1,6 +1,15 @@
 import { FileSignature } from 'lucide-react';
-import { useState } from 'react';
-import { MAX_MONEY, MAX_MONEY_MESSAGE, contractStatusLabels, contractTypeLabels, toDateInputValue, todayInputValue } from '../format.js';
+import { useMemo, useState } from 'react';
+import {
+  MAX_MONEY,
+  MAX_MONEY_MESSAGE,
+  contractStatusLabels,
+  contractTypeLabels,
+  normalizeText,
+  toDateInputValue,
+  todayInputValue
+} from '../format.js';
+import EmployeeLink from './EmployeeLink.jsx';
 
 // Thời hạn gợi ý theo loại hợp đồng (bấm để tự điền ngày kết thúc).
 const DURATION_PRESETS = {
@@ -62,7 +71,26 @@ export default function ContractForm({ contract, employee, employees = [], error
   const [numberTouched, setNumberTouched] = useState(Boolean(contract?.id));
   const [localError, setLocalError] = useState('');
   const [saving, setSaving] = useState(false);
+  // Gõ tên hoặc mã (không dấu cũng được) để lọc danh sách chọn nhân viên – có hàng nghìn nhân viên (BUG-36).
+  const [employeeSearch, setEmployeeSearch] = useState('');
   const isIndefinite = form.contractType === 'INDEFINITE';
+
+  const { employeeOptions, matchCount } = useMemo(() => {
+    const keyword = normalizeText(employeeSearch.trim());
+
+    if (!keyword) {
+      return { employeeOptions: employees, matchCount: employees.length };
+    }
+
+    const matches = employees.filter((item) => normalizeText(`${item.fullName} ${item.employeeCode}`).includes(keyword));
+    const selected = employees.find((item) => item.id === form.employeeId);
+
+    // Giữ nhân viên đang chọn trong danh sách để ô chọn không bị trống khi đổi từ khóa.
+    return {
+      employeeOptions: selected && !matches.includes(selected) ? [selected, ...matches] : matches,
+      matchCount: matches.length
+    };
+  }, [employees, employeeSearch, form.employeeId]);
 
   function updateField(field, value) {
     setForm((current) => {
@@ -134,14 +162,44 @@ export default function ContractForm({ contract, employee, employees = [], error
         ) : (
           <label>
             Nhân viên
-            <select value={form.employeeId} onChange={(event) => updateField('employeeId', event.target.value)} required>
-              <option value="">Chọn nhân viên</option>
-              {employees.map((item) => (
+            <input
+              type="search"
+              value={employeeSearch}
+              onChange={(event) => {
+                const value = event.target.value;
+                setEmployeeSearch(value);
+                // Gõ ra đúng 1 người thì chọn luôn, khỏi phải mở danh sách.
+                const keyword = normalizeText(value.trim());
+                const matches = keyword
+                  ? employees.filter((item) => normalizeText(`${item.fullName} ${item.employeeCode}`).includes(keyword))
+                  : [];
+                if (matches.length === 1 && matches[0].id !== form.employeeId) {
+                  updateField('employeeId', matches[0].id);
+                }
+              }}
+              placeholder="Tìm theo tên hoặc mã nhân viên"
+              aria-label="Tìm nhân viên"
+            />
+            <select
+              value={form.employeeId}
+              onChange={(event) => updateField('employeeId', event.target.value)}
+              required
+              aria-label="Chọn nhân viên"
+            >
+              <option value="">
+                {employeeSearch.trim() ? `Chọn nhân viên (${matchCount} kết quả)` : 'Chọn nhân viên'}
+              </option>
+              {employeeOptions.map((item) => (
                 <option value={item.id} key={item.id}>
                   {item.fullName} ({item.employeeCode})
                 </option>
               ))}
             </select>
+            {form.employeeId && (
+              <small className="field-hint">
+                <EmployeeLink id={form.employeeId}>Xem hồ sơ nhân viên →</EmployeeLink>
+              </small>
+            )}
           </label>
         )}
         <label>

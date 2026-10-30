@@ -142,7 +142,7 @@ async function hrRecruitmentChecks({ managerToken, staffToken }, suffix) {
 
   try {
     const job = await request('/jobs', {
-      token: staffToken,
+      token: managerToken,
       method: 'POST',
       expected: 201,
       body: {
@@ -162,7 +162,7 @@ async function hrRecruitmentChecks({ managerToken, staffToken }, suffix) {
     assert.equal(job.data.applicationCount, 0);
 
     await request('/jobs', {
-      token: staffToken,
+      token: managerToken,
       method: 'POST',
       expected: 400,
       body: { ...job.data, code: `BAD-${suffix}`, salaryMin: 9000000, salaryMax: 1000000 }
@@ -170,7 +170,7 @@ async function hrRecruitmentChecks({ managerToken, staffToken }, suffix) {
 
     // Tin nháp không hiện ở trang công khai; mở tin thì hiện.
     await request(`/public/jobs/${jobId}`, { expected: 404 });
-    const opened = await request(`/jobs/${jobId}`, { token: staffToken, method: 'PUT', body: { status: 'OPEN' } });
+    const opened = await request(`/jobs/${jobId}`, { token: managerToken, method: 'PUT', body: { status: 'OPEN' } });
     assert.equal(opened.data.isOpen, true);
 
     const applied = await request(`/public/jobs/${jobId}/applications`, {
@@ -182,15 +182,15 @@ async function hrRecruitmentChecks({ managerToken, staffToken }, suffix) {
       )
     });
 
-    const list = await request(`/applications?jobId=${jobId}`, { token: staffToken });
+    const list = await request(`/applications?jobId=${jobId}`, { token: managerToken });
     assert.equal(list.data.length, 1);
     const applicationId = list.data[0].id;
     assert.equal(list.data[0].applicationCode, applied.data.applicationCode);
-    const searched = await request(`/applications?search=${applied.data.applicationCode}`, { token: staffToken });
+    const searched = await request(`/applications?search=${applied.data.applicationCode}`, { token: managerToken });
     assert.ok(searched.data.some((item) => item.id === applicationId));
 
     const cvResponse = await fetch(`${apiUrl}/applications/${applicationId}/cv`, {
-      headers: { Authorization: `Bearer ${staffToken}` }
+      headers: { Authorization: `Bearer ${managerToken}` }
     });
     assert.equal(cvResponse.status, 200);
     assert.match(cvResponse.headers.get('content-type'), /pdf/);
@@ -198,13 +198,13 @@ async function hrRecruitmentChecks({ managerToken, staffToken }, suffix) {
     await request(`/applications/${applicationId}/cv`, { expected: 401 });
 
     const reviewing = await request(`/applications/${applicationId}`, {
-      token: staffToken,
+      token: managerToken,
       method: 'PATCH',
       body: { status: 'REVIEWING', note: 'CV phù hợp' }
     });
     assert.equal(reviewing.data.status, 'REVIEWING');
     const interview = await request(`/applications/${applicationId}`, {
-      token: staffToken,
+      token: managerToken,
       method: 'PATCH',
       body: { status: 'INTERVIEW', interviewAt: '2026-10-10T09:00:00+07:00' }
     });
@@ -212,7 +212,7 @@ async function hrRecruitmentChecks({ managerToken, staffToken }, suffix) {
     assert.equal(new Date(interview.data.interviewAt).toISOString(), '2026-10-10T02:00:00.000Z');
     // Phỏng vấn bắt buộc có lịch hẹn.
     await request(`/applications/${applicationId}`, {
-      token: staffToken,
+      token: managerToken,
       method: 'PATCH',
       expected: 400,
       body: { status: 'INTERVIEW', interviewAt: null }
@@ -231,27 +231,27 @@ async function hrRecruitmentChecks({ managerToken, staffToken }, suffix) {
 
     // Chưa "Đậu" thì chưa chuyển thành nhân sự được.
     await request(`/applications/${applicationId}/convert`, {
-      token: staffToken,
+      token: managerToken,
       method: 'POST',
       expected: 409,
       body: convertBody
     });
     const passed = await request(`/applications/${applicationId}`, {
-      token: staffToken,
+      token: managerToken,
       method: 'PATCH',
       body: { status: 'HIRED' }
     });
     assert.equal(passed.data.status, 'HIRED');
     assert.equal(passed.data.employeeId, null);
     await request(`/applications/${applicationId}/convert`, {
-      token: staffToken,
+      token: managerToken,
       method: 'POST',
       expected: 400,
       body: { ...convertBody, contractEndDate: null }
     });
 
     const converted = await request(`/applications/${applicationId}/convert`, {
-      token: staffToken,
+      token: managerToken,
       method: 'POST',
       expected: 201,
       body: convertBody
@@ -260,7 +260,7 @@ async function hrRecruitmentChecks({ managerToken, staffToken }, suffix) {
     assert.equal(converted.data.employeeCode, `HIRE-${suffix}`);
     employeeId = converted.data.employeeId;
 
-    const employee = await request(`/employees/${employeeId}`, { token: staffToken });
+    const employee = await request(`/employees/${employeeId}`, { token: managerToken });
     assert.equal(employee.data.email, email);
     assert.equal(employee.data.phone, '0987654321');
     assert.equal(employee.data.position, `Nhân viên Kho Smoke ${suffix}`);
@@ -268,42 +268,42 @@ async function hrRecruitmentChecks({ managerToken, staffToken }, suffix) {
     assert.equal(employee.data.hireDate, '2026-10-15');
     assert.equal(employee.data.baseSalary, 9000000);
 
-    const firstContract = await request(`/contracts?employeeId=${employeeId}`, { token: staffToken });
+    const firstContract = await request(`/contracts?employeeId=${employeeId}`, { token: managerToken });
     assert.equal(firstContract.data.length, 1);
     assert.equal(firstContract.data[0].contractType, 'PROBATION');
     assert.equal(firstContract.data[0].status, 'ACTIVE');
     assert.equal(firstContract.data[0].endDate, '2026-12-14');
 
     await request(`/applications/${applicationId}/convert`, {
-      token: staffToken,
+      token: managerToken,
       method: 'POST',
       expected: 409,
       body: { ...convertBody, employeeCode: `HIRE2-${suffix}` }
     });
     await request(`/applications/${applicationId}`, {
-      token: staffToken,
+      token: managerToken,
       method: 'PATCH',
       expected: 409,
       body: { status: 'REJECTED' }
     });
 
     // Mở chi tiết thì hồ sơ được đánh dấu đã xem và có lịch sử xử lý.
-    const detail = await request(`/applications/${applicationId}`, { token: staffToken });
+    const detail = await request(`/applications/${applicationId}`, { token: managerToken });
     assert.ok(detail.data.viewedAt);
     const actions = detail.data.history.map((item) => item.action);
     for (const action of ['SUBMITTED', 'STATUS_CHANGED', 'INTERVIEW_SCHEDULED', 'NOTE_UPDATED', 'CONVERTED']) {
       assert.ok(actions.includes(action), `Application history is missing ${action}`);
     }
 
-    const employeeHistory = await request(`/employees/${employeeId}/history`, { token: staffToken });
+    const employeeHistory = await request(`/employees/${employeeId}/history`, { token: managerToken });
     assert.deepEqual(employeeHistory.data.map((item) => item.action).sort(), ['CONTRACT_ADDED', 'CREATED']);
 
-    const jobAfter = await request(`/jobs/${jobId}`, { token: staffToken });
+    const jobAfter = await request(`/jobs/${jobId}`, { token: managerToken });
     assert.equal(jobAfter.data.applicationCount, 1);
 
     // Đăng tin với hạn nộp đã qua thì bị chặn.
     await request(`/jobs/${jobId}`, {
-      token: staffToken,
+      token: managerToken,
       method: 'PUT',
       expected: 400,
       body: { status: 'OPEN', deadline: '2020-01-01' }
@@ -347,6 +347,26 @@ async function main() {
     assert.ok(employee, 'Seed employee EMP001 is missing');
     assert.equal(employee.dateOfBirth, '1998-03-12');
 
+    // HR Staff chỉ xem danh sách để xếp ca (không có lương, CCCD, ngày sinh, địa chỉ);
+    // hồ sơ chi tiết, hợp đồng và tuyển dụng là việc của HR Manager.
+    const staffEmployees = await request('/employees', { token: staffToken });
+    const staffView = staffEmployees.data.find((item) => item.id === employee.id);
+    assert.ok(staffView, 'HR Staff must still see the employee list');
+    for (const field of ['baseSalary', 'idNumber', 'dateOfBirth', 'address']) {
+      assert.ok(!(field in staffView), `HR Staff must not see ${field}`);
+    }
+    await request(`/employees/${employee.id}`, { token: staffToken, expected: 403 });
+    await request(`/employees/${employee.id}`, {
+      token: staffToken,
+      method: 'PUT',
+      expected: 403,
+      body: { departmentId: null }
+    });
+    await request('/contracts', { token: staffToken, expected: 403 });
+    await request('/jobs', { token: staffToken, expected: 403 });
+    await request('/applications', { token: staffToken, expected: 403 });
+    await request('/reports/work-hours', { token: staffToken, expected: 403 });
+
     await request('/employees', {
       token: adminToken,
       method: 'POST',
@@ -382,14 +402,14 @@ async function main() {
     });
 
     const clearedEmployee = await request(`/employees/${employee.id}`, {
-      token: staffToken,
+      token: managerToken,
       method: 'PUT',
       body: { departmentId: null }
     });
     assert.equal(clearedEmployee.data.departmentId, null);
 
     await request(`/employees/${employee.id}`, {
-      token: staffToken,
+      token: managerToken,
       method: 'PUT',
       body: { departmentId: employee.departmentId }
     });
@@ -419,7 +439,7 @@ async function main() {
 
     // Phòng còn nhân viên thì không xóa được; chuyển nhân viên đi rồi mới xóa.
     await request(`/employees/${employee.id}`, {
-      token: staffToken,
+      token: managerToken,
       method: 'PUT',
       body: { departmentId }
     });
@@ -429,7 +449,7 @@ async function main() {
       expected: 409
     });
     await request(`/employees/${employee.id}`, {
-      token: staffToken,
+      token: managerToken,
       method: 'PUT',
       body: { departmentId: employee.departmentId }
     });
@@ -450,7 +470,7 @@ async function main() {
 
     // Nhân viên gắn với chức vụ trong danh mục: đổi tên chức vụ thì hồ sơ đổi theo.
     const linkedEmployee = await request('/employees', {
-      token: staffToken,
+      token: managerToken,
       method: 'POST',
       expected: 201,
       body: {
@@ -474,37 +494,37 @@ async function main() {
       method: 'PUT',
       body: { name: `QA Lead ${suffix}` }
     });
-    const renamedEmployee = await request(`/employees/${linkedEmployeeId}`, { token: staffToken });
+    const renamedEmployee = await request(`/employees/${linkedEmployeeId}`, { token: managerToken });
     assert.equal(renamedEmployee.data.position, `QA Lead ${suffix}`);
 
     // CCCD 12 số, quản lý trực tiếp, và lịch sử thay đổi của hồ sơ.
     const idNumber = `0790${suffix}`;
     const managed = await request(`/employees/${linkedEmployeeId}`, {
-      token: staffToken,
+      token: managerToken,
       method: 'PUT',
       body: { idNumber, managerId: employee.id }
     });
     assert.equal(managed.data.idNumber, idNumber);
     assert.equal(managed.data.managerName, employee.fullName);
     await request(`/employees/${linkedEmployeeId}`, {
-      token: staffToken,
+      token: managerToken,
       method: 'PUT',
       expected: 400,
       body: { idNumber: '12345' }
     });
     await request(`/employees/${linkedEmployeeId}`, {
-      token: staffToken,
+      token: managerToken,
       method: 'PUT',
       expected: 400,
       body: { managerId: linkedEmployeeId }
     });
-    const history = await request(`/employees/${linkedEmployeeId}/history`, { token: staffToken });
+    const history = await request(`/employees/${linkedEmployeeId}/history`, { token: managerToken });
     assert.equal(history.data[0].action, 'UPDATED');
     assert.deepEqual(Object.keys(history.data[0].details.fields).sort(), ['idNumber', 'managerName']);
     assert.equal(history.data.at(-1).action, 'CREATED');
 
     await request('/employees', {
-      token: staffToken,
+      token: managerToken,
       method: 'POST',
       expected: 400,
       body: {
@@ -528,7 +548,7 @@ async function main() {
     await request('/positions?active=false', { token: staffToken });
 
     const contract = await request('/contracts', {
-      token: staffToken,
+      token: managerToken,
       method: 'POST',
       expected: 201,
       body: {
@@ -548,20 +568,20 @@ async function main() {
 
     // Hợp đồng xác định thời hạn bắt buộc có ngày kết thúc; không thời hạn thì không được có.
     await request(`/contracts/${contractId}`, {
-      token: staffToken,
+      token: managerToken,
       method: 'PUT',
       expected: 400,
       body: { endDate: null }
     });
     await request(`/contracts/${contractId}`, {
-      token: staffToken,
+      token: managerToken,
       method: 'PUT',
       expected: 400,
       body: { contractType: 'INDEFINITE' }
     });
 
     const updatedContract = await request(`/contracts/${contractId}`, {
-      token: staffToken,
+      token: managerToken,
       method: 'PUT',
       body: { contractType: 'INDEFINITE', endDate: null, notes: null }
     });
@@ -571,7 +591,7 @@ async function main() {
 
     // Mỗi nhân viên chỉ có một hợp đồng đang hiệu lực.
     await request('/contracts', {
-      token: staffToken,
+      token: managerToken,
       method: 'POST',
       expected: 409,
       body: {
@@ -592,7 +612,7 @@ async function main() {
     );
     avatarForm.append('avatar', new Blob([png], { type: 'image/png' }), 'avatar.png');
     const uploaded = await request(`/employees/${employee.id}/avatar`, {
-      token: staffToken,
+      token: managerToken,
       method: 'POST',
       form: avatarForm
     });
@@ -600,7 +620,7 @@ async function main() {
     const avatarResponse = await fetch(uploaded.data.avatarUrl);
     assert.equal(avatarResponse.status, 200);
     await request(`/employees/${employee.id}/avatar`, {
-      token: staffToken,
+      token: managerToken,
       method: 'DELETE',
       expected: 204
     });

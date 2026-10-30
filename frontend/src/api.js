@@ -141,6 +141,8 @@ export const api = {
   },
   // Danh sách rút gọn, không phân trang: ô chọn quản lý, gợi ý mã NV, danh sách chức vụ tự do.
   employeesLookup: () => request('/employees/lookup'),
+  // Mở chi tiết nhân viên từ đường dẫn #employees/<id> (link từ Hợp đồng, Chấm công...).
+  employee: (id) => request(`/employees/${id}`),
   createEmployee: (employee) =>
     request('/employees', {
       method: 'POST',
@@ -300,7 +302,15 @@ export const api = {
   myProfile: () => request('/employees/me'),
   updateMyProfile: (changes) => request('/employees/me', { method: 'PUT', body: JSON.stringify(changes) }),
   changePassword: (currentPassword, newPassword) =>
-    request('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) })
+    request('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
+  // Quản lý tài khoản – chỉ Admin (HR-007).
+  users: (params) => request(`/users${toQuery(params)}`),
+  userEmployeeOptions: () => request('/users/employee-options'),
+  createUser: (account) => request('/users', { method: 'POST', body: JSON.stringify(account) }),
+  bulkCreateUsers: (employeeIds) => request('/users/bulk', { method: 'POST', body: JSON.stringify({ employeeIds }) }),
+  updateUser: (id, changes) => request(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(changes) }),
+  resetUserPassword: (id, newPassword) =>
+    request(`/users/${id}/reset-password`, { method: 'POST', body: JSON.stringify({ newPassword }) })
 };
 
 // Sau khi đổi mật khẩu, máy chủ cấp token mới: thay token cũ, giữ nguyên chỗ lưu (có/không ghi nhớ đăng nhập).

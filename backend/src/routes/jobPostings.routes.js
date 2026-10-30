@@ -9,7 +9,8 @@ import { dateSchema, moneySchema } from '../utils/validation.js';
 // Quản lý tin tuyển dụng phía HR (cần đăng nhập). Trang công khai đọc tin qua publicJobs.routes.js.
 const router = express.Router();
 
-const HR_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
+// Tuyển dụng do HR Manager phụ trách; HR Staff chỉ lo vận hành (ca, chấm công, nghỉ phép).
+const HR_ROLES = ['ADMIN', 'HR_MANAGER'];
 const optionalText = (max) => z.string().trim().max(max).optional().nullable();
 
 const jobFieldsSchema = z.object({

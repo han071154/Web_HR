@@ -118,7 +118,9 @@ router.get('/by-department', async (req, res, next) => {
   }
 });
 
-router.get('/work-hours', async (req, res, next) => {
+// Báo cáo giờ công (màn Báo cáo) dành cho HR Manager. HR Staff vẫn dùng Tổng quan, số nhân viên theo
+// phòng ban và xuất Excel ở màn Chấm công.
+router.get('/work-hours', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) => {
   try {
     const filters = workHoursQuerySchema.parse(req.query);
     const data = await computeWorkHourStats(filters);

@@ -17,9 +17,11 @@ import leaveRequestRoutes from './routes/leaveRequests.routes.js';
 import positionRoutes from './routes/positions.routes.js';
 import publicJobRoutes from './routes/publicJobs.routes.js';
 import reportRoutes from './routes/reports.routes.js';
+import userRoutes from './routes/users.routes.js';
 import workScheduleRoutes from './routes/workSchedules.routes.js';
 import workShiftRoutes from './routes/workShifts.routes.js';
 import { swaggerSpec } from './swagger.js';
+import { loadRevokedSessions } from './utils/sessionRevocation.js';
 
 const app = express();
 
@@ -55,6 +57,7 @@ app.use('/api/work-schedules', requireAuth, workScheduleRoutes);
 app.use('/api/attendance-records', requireAuth, attendanceRoutes);
 app.use('/api/leave-requests', requireAuth, leaveRequestRoutes);
 app.use('/api/reports', requireAuth, reportRoutes);
+app.use('/api/users', requireAuth, userRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
@@ -74,7 +77,8 @@ app.use((error, _req, res, _next) => {
     work_shifts_code_key: 'Shift code already exists',
     work_schedules_employee_id_work_date_key: 'Employee already has a shift scheduled for this date',
     attendance_records_employee_id_work_date_key: 'Attendance already recorded for this date',
-    users_employee_id_key: 'This employee already has a linked account'
+    users_employee_id_key: 'This employee already has a linked account',
+    users_email_key: 'Account email already exists'
   };
   const isValidationError = error.name === 'ZodError';
   const isDuplicate = error.code === '23505';
@@ -123,3 +127,7 @@ app.use((error, _req, res, _next) => {
 app.listen(config.port, () => {
   console.log(`Web HR API listening on http://localhost:${config.port}`);
 });
+
+// Nạp lại danh sách tài khoản bị khóa / vừa đặt lại mật khẩu để token cấp trước đó không dùng tiếp được sau khi
+// máy chủ khởi động lại (HR-007). Lỗi DB lúc khởi động chỉ ghi log, không làm sập API.
+loadRevokedSessions().catch((error) => console.error('Could not load revoked sessions:', error.message));

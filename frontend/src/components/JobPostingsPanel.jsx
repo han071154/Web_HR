@@ -5,8 +5,8 @@ import { daysUntil, employmentTypeLabels, formatDate, jobStatusLabels, normalize
 import ConfirmDialog from './ConfirmDialog.jsx';
 import Pagination from './Pagination.jsx';
 
-// Quyền khớp với backend: HR nào cũng đăng/sửa/đóng tin, chỉ Admin và HR Manager được xóa tin nháp.
-const EDIT_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF'];
+// Quyền khớp với backend: tuyển dụng do HR Manager/Admin phụ trách (đăng/sửa/đóng/xóa tin).
+const EDIT_ROLES = ['ADMIN', 'HR_MANAGER'];
 const DELETE_ROLES = ['ADMIN', 'HR_MANAGER'];
 const PAGE_SIZE = 10;
 
