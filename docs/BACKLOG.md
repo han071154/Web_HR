@@ -13,7 +13,7 @@
 | HR-009 | La HR, toi muon import/export danh sach nhan vien Excel. | 5 | Medium | Todo |
 | HR-010 | La quan ly, toi muon xem bao cao nhan su theo phong ban. | 3 | Medium | Backend done |
 | HR-011 | La nhan vien, toi muon cap nhat thong tin ca nhan. | 3 | Low | Done (muc Ho so cua toi: xem ho so, tu sua SDT va dia chi; cac truong khac do HR sua) |
-| HR-012 | La DevOps, toi muon deploy backend va frontend tu GitHub Actions. | 5 | High | Partial (CI build & validate Docker image xong; chua auto-deploy vi chua co server/credentials that, xem docs/DEPLOYMENT.md) |
+| HR-012 | La DevOps, toi muon deploy backend va frontend tu GitHub Actions. | 5 | High | Done (31/10/2026: job deploy-staging qua SSH + scripts/deploy.sh co sao luu va tu rollback; can cau hinh secret STAGING_* tren GitHub, xem docs/DEPLOYMENT.md muc 4) |
 | HR-013 | La HR, toi muon quan ly danh muc chuc vu va gan chuc vu cho nhan vien. | 2 | Medium | Done |
 | HR-014 | La HR, toi muon tai anh dai dien cho ho so nhan vien. | 3 | Low | Done |
 | HR-015 | La HR, toi muon quan ly hop dong lao dong cua nhan vien. | 5 | Medium | Done |
@@ -35,14 +35,14 @@
 | HR-031 | La nhan vien, toi muon dang ky ca lam viec de chon ca phu hop. | 3 | High | Backend done |
 | HR-032 | La nhan vien, toi muon yeu cau doi ca, va HR duyet hoac tu choi yeu cau. | 5 | Medium | Backend done |
 | HR-033 | La nhan vien, toi muon xem lich lam viec ca nhan de biet ca cua minh. | 2 | High | Backend done |
-| HR-034 | La nhan vien, toi muon nhan thong bao khi ca duoc duyet. | 3 | Low | Backend done (qua audit log; chua co he thong notification that) |
-| HR-035 | La HR, toi muon he thong tinh cong tu dong theo ca lam viec (di tre, ve som). | 5 | High | Backend done (di tre; chua tinh rieng ve som) |
+| HR-034 | La nhan vien, toi muon nhan thong bao khi ca duoc duyet. | 3 | Low | Done (31/10/2026: thong bao trong ung dung — bang notifications, API /notifications, chuong thong bao; khi duyet/tu choi doi ca va nghi phep) |
+| HR-035 | La HR, toi muon he thong tinh cong tu dong theo ca lam viec (di tre, ve som). | 5 | High | Done (31/10/2026: di tre, ve som tinh theo phut so voi khung ca; tu ghi Vang ca da xep khong cham cong; so lan ve som trong bang cong/bao cao) |
 | HR-036 | La HR, toi muon tinh cong lam them gio (OT) rieng de tinh dung gio tang ca. | 3 | Medium | Backend done |
 | HR-037 | La nhan vien/HR, toi muon xem bang cong ca nhan va bang cong tong hop theo thang. | 5 | High | Backend done |
 | HR-038 | La quan ly, toi muon thong ke gio cong va ca lam viec de danh gia tinh hinh lam viec. | 5 | Medium | Backend done |
 | HR-039 | La quan ly, toi muon dashboard va bieu do truc quan de xem nhanh tinh hinh nhan su. | 5 | Medium | Todo (frontend, ngoai pham vi BE/DevOps) |
-| HR-040 | La quan ly, toi muon xuat bao cao Excel/PDF de luu tru va chia se. | 5 | Medium | Backend done (chi Excel, khong lam PDF) |
+| HR-040 | La quan ly, toi muon xuat bao cao Excel/PDF de luu tru va chia se. | 5 | Medium | Done (31/10/2026: xuat Excel va PDF — /reports/export?format=pdf, nut Xuat PDF o Cham cong va Bao cao) |
 | HR-041 | La Admin, toi muon he thong ghi audit log thao tac de truy vet thay doi. | 3 | Medium | Todo |
 | HR-042 | La nhom phat trien, toi muon kiem thu tich hop, phan quyen, hieu nang va bao mat co ban (OWASP) de dam bao chat luong. | 5 | High | Todo |
 | HR-043 | La nguoi dung, toi muon giao dien responsive va thong bao loi bang tieng Viet de de su dung. | 3 | Medium | Todo |
-| HR-044 | La nguoi nhan ban giao, toi muon co tai lieu API (Swagger) va huong dan su dung cho Admin/HR/Nhan vien. | 2 | Medium | Todo |
+| HR-044 | La nguoi nhan ban giao, toi muon co tai lieu API (Swagger) va huong dan su dung cho Admin/HR/Nhan vien. | 2 | Medium | Partial (31/10/2026: Swagger /api/docs day du toan bo API + docs/openapi.json; con huong dan su dung cho nguoi dung) |

@@ -26,8 +26,8 @@ Xay dung he thong quan ly nhan su co kha nang dang nhap, phan quyen, quan ly ho 
 - Tinh luong chi tiet.
 - Ky hop dong dien tu.
 - Tich hop email, lich, SSO.
-- He thong thong bao (notification) thuc su — tam thoi dung audit log thay the.
-- Trien khai tu dong len server staging that (chua co server/credential thuc te; xem docs/DEPLOYMENT.md).
+- Thong bao qua email/SMS/push (da co thong bao trong ung dung).
+- Ha tang may chu staging/production cu the (CI/CD da san sang, chi can cau hinh secret STAGING_*; xem docs/DEPLOYMENT.md).
 
 ## Ben lien quan
 
