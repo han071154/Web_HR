@@ -157,3 +157,69 @@ describe('GET /api/reports/dashboard', () => {
     expect(query.mock.calls[1][1]).toEqual(['2026-10-05', '2026-10-11']);
   });
 });
+
+// HR-040: xuất báo cáo giờ công Excel / PDF.
+describe('GET /api/reports/export', () => {
+  const app = createApp();
+  const statsRow = {
+    employee_id: 'emp-1',
+    employee_code: 'EMP002',
+    employee_name: 'Trần Quốc Bảo',
+    work_days: 20,
+    late_count: 2,
+    early_leave_count: 1,
+    absent_count: 1,
+    total_hours: '160.5',
+    ot_hours: '4'
+  };
+
+  function binaryParser(res, callback) {
+    const chunks = [];
+    res.on('data', (chunk) => chunks.push(chunk));
+    res.on('end', () => callback(null, Buffer.concat(chunks)));
+  }
+
+  beforeEach(() => {
+    query.mockReset();
+  });
+
+  it('exports a PDF with format=pdf', async () => {
+    query
+      .mockResolvedValueOnce({ rows: [statsRow] })
+      .mockResolvedValueOnce({ rows: [{ name: 'Kỹ thuật' }] });
+
+    const response = await request(app)
+      .get('/api/reports/export?from=2026-10-01&to=2026-10-31&format=pdf&departmentId=11111111-1111-4111-8111-111111111111')
+      .set('Authorization', `Bearer ${tokenFor('HR_MANAGER')}`)
+      .buffer(true)
+      .parse(binaryParser);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toBe('application/pdf');
+    expect(response.headers['content-disposition']).toContain('bao-cao-gio-cong-2026-10-01-2026-10-31.pdf');
+    expect(response.body.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  it('exports Excel by default', async () => {
+    query.mockResolvedValueOnce({ rows: [statsRow] });
+
+    const response = await request(app)
+      .get('/api/reports/export?from=2026-10-01&to=2026-10-31')
+      .set('Authorization', `Bearer ${tokenFor('HR_STAFF')}`)
+      .buffer(true)
+      .parse(binaryParser);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('spreadsheetml');
+    expect(response.body.subarray(0, 2).toString()).toBe('PK');
+  });
+
+  it('rejects an unknown format', async () => {
+    const response = await request(app)
+      .get('/api/reports/export?from=2026-10-01&to=2026-10-31&format=docx')
+      .set('Authorization', `Bearer ${tokenFor('HR_MANAGER')}`);
+
+    expect(response.status).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+  });
+});

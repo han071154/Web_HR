@@ -267,3 +267,29 @@ CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status);
 CREATE INDEX IF NOT EXISTS idx_shift_change_requests_employee_id ON shift_change_requests(employee_id);
 CREATE INDEX IF NOT EXISTS idx_shift_change_requests_schedule_id ON shift_change_requests(schedule_id);
 CREATE INDEX IF NOT EXISTS idx_shift_change_requests_status ON shift_change_requests(status);
+
+-- Thong bao trong ung dung (HR-034): nhan vien nhan thong bao khi yeu cau doi ca / don nghi phep
+-- duoc duyet hoac tu choi. Gan voi tai khoan (users), khong phai ho so nhan vien.
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type VARCHAR(40) NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  message TEXT NOT NULL,
+  entity_type VARCHAR(40),
+  entity_id UUID,
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  read_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id) WHERE NOT is_read;
+
+-- Tinh cong theo ca (HR-035): so phut di tre / ve som so voi khung gio ca, tinh luc check-in/check-out
+-- (0 neu khong vuot nguong LATE_THRESHOLD_MINUTES / EARLY_LEAVE_THRESHOLD_MINUTES hoac khong co lich ca).
+ALTER TABLE attendance_records
+  ADD COLUMN IF NOT EXISTS late_minutes INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE attendance_records
+  ADD COLUMN IF NOT EXISTS early_leave_minutes INTEGER NOT NULL DEFAULT 0;

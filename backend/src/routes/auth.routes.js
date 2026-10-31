@@ -46,44 +46,6 @@ function signRefreshToken(user) {
   });
 }
 
-/**
- * @openapi
- * /auth/login:
- *   post:
- *     summary: Đăng nhập bằng email và mật khẩu
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [email, password]
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *     responses:
- *       200:
- *         description: Đăng nhập thành công, trả về access token và refresh token
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 token:
- *                   type: string
- *                   description: Access token (JWT), hết hạn theo JWT_EXPIRES_IN
- *                 refreshToken:
- *                   type: string
- *                   description: Dùng với /auth/refresh để lấy access token mới mà không cần đăng nhập lại
- *                 user:
- *                   type: object
- *       401:
- *         description: Email hoặc mật khẩu không đúng, hoặc tài khoản đã bị khóa
- */
 router.post('/login', authLimiter, async (req, res, next) => {
   try {
     const body = loginSchema.parse(req.body);
@@ -118,35 +80,6 @@ router.post('/login', authLimiter, async (req, res, next) => {
   }
 });
 
-/**
- * @openapi
- * /auth/refresh:
- *   post:
- *     summary: Lấy access token mới bằng refresh token
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [refreshToken]
- *             properties:
- *               refreshToken:
- *                 type: string
- *     responses:
- *       200:
- *         description: Access token mới
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 token:
- *                   type: string
- *       401:
- *         description: Refresh token không hợp lệ, đã hết hạn, hoặc tài khoản đã bị khóa
- */
 router.post('/refresh', authLimiter, async (req, res, next) => {
   try {
     const body = refreshSchema.parse(req.body);
@@ -183,46 +116,10 @@ router.post('/refresh', authLimiter, async (req, res, next) => {
   }
 });
 
-/**
- * @openapi
- * /auth/me:
- *   get:
- *     summary: Thông tin người dùng đang đăng nhập
- *     tags: [Auth]
- *     security: [{ bearerAuth: [] }]
- *     responses:
- *       200:
- *         description: Thông tin người dùng lấy từ access token
- *       401:
- *         description: Thiếu token hoặc token không hợp lệ/đã hết hạn
- */
 router.get('/me', requireAuth, (req, res) => {
   res.json({ user: req.user });
 });
 
-/**
- * @openapi
- * /auth/change-password:
- *   post:
- *     tags: [Auth]
- *     summary: Đổi mật khẩu của chính tài khoản đang đăng nhập (HR-027)
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [currentPassword, newPassword]
- *             properties:
- *               currentPassword: { type: string }
- *               newPassword: { type: string, minLength: 8, maxLength: 72, description: 'Có cả chữ và số' }
- *     responses:
- *       200: { description: Đã đổi mật khẩu; trả token và refreshToken mới cho phiên hiện tại }
- *       400: { description: Mật khẩu cũ sai hoặc mật khẩu mới không hợp lệ }
- *       401: { description: Chưa đăng nhập }
- */
 // Giới hạn riêng theo tài khoản (passwordChangeLimiter) để không dò được mật khẩu hiện tại qua API này.
 router.post('/change-password', requireAuth, passwordChangeLimiter, async (req, res, next) => {
   try {

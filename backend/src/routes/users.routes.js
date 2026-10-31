@@ -14,7 +14,7 @@ import { passwordSchema } from '../utils/validation.js';
 // Không có API xóa: tài khoản nghỉ việc thì khóa, để giữ lịch sử ai đã duyệt đơn, chấm công...
 const router = express.Router();
 
-export const USER_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF', 'EMPLOYEE'];
+const USER_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_STAFF', 'EMPLOYEE'];
 
 router.use(requireRole('ADMIN'));
 
@@ -45,7 +45,7 @@ const bulkCreateSchema = z.object({
 const INACTIVE_EMPLOYEE_STATUSES = ['RESIGNED', 'TERMINATED'];
 
 // Mật khẩu tạm 10 ký tự có cả chữ và số, bỏ ký tự dễ nhầm (0/O, 1/l/I).
-export function generateTemporaryPassword() {
+function generateTemporaryPassword() {
   const letters = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ';
   const digits = '23456789';
   const all = letters + digits;
@@ -118,24 +118,6 @@ async function ensureAnotherActiveAdmin(userId) {
   }
 }
 
-/**
- * @openapi
- * /users:
- *   get:
- *     tags: [Users]
- *     summary: Danh sách tài khoản đăng nhập (HR-007, chỉ Admin)
- *     security: [{ bearerAuth: [] }]
- *     parameters:
- *       - { in: query, name: search, schema: { type: string }, description: 'Tìm theo họ tên (không dấu), email, mã nhân viên' }
- *       - { in: query, name: role, schema: { type: string, enum: [ADMIN, HR_MANAGER, HR_STAFF, EMPLOYEE] } }
- *       - { in: query, name: status, schema: { type: string, enum: [active, locked] } }
- *       - { in: query, name: linked, schema: { type: string, enum: ['yes', 'no'] } }
- *       - { in: query, name: page, schema: { type: integer } }
- *       - { in: query, name: limit, schema: { type: integer, maximum: 100 } }
- *     responses:
- *       200: { description: 'data + pagination' }
- *       403: { description: Không phải Admin }
- */
 router.get('/', async (req, res, next) => {
   try {
     const search = String(req.query.search || '').trim();
@@ -193,16 +175,6 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-/**
- * @openapi
- * /users/employee-options:
- *   get:
- *     tags: [Users]
- *     summary: Danh sách nhân viên để liên kết tài khoản, kèm tài khoản đang liên kết (nếu có)
- *     security: [{ bearerAuth: [] }]
- *     responses:
- *       200: { description: 'data: [{ id, employeeCode, fullName, email, status, position, departmentName, linkedUserId, linkedUserEmail }]' }
- */
 router.get('/employee-options', async (_req, res, next) => {
   try {
     const result = await query(
@@ -232,18 +204,6 @@ router.get('/employee-options', async (_req, res, next) => {
   }
 });
 
-/**
- * @openapi
- * /users/{id}:
- *   get:
- *     tags: [Users]
- *     summary: Chi tiết tài khoản kèm lịch sử thao tác (tạo, đổi vai trò, khóa, đặt lại mật khẩu)
- *     security: [{ bearerAuth: [] }]
- *     parameters: [{ in: path, name: id, required: true, schema: { type: string, format: uuid } }]
- *     responses:
- *       200: { description: Tài khoản }
- *       404: { description: Không tìm thấy }
- */
 router.get('/:id', async (req, res, next) => {
   try {
     const id = z.string().uuid().parse(req.params.id);
@@ -259,32 +219,6 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-/**
- * @openapi
- * /users:
- *   post:
- *     tags: [Users]
- *     summary: Cấp tài khoản mới (HR-007)
- *     description: Có employeeId thì liên kết với hồ sơ nhân viên (mỗi hồ sơ chỉ một tài khoản); bỏ trống fullName thì lấy tên trong hồ sơ.
- *     security: [{ bearerAuth: [] }]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [email, role, password]
- *             properties:
- *               email: { type: string, format: email }
- *               fullName: { type: string }
- *               role: { type: string, enum: [ADMIN, HR_MANAGER, HR_STAFF, EMPLOYEE] }
- *               password: { type: string, minLength: 8, maxLength: 72, description: 'Mật khẩu ban đầu, có cả chữ và số' }
- *               employeeId: { type: string, format: uuid, nullable: true }
- *     responses:
- *       201: { description: Đã tạo }
- *       400: { description: Dữ liệu không hợp lệ (vd tài khoản Nhân viên chưa chọn hồ sơ) }
- *       409: { description: Email đã có tài khoản hoặc hồ sơ đã liên kết tài khoản khác }
- */
 router.post('/', async (req, res, next) => {
   try {
     const body = createUserSchema.parse(req.body);
@@ -333,30 +267,6 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-/**
- * @openapi
- * /users/bulk:
- *   post:
- *     tags: [Users]
- *     summary: Cấp tài khoản Nhân viên hàng loạt cho các hồ sơ chưa có tài khoản (HR-007)
- *     description: |
- *       Mỗi hồ sơ được một tài khoản vai trò EMPLOYEE, email đăng nhập = email trong hồ sơ, mật khẩu ngẫu nhiên.
- *       Mật khẩu chỉ trả về MỘT LẦN trong phản hồi này (để Admin xuất file gửi nhân viên), không lưu dạng đọc được.
- *       Hồ sơ đã có tài khoản, đã nghỉ việc, không có email hoặc email đã được tài khoản khác dùng thì bỏ qua và ghi lý do.
- *     security: [{ bearerAuth: [] }]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [employeeIds]
- *             properties:
- *               employeeIds: { type: array, items: { type: string, format: uuid }, minItems: 1, maxItems: 100 }
- *     responses:
- *       200: { description: 'created: [{ id, email, fullName, employeeCode, password }], skipped: [{ employeeId, employeeCode, fullName, reason }]' }
- *       400: { description: Danh sách rỗng hoặc quá 100 hồ sơ }
- */
 router.post('/bulk', async (req, res, next) => {
   try {
     const { employeeIds } = bulkCreateSchema.parse(req.body);
@@ -431,32 +341,6 @@ router.post('/bulk', async (req, res, next) => {
   }
 });
 
-/**
- * @openapi
- * /users/{id}:
- *   patch:
- *     tags: [Users]
- *     summary: Sửa họ tên, vai trò, hồ sơ liên kết; khóa / mở khóa (isActive)
- *     description: Đổi vai trò hoặc khóa thì các phiên đăng nhập cũ của tài khoản đó hết hiệu lực ngay. Admin không tự khóa / tự hạ quyền mình và luôn phải còn ít nhất một Admin hoạt động.
- *     security: [{ bearerAuth: [] }]
- *     parameters: [{ in: path, name: id, required: true, schema: { type: string, format: uuid } }]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               fullName: { type: string }
- *               role: { type: string, enum: [ADMIN, HR_MANAGER, HR_STAFF, EMPLOYEE] }
- *               employeeId: { type: string, format: uuid, nullable: true, description: 'null để gỡ liên kết' }
- *               isActive: { type: boolean }
- *     responses:
- *       200: { description: Đã cập nhật }
- *       400: { description: Dữ liệu không hợp lệ }
- *       404: { description: Không tìm thấy }
- *       409: { description: Tự khóa / tự hạ quyền, hồ sơ đã liên kết tài khoản khác, hoặc sẽ không còn Admin nào }
- */
 router.patch('/:id', async (req, res, next) => {
   try {
     const id = z.string().uuid().parse(req.params.id);
@@ -529,30 +413,6 @@ router.patch('/:id', async (req, res, next) => {
   }
 });
 
-/**
- * @openapi
- * /users/{id}/reset-password:
- *   post:
- *     tags: [Users]
- *     summary: Admin đặt lại mật khẩu khi nhân viên quên (HR-027)
- *     description: Mọi phiên đăng nhập cũ của tài khoản hết hiệu lực. Admin tự đổi mật khẩu của mình ở /auth/change-password.
- *     security: [{ bearerAuth: [] }]
- *     parameters: [{ in: path, name: id, required: true, schema: { type: string, format: uuid } }]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [newPassword]
- *             properties:
- *               newPassword: { type: string, minLength: 8, maxLength: 72 }
- *     responses:
- *       204: { description: Đã đặt lại }
- *       400: { description: Mật khẩu không hợp lệ }
- *       404: { description: Không tìm thấy }
- *       409: { description: Đặt lại mật khẩu của chính mình }
- */
 router.post('/:id/reset-password', async (req, res, next) => {
   try {
     const id = z.string().uuid().parse(req.params.id);

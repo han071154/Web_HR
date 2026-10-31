@@ -286,6 +286,10 @@ export const api = {
   monthlyAttendance: (params) => request(`/attendance-records/monthly-summary${toQuery(params)}`),
   updateAttendance: (id, changes) =>
     request(`/attendance-records/${id}`, { method: 'PUT', body: JSON.stringify(changes) }),
+  // Thông báo trong ứng dụng (HR-034).
+  myNotifications: (params) => request(`/notifications/me${toQuery(params)}`),
+  markNotificationRead: (id) => request(`/notifications/${id}/read`, { method: 'PATCH' }),
+  markAllNotificationsRead: () => request('/notifications/me/read-all', { method: 'POST' }),
   // Nghỉ phép (HR-023).
   myLeaveRequests: () => request('/leave-requests/me'),
   createLeaveRequest: (leave) => request('/leave-requests', { method: 'POST', body: JSON.stringify(leave) }),

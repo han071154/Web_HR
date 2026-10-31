@@ -44,6 +44,13 @@ async function main() {
   await runSqlFile('database/schema.sql');
   await seedUsers();
   await runSqlFile('database/seed.sql');
+
+  // Staging/demo: nạp thêm dữ liệu mẫu (chạy lại nhiều lần không trùng). Không bật ở production.
+  if (process.env.LOAD_SAMPLE_DATA === 'true') {
+    await runSqlFile('database/sample-data.sql');
+    console.log('Sample data loaded.');
+  }
+
   console.log('Database schema and seed data are ready.');
 }
 

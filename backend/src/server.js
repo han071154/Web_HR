@@ -1,10 +1,10 @@
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
-import morgan from 'morgan';
 import path from 'node:path';
 import swaggerUi from 'swagger-ui-express';
 import { config } from './config.js';
+import { pool } from './db.js';
 import { requireAuth } from './middleware/auth.js';
 import applicationRoutes from './routes/applications.routes.js';
 import attendanceRoutes from './routes/attendance.routes.js';
@@ -14,6 +14,7 @@ import departmentRoutes from './routes/departments.routes.js';
 import employeeRoutes from './routes/employees.routes.js';
 import jobPostingRoutes from './routes/jobPostings.routes.js';
 import leaveRequestRoutes from './routes/leaveRequests.routes.js';
+import notificationRoutes from './routes/notifications.routes.js';
 import positionRoutes from './routes/positions.routes.js';
 import publicJobRoutes from './routes/publicJobs.routes.js';
 import reportRoutes from './routes/reports.routes.js';
@@ -21,14 +22,16 @@ import userRoutes from './routes/users.routes.js';
 import workScheduleRoutes from './routes/workSchedules.routes.js';
 import workShiftRoutes from './routes/workShifts.routes.js';
 import { swaggerSpec } from './swagger.js';
+import { logger, requestLogger } from './utils/logger.js';
 import { loadRevokedSessions } from './utils/sessionRevocation.js';
+import { startAbsenceMarker } from './utils/shiftTiming.js';
 
 const app = express();
 
 app.use(helmet());
 app.use(cors({ origin: config.corsOrigin }));
 app.use(express.json());
-app.use(morgan('dev'));
+app.use(requestLogger);
 app.use(
   '/uploads',
   express.static(path.dirname(config.avatarUploadDir), {
@@ -36,11 +39,20 @@ app.use(
   })
 );
 
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'web-hr-api' });
+// Health check cho Docker/giám sát: kiểm tra cả kết nối CSDL, mất kết nối thì trả 503.
+app.get('/api/health', async (_req, res) => {
+  const startedAt = Date.now();
+
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', service: 'web-hr-api', database: 'ok', dbLatencyMs: Date.now() - startedAt, uptimeSeconds: Math.round(process.uptime()) });
+  } catch (error) {
+    logger.error('Health check: database unreachable', { error });
+    res.status(503).json({ status: 'degraded', service: 'web-hr-api', database: 'unreachable' });
+  }
 });
 
-// Tài liệu API Auth dạng Swagger UI (task #68). Các nhóm API khác xem docs/API.md.
+// Tài liệu API dạng Swagger UI cho toàn bộ API (src/openapi/, xuất file bằng `npm run docs:openapi`).
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use('/api/auth', authRoutes);
@@ -58,12 +70,13 @@ app.use('/api/attendance-records', requireAuth, attendanceRoutes);
 app.use('/api/leave-requests', requireAuth, leaveRequestRoutes);
 app.use('/api/reports', requireAuth, reportRoutes);
 app.use('/api/users', requireAuth, userRoutes);
+app.use('/api/notifications', requireAuth, notificationRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
 });
 
-app.use((error, _req, res, _next) => {
+app.use((error, req, res, _next) => {
   const duplicateMessages = {
     departments_name_key: 'Department name already exists',
     employees_employee_code_key: 'Employee code already exists',
@@ -115,7 +128,7 @@ app.use((error, _req, res, _next) => {
 
   // Lỗi 500 không trả chi tiết (tên bảng, câu SQL) cho người gọi API, chỉ ghi ở log máy chủ.
   if (status === 500) {
-    console.error(error);
+    logger.error('Unhandled error', { requestId: req.id, method: req.method, path: req.originalUrl.split('?')[0], error });
   }
 
   res.status(status).json({
@@ -124,10 +137,28 @@ app.use((error, _req, res, _next) => {
   });
 });
 
-app.listen(config.port, () => {
-  console.log(`Web HR API listening on http://localhost:${config.port}`);
+const server = app.listen(config.port, () => {
+  logger.info(`Web HR API listening on http://localhost:${config.port}`, { port: config.port, logFormat: config.logFormat });
 });
 
 // Nạp lại danh sách tài khoản bị khóa / vừa đặt lại mật khẩu để token cấp trước đó không dùng tiếp được sau khi
 // máy chủ khởi động lại (HR-007). Lỗi DB lúc khởi động chỉ ghi log, không làm sập API.
-loadRevokedSessions().catch((error) => console.error('Could not load revoked sessions:', error.message));
+loadRevokedSessions().catch((error) => logger.error('Could not load revoked sessions', { error }));
+
+// Tự ghi Vắng cho ca đã xếp hôm qua mà không chấm công (HR-035), bật bằng AUTO_MARK_ABSENT=true.
+if (config.autoMarkAbsent) {
+  startAbsenceMarker();
+}
+
+// Dừng êm khi Docker gửi SIGTERM (docker stop, deploy): ngừng nhận request mới, chờ request đang xử lý xong
+// rồi đóng pool CSDL; quá 10 giây thì thoát luôn.
+function shutdown(signal) {
+  logger.info(`Received ${signal}, shutting down`);
+  setTimeout(() => process.exit(1), 10000).unref();
+  server.close(() => {
+    pool.end().finally(() => process.exit(0));
+  });
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

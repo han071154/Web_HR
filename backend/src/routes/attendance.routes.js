@@ -5,10 +5,11 @@ import { query } from '../db.js';
 import { requireRole } from '../middleware/auth.js';
 import { logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
-import { lastDayOfMonth, localDate, localMinutesOfDay } from '../utils/localTime.js';
+import { lastDayOfMonth, localDate } from '../utils/localTime.js';
 import { getOwnEmployeeId } from '../utils/selfService.js';
+import { earlyLeaveMinutes, lateMinutes, markAbsentForDate } from '../utils/shiftTiming.js';
 import { computeWorkHourStats, workHourExpressions } from '../utils/workHourStats.js';
-import { monthSchema } from '../utils/validation.js';
+import { dateSchema, monthSchema } from '../utils/validation.js';
 
 const router = express.Router();
 
@@ -58,6 +59,8 @@ function mapAttendance(row) {
     checkIn: row.check_in,
     checkOut: row.check_out,
     workedHours: row.worked_hours == null ? null : Number(row.worked_hours),
+    lateMinutes: row.late_minutes ?? 0,
+    earlyLeaveMinutes: row.early_leave_minutes ?? 0,
     status: row.status,
     note: row.note,
     createdAt: row.created_at,
@@ -69,19 +72,6 @@ function mapAttendance(row) {
 // ở Việt Nam sẽ bị ghi sang ngày hôm trước).
 function todayDate() {
   return localDate();
-}
-
-// Trễ hơn giờ bắt đầu ca (theo lịch phân ca hôm nay) quá config.lateThresholdMinutes thì tính LATE.
-function resolveCheckInStatus(now, shiftStartTime) {
-  if (!shiftStartTime) {
-    return 'PRESENT';
-  }
-
-  const [hours, minutes] = shiftStartTime.split(':').map(Number);
-  const thresholdMinutes = hours * 60 + minutes + config.lateThresholdMinutes;
-  const nowMinutes = localMinutesOfDay(now);
-
-  return nowMinutes > thresholdMinutes ? 'LATE' : 'PRESENT';
 }
 
 // --- Tự-phục vụ (EMPLOYEE) ---------------------------------------------------------------
@@ -107,25 +97,28 @@ router.post('/check-in', async (req, res, next) => {
       [employeeId, workDate]
     );
     const scheduleRow = schedule.rows[0];
-    const status = resolveCheckInStatus(new Date(), scheduleRow?.start_time);
+    const now = new Date();
+    // Trễ hơn giờ bắt đầu ca (theo lịch phân ca hôm nay) quá LATE_THRESHOLD_MINUTES thì tính LATE.
+    const late = lateMinutes(now, scheduleRow?.start_time);
+    const status = late > 0 ? 'LATE' : 'PRESENT';
 
     let attendanceId;
 
     if (existing.rows[0]) {
       const updated = await query(
         `UPDATE attendance_records
-         SET check_in = NOW(), schedule_id = $1, status = $2, updated_at = NOW()
-         WHERE id = $3
+         SET check_in = NOW(), schedule_id = $1, status = $2, late_minutes = $3, updated_at = NOW()
+         WHERE id = $4
          RETURNING id`,
-        [scheduleRow?.id || null, status, existing.rows[0].id]
+        [scheduleRow?.id || null, status, late, existing.rows[0].id]
       );
       attendanceId = updated.rows[0].id;
     } else {
       const inserted = await query(
-        `INSERT INTO attendance_records (employee_id, schedule_id, work_date, check_in, status)
-         VALUES ($1, $2, $3, NOW(), $4)
+        `INSERT INTO attendance_records (employee_id, schedule_id, work_date, check_in, status, late_minutes)
+         VALUES ($1, $2, $3, NOW(), $4, $5)
          RETURNING id`,
-        [employeeId, scheduleRow?.id || null, workDate, status]
+        [employeeId, scheduleRow?.id || null, workDate, status, late]
       );
       attendanceId = inserted.rows[0].id;
     }
@@ -157,7 +150,19 @@ router.post('/check-out', async (req, res, next) => {
       throw httpError(409, 'Already checked out today');
     }
 
-    await query('UPDATE attendance_records SET check_out = NOW(), updated_at = NOW() WHERE id = $1', [row.id]);
+    // Về sớm so với giờ kết thúc ca của lịch phân ca gắn lúc check-in (HR-035).
+    const shift = row.schedule_id
+      ? await query(
+        'SELECT s.end_time FROM work_schedules ws JOIN work_shifts s ON s.id = ws.shift_id WHERE ws.id = $1',
+        [row.schedule_id]
+      )
+      : { rows: [] };
+    const early = earlyLeaveMinutes(new Date(), shift.rows[0]?.end_time);
+
+    await query(
+      'UPDATE attendance_records SET check_out = NOW(), early_leave_minutes = $1, updated_at = NOW() WHERE id = $2',
+      [early, row.id]
+    );
     const updated = await query(`${attendanceSelectSql} WHERE a.id = $1`, [row.id]);
     await logAudit({ entityType: 'ATTENDANCE', entityId: row.id, action: 'CHECK_OUT', user: req.user });
 
@@ -197,6 +202,31 @@ router.get('/me', async (req, res, next) => {
 });
 
 // --- Quản lý chấm công (HR) ---------------------------------------------------------------
+
+// Ghi Vắng cho các ca đã xếp của một ngày đã qua mà nhân viên không chấm công (HR-035). Máy chủ cũng tự chạy
+// việc này mỗi giờ cho ngày hôm qua khi AUTO_MARK_ABSENT=true; route này để HR chạy bù cho ngày cụ thể.
+router.post('/mark-absent', requireRole(...HR_ROLES), async (req, res, next) => {
+  try {
+    const { date } = z.object({ date: dateSchema }).parse(req.body);
+
+    if (date >= todayDate()) {
+      throw httpError(400, 'Can only mark absences for a past date');
+    }
+
+    const created = await markAbsentForDate(date);
+    await logAudit({
+      entityType: 'ATTENDANCE',
+      entityId: req.user.sub,
+      action: 'MARK_ABSENT',
+      details: { date, created },
+      user: req.user
+    });
+
+    res.json({ data: { date, created } });
+  } catch (error) {
+    next(error);
+  }
+});
 
 router.get('/monthly-summary', requireRole(...HR_ROLES), async (req, res, next) => {
   try {
@@ -322,11 +352,28 @@ router.put('/:id', requireRole(...HR_ROLES), async (req, res, next) => {
       throw httpError(400, 'Check-out must be after check-in');
     }
 
+    // Sửa giờ vào/ra thì tính lại số phút trễ / về sớm theo ca của bản ghi.
+    const shift = row.schedule_id
+      ? await query(
+        'SELECT s.start_time, s.end_time FROM work_schedules ws JOIN work_shifts s ON s.id = ws.shift_id WHERE ws.id = $1',
+        [row.schedule_id]
+      )
+      : { rows: [] };
+
     await query(
       `UPDATE attendance_records
-       SET check_in = $1, check_out = $2, status = $3, note = $4, updated_at = NOW()
-       WHERE id = $5`,
-      [merged.checkIn, merged.checkOut, merged.status, merged.note, req.params.id]
+       SET check_in = $1, check_out = $2, status = $3, note = $4, late_minutes = $5, early_leave_minutes = $6,
+           updated_at = NOW()
+       WHERE id = $7`,
+      [
+        merged.checkIn,
+        merged.checkOut,
+        merged.status,
+        merged.note,
+        lateMinutes(checkIn, shift.rows[0]?.start_time),
+        earlyLeaveMinutes(checkOut, shift.rows[0]?.end_time),
+        req.params.id
+      ]
     );
     const updated = await query(`${attendanceSelectSql} WHERE a.id = $1`, [req.params.id]);
     await logAudit({

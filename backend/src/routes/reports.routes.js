@@ -5,6 +5,7 @@ import { query } from '../db.js';
 import { config } from '../config.js';
 import { requireRole } from '../middleware/auth.js';
 import { lastDayOfMonth, localDate } from '../utils/localTime.js';
+import { buildWorkHoursPdf } from '../utils/reportPdf.js';
 import { computeWorkHourStats, workHourExpressions } from '../utils/workHourStats.js';
 import { dateSchema } from '../utils/validation.js';
 
@@ -136,17 +137,43 @@ const EXPORT_COLUMNS = [
   { header: 'Họ tên', key: 'employeeName', width: 24 },
   { header: 'Số ngày công', key: 'workDays', width: 14 },
   { header: 'Số ngày trễ', key: 'lateCount', width: 14 },
+  { header: 'Số lần về sớm', key: 'earlyLeaveCount', width: 14 },
   { header: 'Số ngày vắng', key: 'absentCount', width: 14 },
   { header: 'Tổng giờ công', key: 'totalHours', width: 16 },
   { header: 'Giờ tăng ca (OT)', key: 'otHours', width: 16 }
 ];
 
-// Xuất báo cáo giờ công ra Excel (HR-022/023). Chỉ xuất Excel theo quyết định của dự án —
-// không có thư viện PDF trong phạm vi hiện tại, xem docs/API.md.
+// Mô tả phạm vi lọc cho tiêu đề báo cáo PDF.
+async function describeScope({ employeeId, departmentId }) {
+  if (employeeId) {
+    const result = await query('SELECT employee_code, full_name FROM employees WHERE id = $1', [employeeId]);
+    const row = result.rows[0];
+    return row ? `Nhân viên ${row.full_name} (${row.employee_code})` : 'Nhân viên đã chọn';
+  }
+
+  if (departmentId) {
+    const result = await query('SELECT name FROM departments WHERE id = $1', [departmentId]);
+    return result.rows[0] ? `Phòng ban ${result.rows[0].name}` : 'Phòng ban đã chọn';
+  }
+
+  return 'Toàn công ty';
+}
+
+// Xuất báo cáo giờ công (HR-040): Excel (mặc định) hoặc PDF với format=pdf, cùng số liệu với /work-hours.
 router.get('/export', async (req, res, next) => {
   try {
     const filters = workHoursQuerySchema.parse(req.query);
+    const format = z.enum(['xlsx', 'pdf']).default('xlsx').parse(req.query.format);
     const data = await computeWorkHourStats(filters);
+    const filename = `bao-cao-gio-cong-${filters.from}-${filters.to}`;
+
+    if (format === 'pdf') {
+      const scope = await describeScope(filters);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
+      buildWorkHoursPdf({ rows: data, from: filters.from, to: filters.to, scope }, res);
+      return;
+    }
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Báo cáo giờ công');
@@ -158,7 +185,7 @@ router.get('/export', async (req, res, next) => {
     }
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="bao-cao-gio-cong-${Date.now()}.xlsx"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {

@@ -16,6 +16,7 @@ import {
   todayInputValue,
   workedHours
 } from '../format.js';
+import ShiftTimingNote from './ShiftTimingNote.jsx';
 
 // Đồng hồ hiện giờ, cập nhật mỗi 30 giây.
 function useNow() {
@@ -259,6 +260,7 @@ export default function MyAttendancePanel({ showToast }) {
                         <span className={`status-pill ${attendanceStatusClass[record.status]}`}>
                           {attendanceStatusLabels[record.status] || record.status}
                         </span>
+                        <ShiftTimingNote record={record} />
                       </td>
                     </tr>
                   );

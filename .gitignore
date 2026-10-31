@@ -7,3 +7,9 @@ npm-debug.log*
 coverage/
 backend/uploads/
 backend/storage/
+.env.staging
+.env.production
+backups/
+logs/
+backend/logs/
+dist-release/

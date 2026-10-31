@@ -1,10 +1,23 @@
 import { UserCheck, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { MAX_MONEY, MAX_MONEY_MESSAGE, contractTypeLabels, employmentTypeLabels, toDateInputValue, todayInputValue } from '../format.js';
+import {
+  MAX_MONEY,
+  MAX_MONEY_MESSAGE,
+  contractTypeLabels,
+  employmentTypeLabels,
+  genderLabels,
+  toDateInputValue,
+  todayInputValue
+} from '../format.js';
 
 // Thời hạn hợp đồng đầu tiên gợi ý theo loại (tháng); HR sửa được ngày kết thúc.
 const DEFAULT_MONTHS = { PROBATION: 2, FIXED_TERM: 12, SEASONAL: 6 };
+const ID_NUMBER_PATTERN = /^(\d{9}|\d{12})$/;
+
+function addYears(date, years) {
+  return `${Number(date.slice(0, 4)) + years}${date.slice(4)}`;
+}
 
 function addMonths(startDate, months) {
   const [year, month, day] = startDate.split('-').map(Number);
@@ -22,6 +35,9 @@ export default function ConvertDialog({ application, departments, positions, sug
 
     return {
       employeeCode: suggestedCode,
+      dateOfBirth: '',
+      gender: '',
+      idNumber: '',
       hireDate,
       departmentId: application.jobDepartmentId || '',
       positionId: '',
@@ -81,6 +97,23 @@ export default function ConvertDialog({ application, departments, positions, sug
       nextErrors.hireDate = 'Vui lòng chọn ngày vào làm';
     }
 
+    // Cùng quy tắc với form Sửa nhân sự: ngày sinh, giới tính bắt buộc; đủ 15 tuổi khi vào làm.
+    if (!form.dateOfBirth) {
+      nextErrors.dateOfBirth = 'Vui lòng chọn ngày sinh';
+    } else if (form.dateOfBirth >= todayInputValue()) {
+      nextErrors.dateOfBirth = 'Ngày sinh phải trước hôm nay';
+    } else if (form.hireDate && form.hireDate < addYears(form.dateOfBirth, 15)) {
+      nextErrors.dateOfBirth = 'Nhân viên phải đủ 15 tuổi vào ngày vào làm';
+    }
+
+    if (!form.gender) {
+      nextErrors.gender = 'Vui lòng chọn giới tính';
+    }
+
+    if (form.idNumber.trim() && !ID_NUMBER_PATTERN.test(form.idNumber.trim())) {
+      nextErrors.idNumber = 'CCCD gồm 12 chữ số (hoặc CMND 9 chữ số)';
+    }
+
     if (form.baseSalary === '' || Number(form.baseSalary) <= 0) {
       nextErrors.baseSalary = 'Vui lòng nhập lương cơ bản';
     } else if (Number(form.baseSalary) > MAX_MONEY) {
@@ -117,7 +150,22 @@ export default function ConvertDialog({ application, departments, positions, sug
         contractType: form.contractType,
         contractEndDate: form.contractType === 'INDEFINITE' ? null : form.contractEndDate
       });
-      await onConverted(response.data);
+
+      // API chuyển chưa nhận thông tin cá nhân nên lưu bổ sung vào hồ sơ vừa tạo (sửa một phần).
+      // Hồ sơ đã tạo xong nên lỗi ở bước này chỉ báo để HR nhập lại trong form Sửa nhân sự.
+      let warning = '';
+
+      try {
+        await api.updateEmployee(response.data.employeeId, {
+          dateOfBirth: form.dateOfBirth,
+          gender: form.gender,
+          idNumber: form.idNumber.trim() || null
+        });
+      } catch (err) {
+        warning = `Chưa lưu được ngày sinh, giới tính, CCCD (${err.message}). Vui lòng bổ sung trong hồ sơ nhân viên.`;
+      }
+
+      await onConverted(response.data, warning);
     } catch (err) {
       setError(err.message);
       setSaving(false);
@@ -171,6 +219,49 @@ export default function ConvertDialog({ application, departments, positions, sug
           <label className="span-2">
             Email
             <input value={application.email} disabled />
+          </label>
+        </div>
+
+        <p className="dialog-section">Thông tin cá nhân</p>
+        <div className="form-grid">
+          <label>
+            Ngày sinh *
+            <input
+              type="date"
+              value={form.dateOfBirth}
+              max={todayInputValue()}
+              onChange={(event) => updateField('dateOfBirth', event.target.value)}
+              className={errors.dateOfBirth ? 'invalid' : undefined}
+            />
+            {fieldError('dateOfBirth')}
+          </label>
+          <label>
+            Giới tính *
+            <select
+              value={form.gender}
+              onChange={(event) => updateField('gender', event.target.value)}
+              className={errors.gender ? 'invalid' : undefined}
+            >
+              <option value="">Chọn giới tính</option>
+              {Object.entries(genderLabels).map(([value, label]) => (
+                <option value={value} key={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            {fieldError('gender')}
+          </label>
+          <label className="span-2">
+            CCCD
+            <input
+              value={form.idNumber}
+              onChange={(event) => updateField('idNumber', event.target.value)}
+              className={errors.idNumber ? 'invalid' : undefined}
+              inputMode="numeric"
+              maxLength={12}
+              placeholder="12 chữ số"
+            />
+            {fieldError('idNumber')}
           </label>
         </div>
 
