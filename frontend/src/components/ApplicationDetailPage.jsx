@@ -332,9 +332,14 @@ export default function ApplicationDetailPage({
           positions={positions}
           suggestedCode={suggestedCode}
           onCancel={() => setConverting(false)}
-          onConverted={async (updated) => {
+          onConverted={async (updated, warning) => {
             setConverting(false);
             showToast('success', `Đã chuyển ${application.fullName} thành nhân viên ${updated.employeeCode}.`);
+
+            if (warning) {
+              showToast('error', warning);
+            }
+
             await load();
             onConverted();
           }}
