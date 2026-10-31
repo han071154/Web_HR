@@ -385,16 +385,29 @@ function Dashboard({ user, onLogout }) {
     window.scrollTo(0, 0);
   }, [screen.type]);
 
-  // Điện thoại: menu là thanh cuộn ngang, cuộn tới mục đang chọn để không bị khuất.
+  // Menu bị cuộn (ngang trên điện thoại, dọc khi màn hình thấp/phóng to): cuộn tới mục đang chọn
+  // để không bị khuất.
   const navRef = useRef(null);
 
   useEffect(() => {
     const nav = navRef.current;
     const active = nav?.querySelector('.nav-item.active');
 
-    if (nav && active && nav.scrollWidth > nav.clientWidth) {
-      const left = active.getBoundingClientRect().left - nav.getBoundingClientRect().left + nav.scrollLeft;
+    if (!nav || !active) {
+      return;
+    }
+
+    const navRect = nav.getBoundingClientRect();
+    const activeRect = active.getBoundingClientRect();
+
+    if (nav.scrollWidth > nav.clientWidth) {
+      const left = activeRect.left - navRect.left + nav.scrollLeft;
       nav.scrollLeft = left - (nav.clientWidth - active.offsetWidth) / 2;
+    }
+
+    if (nav.scrollHeight > nav.clientHeight) {
+      const top = activeRect.top - navRect.top + nav.scrollTop;
+      nav.scrollTop = top - (nav.clientHeight - active.offsetHeight) / 2;
     }
   }, [view]);
 
