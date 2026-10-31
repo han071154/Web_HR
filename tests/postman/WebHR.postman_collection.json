@@ -2260,7 +2260,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"employeeCode\": \"RB{{rbacStamp}}\",\n  \"fullName\": \"Nhân Viên Phân Quyền\",\n  \"email\": \"rbac{{rbacStamp}}@webhr.local\",\n  \"departmentId\": \"{{rbacDepartmentId}}\",\n  \"position\": \"Chức vụ RBAC\",\n  \"employmentType\": \"FULL_TIME\",\n  \"status\": \"ACTIVE\",\n  \"hireDate\": \"2026-09-29\",\n  \"baseSalary\": 10000000\n}",
+              "raw": "{\n  \"employeeCode\": \"RB{{rbacStamp}}\",\n  \"fullName\": \"Nhân Viên Phân Quyền\",\n  \"email\": \"rbac{{rbacStamp}}@webhr.local\",\n  \"gender\": \"MALE\",\n  \"dateOfBirth\": \"1996-02-02\",\n  \"departmentId\": \"{{rbacDepartmentId}}\",\n  \"position\": \"Chức vụ RBAC\",\n  \"employmentType\": \"FULL_TIME\",\n  \"status\": \"ACTIVE\",\n  \"hireDate\": \"2026-09-29\",\n  \"baseSalary\": 10000000\n}",
               "options": {
                 "raw": {
                   "language": "json"

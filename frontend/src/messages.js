@@ -42,6 +42,7 @@ const exactMessages = {
   'Interview time is required for interview status': 'Vui lòng chọn lịch phỏng vấn.',
   'Deadline must be today or later to open a job posting': 'Hạn nộp hồ sơ phải từ hôm nay trở đi.',
   'ID number already exists': 'Số CCCD đã được dùng cho nhân viên khác.',
+  'Employee must be at least 15 years old on the hire date': 'Nhân viên phải đủ 15 tuổi vào ngày vào làm.',
   'An employee cannot be their own manager': 'Nhân viên không thể là quản lý trực tiếp của chính mình.',
   'File must be an Excel .xlsx file': 'Vui lòng chọn file Excel định dạng .xlsx.',
   'Excel file is required in the file field': 'Vui lòng chọn file Excel để nhập.',

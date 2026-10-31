@@ -220,15 +220,16 @@ const schemas = {
   },
   EmployeeInput: {
     type: 'object',
-    required: ['employeeCode', 'fullName', 'email', 'employmentType', 'status', 'hireDate', 'baseSalary'],
-    description: 'Cần positionId hoặc position khi tạo mới / positionId or position is required on create',
+    required: ['employeeCode', 'fullName', 'email', 'gender', 'dateOfBirth', 'employmentType', 'status', 'hireDate', 'baseSalary'],
+    description: 'Cần positionId hoặc position khi tạo mới; gender và dateOfBirth bắt buộc, khi sửa không được gửi null '
+      + '/ positionId or position is required on create; gender and dateOfBirth are required and cannot be cleared on update',
     properties: {
       employeeCode: { type: 'string', minLength: 2, maxLength: 40, example: 'NV003' },
       fullName: { type: 'string', minLength: 2, maxLength: 160, example: 'Nguyễn Văn An' },
       email: { type: 'string', format: 'email', maxLength: 160, example: 'an.nv@webhr.local' },
       phone: { type: 'string', maxLength: 40, nullable: true, example: '0901234567' },
-      gender: { type: 'string', enum: ['MALE', 'FEMALE', 'OTHER'], nullable: true },
-      dateOfBirth: { ...nullableDate, description: 'Phải ở quá khứ / must be in the past' },
+      gender: { type: 'string', enum: ['MALE', 'FEMALE', 'OTHER'] },
+      dateOfBirth: { ...date, description: 'Phải ở quá khứ; Đủ 15 tuổi vào ngày hireDate / at least 15 years old on hireDate' },
       idNumber: { type: 'string', pattern: '^(\\d{9}|\\d{12})$', nullable: true, example: '079200001234' },
       departmentId: nullableUuid,
       managerId: { ...nullableUuid, description: 'Quản lý trực tiếp, không được là chính nhân viên đó' },
@@ -260,7 +261,11 @@ const schemas = {
         type: 'array',
         items: {
           type: 'object',
-          properties: { row: { type: 'integer', example: 7 }, message: { type: 'string', example: 'Invalid email' } }
+          properties: {
+            row: { type: 'integer', example: 7 },
+            field: { type: 'string', example: 'gender', description: 'Trường bị lỗi / field that failed' },
+            message: { type: 'string', example: 'Gender is required (MALE, FEMALE or OTHER)' }
+          }
         }
       }
     }
@@ -453,9 +458,12 @@ const schemas = {
   },
   ApplicationConvert: {
     type: 'object',
-    required: ['employeeCode', 'hireDate', 'baseSalary', 'contractType'],
+    required: ['employeeCode', 'hireDate', 'baseSalary', 'contractType', 'dateOfBirth', 'gender'],
     properties: {
       employeeCode: { type: 'string', minLength: 2, maxLength: 40, example: 'NV010' },
+      dateOfBirth: { ...date, description: 'Lưu vào hồ sơ nhân viên mới; phải ở quá khứ; Đủ 15 tuổi vào ngày hireDate / at least 15 years old on hireDate' },
+      gender: { type: 'string', enum: ['MALE', 'FEMALE', 'OTHER'] },
+      idNumber: { type: 'string', pattern: '^(\\d{9}|\\d{12})$', nullable: true, description: 'CCCD 12 số / CMND 9 số, tùy chọn' },
       departmentId: { ...nullableUuid, description: 'Mặc định là phòng ban của tin tuyển dụng' },
       positionId: { ...nullableUuid, description: 'Mặc định lấy tiêu đề tin làm tên chức vụ' },
       position: { type: 'string', minLength: 2, maxLength: 120 },

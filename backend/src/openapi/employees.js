@@ -113,7 +113,9 @@ export const paths = {
       summary: 'Nhập nhân sự từ Excel (HR-009) / Import employees from Excel',
       description:
         'Cùng cột với file xuất (cần dòng tiêu đề, thứ tự cột tùy ý). Mã NV đã có thì cập nhật, chưa có thì tạo mới; '
-        + 'phòng ban/chức vụ khớp theo tên. Dòng lỗi được bỏ qua và báo trong errors (số dòng tính từ 1).',
+        + 'phòng ban/chức vụ khớp theo tên. Cột Giới tính và Ngày sinh bắt buộc (Giới tính nhận MALE/FEMALE/OTHER '
+        + 'hoặc Nam/Nữ/Khác; đủ 15 tuổi vào ngày vào làm). Dòng lỗi được bỏ qua và báo trong errors (số dòng tính từ 1, '
+        + 'kèm field). / Gender and date of birth columns are required.',
       roles: ROLES.MANAGERS,
       requestBody: multipartBody({
         type: 'object',

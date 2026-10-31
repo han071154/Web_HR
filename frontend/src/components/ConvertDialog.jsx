@@ -148,24 +148,14 @@ export default function ConvertDialog({ application, departments, positions, sug
         employmentType: form.employmentType,
         baseSalary: Number(form.baseSalary),
         contractType: form.contractType,
-        contractEndDate: form.contractType === 'INDEFINITE' ? null : form.contractEndDate
+        contractEndDate: form.contractType === 'INDEFINITE' ? null : form.contractEndDate,
+        // API chuyển lưu luôn thông tin cá nhân vào hồ sơ mới (cùng transaction với hồ sơ và hợp đồng).
+        dateOfBirth: form.dateOfBirth,
+        gender: form.gender,
+        idNumber: form.idNumber.trim() || null
       });
 
-      // API chuyển chưa nhận thông tin cá nhân nên lưu bổ sung vào hồ sơ vừa tạo (sửa một phần).
-      // Hồ sơ đã tạo xong nên lỗi ở bước này chỉ báo để HR nhập lại trong form Sửa nhân sự.
-      let warning = '';
-
-      try {
-        await api.updateEmployee(response.data.employeeId, {
-          dateOfBirth: form.dateOfBirth,
-          gender: form.gender,
-          idNumber: form.idNumber.trim() || null
-        });
-      } catch (err) {
-        warning = `Chưa lưu được ngày sinh, giới tính, CCCD (${err.message}). Vui lòng bổ sung trong hồ sơ nhân viên.`;
-      }
-
-      await onConverted(response.data, warning);
+      await onConverted(response.data);
     } catch (err) {
       setError(err.message);
       setSaving(false);
