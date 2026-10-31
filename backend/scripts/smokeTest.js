@@ -226,7 +226,10 @@ async function hrRecruitmentChecks({ managerToken, staffToken }, suffix) {
       hireDate: '2026-10-15',
       baseSalary: 9000000,
       contractType: 'PROBATION',
-      contractEndDate: '2026-12-14'
+      contractEndDate: '2026-12-14',
+      dateOfBirth: '1998-04-10',
+      gender: 'FEMALE',
+      idNumber: null
     };
 
     // Chưa "Đậu" thì chưa chuyển thành nhân sự được.
@@ -376,6 +379,7 @@ async function main() {
         fullName: employee.fullName,
         email: `duplicate-${suffix}@webhr.local`,
         gender: 'FEMALE',
+        dateOfBirth: '1995-01-01',
         position: employee.position,
         employmentType: 'FULL_TIME',
         status: 'ACTIVE',
@@ -393,6 +397,7 @@ async function main() {
         fullName: employee.fullName,
         email: employee.email,
         gender: 'FEMALE',
+        dateOfBirth: '1995-01-01',
         position: employee.position,
         employmentType: 'FULL_TIME',
         status: 'ACTIVE',
@@ -477,6 +482,8 @@ async function main() {
         employeeCode: `POS-${suffix}`,
         fullName: 'Smoke Position Link',
         email: `position-${suffix}@webhr.local`,
+        gender: 'MALE',
+        dateOfBirth: '1990-06-15',
         positionId,
         position: 'Ignored free text',
         employmentType: 'SHIFT',

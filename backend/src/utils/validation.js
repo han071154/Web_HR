@@ -21,6 +21,28 @@ export const monthSchema = z
 
 export const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, 'Time must use HH:mm');
 
+// Ngày sinh và giới tính bắt buộc khi tạo hồ sơ nhân viên (tạo mới, nhập Excel, chuyển ứng viên), khớp
+// form ở frontend. Thông báo lỗi riêng thay cho "Required" / "Invalid enum value" của zod để dòng lỗi khi
+// nhập Excel nói rõ thiếu trường nào.
+export const GENDERS = ['MALE', 'FEMALE', 'OTHER'];
+
+export const genderSchema = z.enum(GENDERS, {
+  errorMap: () => ({ message: 'Gender is required (MALE, FEMALE or OTHER)' })
+});
+
+export const birthDateSchema = z
+  .string({ required_error: 'Date of birth is required', invalid_type_error: 'Date of birth is required' })
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date of birth must use YYYY-MM-DD')
+  .refine(isRealDate, 'Date of birth does not exist');
+
+// Tuổi tối thiểu khi vào làm (Bộ luật Lao động: người lao động từ đủ 15 tuổi). So sánh chuỗi "YYYY-MM-DD"
+// như frontend: sinh 29/02 thì đủ tuổi từ 01/03 của năm không nhuận.
+export const MIN_WORKING_AGE = 15;
+
+export function isOldEnoughOn(dateOfBirth, date, years = MIN_WORKING_AGE) {
+  return `${Number(dateOfBirth.slice(0, 4)) + years}${dateOfBirth.slice(4)}` <= date;
+}
+
 // Cột tiền là NUMERIC(14, 2): lớn hơn mức này PostgreSQL báo "numeric field overflow".
 export const MAX_MONEY = 999999999999.99;
 export const moneySchema = z.coerce.number().min(0).max(MAX_MONEY);

@@ -15,7 +15,7 @@ import { diffFields, listAudit, logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
 import { getOwnEmployeeId } from '../utils/selfService.js';
 import { localDate } from '../utils/localTime.js';
-import { dateSchema, moneySchema } from '../utils/validation.js';
+import { birthDateSchema, dateSchema, genderSchema, isOldEnoughOn, MIN_WORKING_AGE, moneySchema } from '../utils/validation.js';
 
 const router = express.Router();
 
@@ -24,11 +24,9 @@ const employeeSchema = z.object({
   fullName: z.string().trim().min(2).max(160),
   email: z.string().email().max(160),
   phone: z.string().max(40).optional().nullable(),
-  gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional().nullable(),
-  dateOfBirth: dateSchema
-    .refine((value) => value < localDate(), 'Date of birth must be in the past')
-    .optional()
-    .nullable(),
+  // Bắt buộc khi tạo (kể cả nhập Excel); khi sửa có thể bỏ qua nhưng không được xóa trống.
+  gender: genderSchema,
+  dateOfBirth: birthDateSchema.refine((value) => value < localDate(), 'Date of birth must be in the past'),
   // CMND 9 số hoặc CCCD 12 số.
   idNumber: z.string().trim().regex(/^(\d{9}|\d{12})$/, 'ID number must have 9 or 12 digits').optional().nullable(),
   departmentId: z.string().uuid().optional().nullable(),
@@ -43,10 +41,17 @@ const employeeSchema = z.object({
   address: z.string().optional().nullable()
 });
 
-const createEmployeeSchema = employeeSchema.refine((employee) => employee.positionId || employee.position, {
-  path: ['position'],
-  message: 'Position is required'
-});
+const MIN_AGE_MESSAGE = `Employee must be at least ${MIN_WORKING_AGE} years old on the hire date`;
+
+const createEmployeeSchema = employeeSchema
+  .refine((employee) => employee.positionId || employee.position, {
+    path: ['position'],
+    message: 'Position is required'
+  })
+  .refine((employee) => isOldEnoughOn(employee.dateOfBirth, employee.hireDate), {
+    path: ['dateOfBirth'],
+    message: MIN_AGE_MESSAGE
+  });
 const updateEmployeeSchema = employeeSchema.partial();
 
 // Các trường được ghi vào lịch sử khi sửa hồ sơ (phòng ban, quản lý ghi theo tên cho dễ đọc).
@@ -369,6 +374,14 @@ function excelCell(value) {
   return value === null || value === undefined ? '' : String(value).trim();
 }
 
+// Cột Giới tính: mã (MALE/FEMALE/OTHER, như file xuất ra) hoặc nhãn tiếng Việt (Nam/Nữ/Khác).
+const EXCEL_GENDERS = { NAM: 'MALE', 'NỮ': 'FEMALE', NU: 'FEMALE', 'KHÁC': 'OTHER', KHAC: 'OTHER' };
+
+function excelGender(value) {
+  const text = excelCell(value).toUpperCase();
+  return EXCEL_GENDERS[text] || text || undefined;
+}
+
 // HR-009: nhập danh sách nhân sự từ Excel (cùng định dạng cột với file xuất ra).
 // Mã NV đã tồn tại thì cập nhật, chưa có thì tạo mới; dòng lỗi được bỏ qua và báo lại trong "errors".
 router.post('/import', requireRole('ADMIN', 'HR_MANAGER'), excelUpload, async (req, res, next) => {
@@ -425,8 +438,8 @@ router.post('/import', requireRole('ADMIN', 'HR_MANAGER'), excelUpload, async (r
           fullName: excelCell(raw.fullName),
           email: excelCell(raw.email),
           phone: excelCell(raw.phone) || null,
-          gender: excelCell(raw.gender).toUpperCase() || null,
-          dateOfBirth: formatExcelDate(raw.dateOfBirth),
+          gender: excelGender(raw.gender),
+          dateOfBirth: formatExcelDate(raw.dateOfBirth) || undefined,
           idNumber: excelCell(raw.idNumber) || null,
           departmentId: departmentName ? departmentIdByName.get(departmentName.toLowerCase()) || null : null,
           positionId: positionName ? positionIdByName.get(positionName.toLowerCase()) || null : null,
@@ -498,7 +511,8 @@ router.post('/import', requireRole('ADMIN', 'HR_MANAGER'), excelUpload, async (r
       } catch (rowError) {
         errors.push({
           row: rowNumber,
-          message: rowError.issues?.[0]?.message || rowError.message || 'Dữ liệu không hợp lệ'
+          message: rowError.issues?.[0]?.message || rowError.message || 'Dữ liệu không hợp lệ',
+          field: rowError.issues?.[0]?.path?.join('.') || undefined
         });
       }
     }
@@ -611,6 +625,16 @@ router.put('/:id', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) =>
 
     if (merged.managerId === req.params.id) {
       throw httpError(400, 'An employee cannot be their own manager');
+    }
+
+    // Hồ sơ cũ có thể chưa có ngày sinh; có đủ cả hai ngày thì phải đủ tuổi vào làm như khi tạo mới.
+    if (
+      (Object.hasOwn(body, 'dateOfBirth') || Object.hasOwn(body, 'hireDate'))
+      && merged.dateOfBirth
+      && merged.hireDate
+      && !isOldEnoughOn(merged.dateOfBirth, merged.hireDate)
+    ) {
+      throw httpError(400, MIN_AGE_MESSAGE);
     }
 
     // Có positionId thì lấy tên từ danh mục; chỉ gửi tên mới (khác tên cũ) thì bỏ liên kết.
