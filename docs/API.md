@@ -6,6 +6,15 @@ All routes except login, health and `/public/*` require `Authorization: Bearer <
 Successful resource responses use `{ "data": ... }`. PostgreSQL `DATE` fields are
 returned as `YYYY-MM-DD` strings.
 
+The full OpenAPI 3 spec of every endpoint is served by Swagger UI at `/api/docs` and exported to
+[openapi.json](openapi.json) (`npm run docs:openapi --workspace backend`; CI fails if it is out of date).
+Every response carries an `X-Request-Id` header (taken from the request header of the same name when a proxy
+sends one) that also appears in the backend log line of that request.
+
+`GET /api/health` (no login) returns `{ status: 'ok', database: 'ok', dbLatencyMs, uptimeSeconds }`, or
+`503 { status: 'degraded', database: 'unreachable' }` when PostgreSQL cannot be reached — used by the Docker
+healthcheck and deploy script.
+
 ## Test accounts
 
 | Role | Email | Password |
@@ -549,8 +558,8 @@ employee request a change on their own schedule entry (`403` if the schedule bel
 else, `409 A change request for this shift is already pending` if one is still waiting). `PATCH /work-schedules/change-requests/:id` (`{ "status": "APPROVED" | "REJECTED" }`) lets
 HR review it; approving with a `requestedShiftId` updates the underlying schedule's shift
 (re-checking the weekly hour limit) and returns `409 This request has already been reviewed` if
-called twice. There is no notification system yet — the decision is recorded in the audit log
-(`entityType: 'SHIFT_CHANGE_REQUEST'`); the employee sees their own requests and their status
+called twice. The decision is recorded in the audit log (`entityType: 'SHIFT_CHANGE_REQUEST'`) and sends the
+employee an in-app notification (see Notifications); the employee sees their own requests and their status
 (`PENDING` / `APPROVED` / `REJECTED`) via `GET /work-schedules/me/change-requests` (newest first; `from`/`to` filter
 by the schedule's work date, `status` is optional) — same fields as the HR list.
 
@@ -565,6 +574,7 @@ by the schedule's work date, `status` is optional) — same fields as the HR lis
 | GET | `/attendance-records/monthly-summary?month=YYYY-MM&employeeId=&departmentId=` | ADMIN, HR_MANAGER, HR_STAFF |
 | GET | `/attendance-records/:id` | ADMIN, HR_MANAGER, HR_STAFF |
 | PUT | `/attendance-records/:id` | ADMIN, HR_MANAGER, HR_STAFF |
+| POST | `/attendance-records/mark-absent` | ADMIN, HR_MANAGER, HR_STAFF |
 
 `check-in` looks up today's schedule (`work_schedules`) for the employee: with no schedule the
 record is `PRESENT`; with a schedule, checking in more than `LATE_THRESHOLD_MINUTES` (env var,
@@ -573,10 +583,22 @@ default `15`) after the shift's `startTime` sets `LATE`. A second `check-in` the
 (`409 You have not checked in today`) and can only run once (`409 Already checked out today`).
 
 `PUT /attendance-records/:id` lets HR correct a record (forgotten check-in/out, wrong status) —
-any subset of `checkIn`, `checkOut` (ISO datetime with offset), `status`, `note`.
+any subset of `checkIn`, `checkOut` (ISO datetime with offset), `status`, `note`. Late / early-leave
+minutes are recomputed from the corrected times.
+
+Attendance by shift (HR-035): each record returns `lateMinutes` (minutes after the shift start, set at
+check-in when beyond `LATE_THRESHOLD_MINUTES`) and `earlyLeaveMinutes` (minutes before the shift end, set at
+check-out when beyond `EARLY_LEAVE_THRESHOLD_MINUTES`, env var, default `15`); both are `0` within the
+threshold or without a schedule.
+
+`POST /attendance-records/mark-absent` (`{ "date": "YYYY-MM-DD" }`, must be before today, otherwise
+`400 Can only mark absences for a past date`) inserts an `ABSENT` record for every `SCHEDULED` shift of an
+`ACTIVE` employee on that date that has no attendance record, and returns `{ date, created }`. Approved leave
+days already hold an `ON_LEAVE` record, so they are skipped; re-running it creates nothing new. With
+`AUTO_MARK_ABSENT=true` (on in `docker-compose.yml`) the backend does this every hour for yesterday.
 
 `GET /attendance-records/monthly-summary` and `GET /reports/work-hours` share the same
-aggregation (see Reports below): `workDays`, `lateCount`, `absentCount`, `totalHours`, `otHours`.
+aggregation (see Reports below): `workDays`, `lateCount`, `earlyLeaveCount`, `absentCount`, `totalHours`, `otHours`.
 Worked hours of a day = `checkOut - checkIn` minus the break: the shift's `breakMinutes`, or
 `DEFAULT_BREAK_MINUTES` (env var, default `60`) when the record has no linked schedule. The break is only
 deducted when the employee was present for more than half of the shift frame (`endTime - startTime`, or
@@ -612,7 +634,8 @@ is rejected with `400 The selected dates have no working days`.
 New requests start as `PENDING`. `PATCH` (`{ "status": "APPROVED" | "REJECTED" }`) can only be
 called once per request (`409 This leave request has already been reviewed`); approving marks
 each leave day as `ON_LEAVE` in `attendance-records`. A day already marked `ABSENT` with no check-in/out
-becomes `ON_LEAVE`; a day with a real attendance record (check-in/out) is left unchanged.
+becomes `ON_LEAVE`; a day with a real attendance record (check-in/out) is left unchanged. Approving or
+rejecting sends the employee an in-app notification (see Notifications).
 
 ## Reports (Báo cáo thống kê)
 
@@ -623,15 +646,35 @@ All routes require ADMIN, HR_MANAGER or HR_STAFF, except `/reports/work-hours` (
 | GET | `/reports/by-department` | Active employee headcount per department |
 | GET | `/reports/dashboard?date=` | Pre-aggregated numbers for the HR dashboard (see below) |
 | GET | `/reports/work-hours?from=&to=&employeeId=&departmentId=` | Work-hour stats (see Attendance) for a date range |
-| GET | `/reports/export?from=&to=&employeeId=&departmentId=` | Same stats as `.xlsx` |
+| GET | `/reports/export?from=&to=&employeeId=&departmentId=&format=xlsx\|pdf` | Same stats as `.xlsx` (default) or `.pdf` |
 
 `GET /reports/dashboard` (`date` optional, defaults to today in `APP_TIMEZONE`) returns
 `{ date, from, employeeStatus: { ACTIVE, ON_LEAVE, RESIGNED, TERMINATED }, attendanceDaily: [{ workDate, status, count }],
 pendingLeaves, pendingShiftChanges, month: { from, to, totalHours, otHours } }` — counts for the 7 days ending on
 `date` and work-hour totals for its month, aggregated in SQL (a few hundred bytes even with 5,000 employees).
 
-For `work-hours` and `export`, `from`/`to` are required `YYYY-MM-DD` dates. The employee list itself is exported separately via
-`GET /employees/export` (Excel only — no PDF export is implemented, per project decision).
+For `work-hours` and `export`, `from`/`to` are required `YYYY-MM-DD` dates. `format=pdf` returns an A4 landscape
+PDF (`bao-cao-gio-cong-<from>-<to>.pdf`) with the same columns as the Excel file, a totals row, the filter scope
+(whole company / department / employee) in the title and page numbers; Vietnamese text uses the bundled DejaVu
+Sans font. Any other `format` returns `400`. The employee list itself is exported separately via
+`GET /employees/export` (Excel).
+
+## Notifications (Thông báo, HR-034)
+
+Any logged-in role; each user only sees and updates their own notifications (`users.id` from the token).
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/notifications/me?unreadOnly=true\|false&limit=1..100` | Newest first (default 20) + `meta.unreadCount` |
+| PATCH | `/notifications/:id/read` | Mark one as read (`404 Notification not found` if it is not yours) |
+| POST | `/notifications/me/read-all` | Mark all as read, returns `{ updated }` |
+
+Notification: `{ id, type, title, message, entityType, entityId, isRead, createdAt, readAt }`. They are created
+for the account linked to the employee (`users.employee_id`) when HR reviews a request:
+`SHIFT_CHANGE_APPROVED` / `SHIFT_CHANGE_REJECTED` (entity `SHIFT_CHANGE_REQUEST`) and `LEAVE_APPROVED` /
+`LEAVE_REJECTED` (entity `LEAVE_REQUEST`). An employee without an account gets none; a failure to store a
+notification is logged and never fails the review itself. There is no push channel — the web app polls every
+minute.
 
 ## User accounts (Quản lý tài khoản, HR-007)
 
@@ -688,7 +731,7 @@ Rules:
 
 ## Local verification
 
-Unit tests (mock the database, no PostgreSQL needed — task #67, currently covers `/auth`):
+Unit tests (mock the database, no PostgreSQL needed; also checks that the OpenAPI spec covers every route):
 
 ```bash
 npm run test --workspace backend

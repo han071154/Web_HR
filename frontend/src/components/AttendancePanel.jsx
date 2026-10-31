@@ -1,4 +1,4 @@
-import { Download, Pencil } from 'lucide-react';
+import { Download, FileText, Pencil } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import {
@@ -20,6 +20,7 @@ import EmployeeLink from './EmployeeLink.jsx';
 import Pagination from './Pagination.jsx';
 import TabBar from './TabBar.jsx';
 import { useLatestRequest } from '../useLatestRequest.js';
+import ShiftTimingNote from './ShiftTimingNote.jsx';
 
 // Bảng chấm công chưa có phân trang ở backend: hiển thị theo trang để không vẽ hàng nghìn dòng một lúc.
 const RECORDS_PAGE_SIZE = 50;
@@ -265,6 +266,7 @@ function AttendanceRecords({ departments, showToast }) {
                       <span className={`status-pill ${attendanceStatusClass[record.status]}`}>
                         {attendanceStatusLabels[record.status] || record.status}
                       </span>
+                      <ShiftTimingNote record={record} />
                     </td>
                     <td data-label="Ghi chú" className={record.note ? '' : 'muted-cell'}>
                       {record.note || '—'}
@@ -357,10 +359,10 @@ function MonthlySummary({ departments, showToast }) {
     loadSummary();
   }, [loadSummary]);
 
-  async function handleExport() {
+  async function handleExport(format) {
     try {
-      const blob = await api.exportWorkHours({ ...monthRange(month), departmentId: departmentFilter });
-      downloadBlob(blob, `bang-cong-${month}.xlsx`);
+      const blob = await api.exportWorkHours({ ...monthRange(month), departmentId: departmentFilter, format });
+      downloadBlob(blob, `bang-cong-${month}.${format}`);
     } catch (err) {
       showToast('error', err.message);
     }
@@ -382,9 +384,13 @@ function MonthlySummary({ departments, showToast }) {
           ))}
         </select>
         <div className="toolbar-actions">
-          <button type="button" className="ghost-button" onClick={handleExport} disabled={!month || !rows.length}>
+          <button type="button" className="ghost-button" onClick={() => handleExport('xlsx')} disabled={!month || !rows.length}>
             <Download size={17} aria-hidden="true" />
             Xuất Excel
+          </button>
+          <button type="button" className="ghost-button" onClick={() => handleExport('pdf')} disabled={!month || !rows.length}>
+            <FileText size={17} aria-hidden="true" />
+            Xuất PDF
           </button>
         </div>
       </div>
@@ -400,6 +406,7 @@ function MonthlySummary({ departments, showToast }) {
               <th>Nhân viên</th>
               <th>Ngày công</th>
               <th>Đi trễ</th>
+              <th>Về sớm</th>
               <th>Vắng</th>
               <th>Tổng giờ</th>
               <th>Giờ OT</th>
@@ -408,7 +415,7 @@ function MonthlySummary({ departments, showToast }) {
           <tbody>
             {loading && !rows.length ? (
               <tr>
-                <td colSpan="6">Đang tải dữ liệu</td>
+                <td colSpan="7">Đang tải dữ liệu</td>
               </tr>
             ) : rows.length ? (
               rows.slice((rowsPage - 1) * RECORDS_PAGE_SIZE, rowsPage * RECORDS_PAGE_SIZE).map((row) => (
@@ -421,6 +428,9 @@ function MonthlySummary({ departments, showToast }) {
                   <td data-label="Đi trễ" className={row.lateCount ? 'warning-cell' : ''}>
                     {row.lateCount}
                   </td>
+                  <td data-label="Về sớm" className={row.earlyLeaveCount ? 'warning-cell' : ''}>
+                    {row.earlyLeaveCount ?? 0}
+                  </td>
                   <td data-label="Vắng" className={row.absentCount ? 'danger-cell' : ''}>
                     {row.absentCount}
                   </td>
@@ -430,7 +440,7 @@ function MonthlySummary({ departments, showToast }) {
               ))
             ) : (
               <tr>
-                <td colSpan="6">Chưa có dữ liệu chấm công trong tháng này</td>
+                <td colSpan="7">Chưa có dữ liệu chấm công trong tháng này</td>
               </tr>
             )}
           </tbody>

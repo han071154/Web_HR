@@ -4,6 +4,13 @@ on:
   push:
     branches: [main, master, Dev, feature]
   pull_request:
+  # Chạy tay từ tab Actions để deploy lại staging (vd sau khi đổi secret).
+  workflow_dispatch:
+
+# Không cho 2 lần deploy staging chạy chồng lên nhau.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -31,8 +38,13 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-  # Build (không push) các Docker image để xác nhận Dockerfile build được — chưa deploy tự động
-  # lên server staging thật vì repo chưa có server/credentials (xem docs/DEPLOYMENT.md).
+      # docs/openapi.json phải khớp spec trong backend/src/openapi (chạy `npm run docs:openapi --workspace backend`).
+      - name: OpenAPI export is up to date
+        run: |
+          npm run docs:openapi --workspace backend
+          git diff --exit-code docs/openapi.json
+
+  # Build (không push) các Docker image để xác nhận Dockerfile build được trước khi deploy.
   docker-build:
     runs-on: ubuntu-latest
 
@@ -123,3 +135,42 @@ jobs:
       - name: Show backend log
         if: failure()
         run: cat backend.log
+
+  # Deploy tự động lên staging khi push vào nhánh Dev (hoặc chạy tay) sau khi build, test và Docker image đều
+  # qua. Máy chủ staging tự build image từ mã nguồn và chạy scripts/deploy.sh (sao lưu CSDL → build → db:setup →
+  # health check → tự rollback nếu lỗi). Cần cấu hình trong Settings → Secrets and variables → Actions:
+  #   STAGING_HOST, STAGING_USER, STAGING_SSH_KEY (private key), STAGING_PATH (thư mục repo trên máy chủ)
+  # Chưa có secret thì job chỉ ghi chú và bỏ qua, không làm đỏ pipeline. Xem docs/DEPLOYMENT.md mục 9.
+  deploy-staging:
+    needs: [build, docker-build, api-tests]
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/Dev')
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+
+    steps:
+      - name: Check staging secrets
+        id: secrets
+        env:
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+        run: |
+          if [ -z "$STAGING_HOST" ]; then
+            echo "::notice::Chưa cấu hình secret STAGING_HOST, bỏ qua deploy staging."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy over SSH
+        if: steps.secrets.outputs.configured == 'true'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          command_timeout: 20m
+          script: |
+            set -e
+            cd "${{ secrets.STAGING_PATH }}"
+            git fetch --all --tags --prune
+            ./scripts/deploy.sh .env.staging ${{ github.sha }}

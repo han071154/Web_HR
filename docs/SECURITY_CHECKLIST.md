@@ -20,8 +20,8 @@ không phải một lần kiểm thử xâm nhập đầy đủ.
 - **A09 Security Logging**: các thao tác quan trọng (tạo/duyệt lịch, check-in/out, duyệt nghỉ phép,
   duyệt đổi ca) đều ghi `audit_logs` qua `logAudit` với `entityType` riêng (`WORK_SCHEDULE`,
   `ATTENDANCE`, `LEAVE_REQUEST`, `SHIFT_CHANGE_REQUEST`).
-- **Hạn chế đã biết**: chưa có hệ thống thông báo (notification) thật — kết quả duyệt đổi ca chỉ
-  nằm trong audit log, nhân viên phải tự kiểm tra lại lịch/ trạng thái yêu cầu.
+- **Thông báo (HR-034)**: kết quả duyệt đổi ca / nghỉ phép gửi qua bảng `notifications`; API
+  `/notifications` luôn lọc theo `user_id` lấy từ token nên không đọc / đánh dấu được thông báo của người khác.
 
 | # | Rủi ro | Hiện trạng | Việc cần làm |
 | --- | --- | --- | --- |
@@ -33,7 +33,7 @@ không phải một lần kiểm thử xâm nhập đầy đủ.
 | A06 | Vulnerable and Outdated Components | Chưa có bước tự động kiểm tra lỗ hổng dependency trong CI. | Khuyến nghị chạy `npm audit` định kỳ hoặc thêm bước audit vào CI. |
 | A07 | Identification and Authentication Failures | Hash mật khẩu đúng chuẩn; JWT có hạn dùng; đã có rate limit chống brute-force (xem A04). Chưa có khóa tài khoản tạm thời sau nhiều lần đăng nhập sai liên tiếp. | Có thể bổ sung khóa tài khoản tạm thời nếu quy mô người dùng lớn hơn; hiện tại rate limit theo IP là đủ cho quy mô nội bộ. |
 | A08 | Software and Data Integrity Failures | Upload file kiểm tra cả mimetype lẫn nội dung thật: CV kiểm tra 4 byte đầu phải là `%PDF` (`isPdfFile`), Excel kiểm tra mimetype + đuôi file. | Không có |
-| A09 | Security Logging and Monitoring Failures | `morgan('dev')` ghi log request; bảng `audit_logs` ghi lại các thao tác nghiệp vụ quan trọng (ai làm gì, lúc nào). Chưa có cảnh báo tự động khi phát hiện bất thường (ví dụ nhiều lần đăng nhập sai). | Ngoài phạm vi giai đoạn hiện tại; có thể bổ sung khi có hệ thống giám sát tập trung. |
+| A09 | Security Logging and Monitoring Failures | Log JSON có cấu trúc cho mọi request (`requestId`, status, thời gian, `userId`; không ghi query string để tránh lộ dữ liệu), lỗi 500 ghi stack trace ở máy chủ; đăng nhập sai quá nhiều trả 429 và có dòng log `warn`; bảng `audit_logs` ghi thao tác nghiệp vụ. Log container xoay vòng, health check kiểm tra CSDL. Chưa có cảnh báo tự động (gửi email/chat) khi phát hiện bất thường. | Ngoài phạm vi giai đoạn hiện tại; có thể bổ sung khi có hệ thống giám sát tập trung. |
 | A10 | Server-Side Request Forgery (SSRF) | Backend không gọi ra URL do người dùng cung cấp. | Không áp dụng |
 
 ## Tuần 7: Docker hoá & triển khai
