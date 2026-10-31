@@ -2078,7 +2078,7 @@
           "Employees"
         ],
         "summary": "Nhập nhân sự từ Excel (HR-009) / Import employees from Excel",
-        "description": "Vai trò / Roles: ADMIN, HR_MANAGER.\n\nCùng cột với file xuất (cần dòng tiêu đề, thứ tự cột tùy ý). Mã NV đã có thì cập nhật, chưa có thì tạo mới; phòng ban/chức vụ khớp theo tên. Dòng lỗi được bỏ qua và báo trong errors (số dòng tính từ 1).",
+        "description": "Vai trò / Roles: ADMIN, HR_MANAGER.\n\nCùng cột với file xuất (cần dòng tiêu đề, thứ tự cột tùy ý). Mã NV đã có thì cập nhật, chưa có thì tạo mới; phòng ban/chức vụ khớp theo tên. Cột Giới tính và Ngày sinh bắt buộc (Giới tính nhận MALE/FEMALE/OTHER hoặc Nam/Nữ/Khác; đủ 15 tuổi vào ngày vào làm). Dòng lỗi được bỏ qua và báo trong errors (số dòng tính từ 1, kèm field). / Gender and date of birth columns are required.",
         "security": [
           {
             "bearerAuth": []
@@ -9012,12 +9012,14 @@
           "employeeCode",
           "fullName",
           "email",
+          "gender",
+          "dateOfBirth",
           "employmentType",
           "status",
           "hireDate",
           "baseSalary"
         ],
-        "description": "Cần positionId hoặc position khi tạo mới / positionId or position is required on create",
+        "description": "Cần positionId hoặc position khi tạo mới; gender và dateOfBirth bắt buộc, khi sửa không được gửi null / positionId or position is required on create; gender and dateOfBirth are required and cannot be cleared on update",
         "properties": {
           "employeeCode": {
             "type": "string",
@@ -9049,15 +9051,13 @@
               "MALE",
               "FEMALE",
               "OTHER"
-            ],
-            "nullable": true
+            ]
           },
           "dateOfBirth": {
             "type": "string",
             "format": "date",
             "example": "2026-10-12",
-            "nullable": true,
-            "description": "Phải ở quá khứ / must be in the past"
+            "description": "Phải ở quá khứ; Đủ 15 tuổi vào ngày hireDate / at least 15 years old on hireDate"
           },
           "idNumber": {
             "type": "string",
@@ -9152,9 +9152,14 @@
                   "type": "integer",
                   "example": 7
                 },
+                "field": {
+                  "type": "string",
+                  "example": "gender",
+                  "description": "Trường bị lỗi / field that failed"
+                },
                 "message": {
                   "type": "string",
-                  "example": "Invalid email"
+                  "example": "Gender is required (MALE, FEMALE or OTHER)"
                 }
               }
             }
@@ -9759,7 +9764,9 @@
           "employeeCode",
           "hireDate",
           "baseSalary",
-          "contractType"
+          "contractType",
+          "dateOfBirth",
+          "gender"
         ],
         "properties": {
           "employeeCode": {
@@ -9767,6 +9774,26 @@
             "minLength": 2,
             "maxLength": 40,
             "example": "NV010"
+          },
+          "dateOfBirth": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-12",
+            "description": "Lưu vào hồ sơ nhân viên mới; phải ở quá khứ; Đủ 15 tuổi vào ngày hireDate / at least 15 years old on hireDate"
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "MALE",
+              "FEMALE",
+              "OTHER"
+            ]
+          },
+          "idNumber": {
+            "type": "string",
+            "pattern": "^(\\d{9}|\\d{12})$",
+            "nullable": true,
+            "description": "CCCD 12 số / CMND 9 số, tùy chọn"
           },
           "departmentId": {
             "type": "string",
@@ -10840,15 +10867,13 @@
               "MALE",
               "FEMALE",
               "OTHER"
-            ],
-            "nullable": true
+            ]
           },
           "dateOfBirth": {
             "type": "string",
             "format": "date",
             "example": "2026-10-12",
-            "nullable": true,
-            "description": "Phải ở quá khứ / must be in the past"
+            "description": "Phải ở quá khứ; Đủ 15 tuổi vào ngày hireDate / at least 15 years old on hireDate"
           },
           "idNumber": {
             "type": "string",

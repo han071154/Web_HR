@@ -152,14 +152,17 @@ việc, Trạng thái, Ngày vào làm, Lương cơ bản, Địa chỉ.
 same columns as the export, header row required but columns can be reordered). An existing
 `employeeCode` is updated; a new one is created. Department/position columns are matched by name
 (case-insensitive) against the existing catalog; an unmatched position is kept as free text.
+Giới tính and Ngày sinh are required on every row, like on the create form: Giới tính accepts
+`MALE` / `FEMALE` / `OTHER` (as exported) or `Nam` / `Nữ` / `Khác`; Ngày sinh is an Excel date or
+`YYYY-MM-DD` and the employee must be at least 15 on Ngày vào làm.
 
 ```json
 // 200 response
-{ "data": { "created": 12, "updated": 3, "skipped": 1, "errors": [{ "row": 7, "message": "Invalid email" }] } }
+{ "data": { "created": 12, "updated": 3, "skipped": 1, "errors": [{ "row": 7, "field": "gender", "message": "Gender is required (MALE, FEMALE or OTHER)" }] } }
 ```
 
 A row that fails validation is skipped (not the whole import) and reported in `errors` with its
-1-based spreadsheet row number.
+1-based spreadsheet row number and the failing `field`.
 
 Create fields (`PUT` accepts any subset):
 
@@ -189,6 +192,11 @@ Create fields (`PUT` accepts any subset):
 - Renaming a position updates `position` on every employee linked to it. Deleting a position keeps
   the name on employees and sets their `positionId` to `null`.
 - Sending only a different `position` text on `PUT` unlinks the employee from the catalog.
+- `gender` (`MALE`, `FEMALE`, `OTHER`) and `dateOfBirth` (in the past) are required when creating,
+  matching the frontend form; `PUT` may omit them but cannot set them to `null`. The employee must be at
+  least 15 on `hireDate` (`dateOfBirth` + 15 years ≤ `hireDate`), otherwise
+  `400 Employee must be at least 15 years old on the hire date` (checked on create, import, convert, and on
+  `PUT` when `dateOfBirth` or `hireDate` changes).
 - `idNumber` (CCCD) is optional, 9 or 12 digits and unique (`409 ID number already exists`).
 - `managerId` is the direct manager (another employee, `400` if it is the employee itself).
   Responses include `managerName`.
@@ -441,7 +449,8 @@ Statuses (Figma M-08c): `NEW` (Mới nộp) → `REVIEWING` (Đang xét) → `IN
   (`409 Converted application status cannot be changed`).
 
 `POST /applications/:id/convert` (M-08e) only works for a `HIRED` application. In one transaction it
-creates the employee (name, email and phone from the application), the first `ACTIVE` contract
+creates the employee (name, email and phone from the application; date of birth, gender and CCCD from the
+request), the first `ACTIVE` contract
 (`HDLD-<employeeCode>-<year>`) and links the application to the employee:
 
 ```json
@@ -451,6 +460,9 @@ creates the employee (name, email and phone from the application), the first `AC
   "baseSalary": 9000000,
   "contractType": "PROBATION",
   "contractEndDate": "2026-12-14",
+  "dateOfBirth": "1998-04-10",
+  "gender": "FEMALE",
+  "idNumber": "optional, 9 or 12 digits",
   "departmentId": "optional, defaults to the job's department",
   "positionId": "optional, defaults to the job title as position name",
   "employmentType": "optional, defaults to the job's employment type"
@@ -458,6 +470,8 @@ creates the employee (name, email and phone from the application), the first `AC
 ```
 
 `contractEndDate` is required (and on or after `hireDate`) unless `contractType` is `INDEFINITE`.
+`dateOfBirth` and `gender` are required with the same rules as creating an employee (in the past, at least
+15 on `hireDate`); `idNumber` is optional and must be unique.
 
 | Case | Status | Message |
 | --- | --- | --- |

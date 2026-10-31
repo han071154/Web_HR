@@ -10,7 +10,8 @@ import { removeCvFile } from '../middleware/cvUpload.js';
 import { applicationCode } from '../utils/applicationCode.js';
 import { listAudit, logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
-import { dateSchema, moneySchema } from '../utils/validation.js';
+import { localDate } from '../utils/localTime.js';
+import { birthDateSchema, dateSchema, genderSchema, isOldEnoughOn, MIN_WORKING_AGE, moneySchema } from '../utils/validation.js';
 
 // HR xử lý hồ sơ ứng viên nộp từ trang tuyển dụng công khai (Figma M-08c, M-08d, M-08e).
 // Luồng trạng thái: NEW (Mới nộp) → REVIEWING (Đang xét) → INTERVIEW (Phỏng vấn)
@@ -38,9 +39,21 @@ const convertSchema = z
     hireDate: dateSchema,
     baseSalary: moneySchema,
     contractType: z.enum(['PROBATION', 'FIXED_TERM', 'INDEFINITE', 'SEASONAL']),
-    contractEndDate: dateSchema.optional().nullable()
+    contractEndDate: dateSchema.optional().nullable(),
+    // Thông tin cá nhân của hồ sơ nhân viên mới: bắt buộc như khi tạo nhân viên (CCCD tùy chọn).
+    dateOfBirth: birthDateSchema.refine((value) => value < localDate(), 'Date of birth must be in the past'),
+    gender: genderSchema,
+    idNumber: z.string().trim().regex(/^(\d{9}|\d{12})$/, 'ID number must have 9 or 12 digits').optional().nullable()
   })
   .superRefine((body, context) => {
+    if (!isOldEnoughOn(body.dateOfBirth, body.hireDate)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['dateOfBirth'],
+        message: `Employee must be at least ${MIN_WORKING_AGE} years old on the hire date`
+      });
+    }
+
     if (body.contractType === 'INDEFINITE' && body.contractEndDate) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -314,9 +327,9 @@ router.post('/:id/convert', requireRole(...HR_ROLES), async (req, res, next) => 
     const employee = await client.query(
       `INSERT INTO employees (
         employee_code, full_name, email, phone, department_id, position_id, position,
-        employment_type, status, hire_date, base_salary
+        employment_type, status, hire_date, base_salary, date_of_birth, gender, id_number
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'ACTIVE', $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'ACTIVE', $9, $10, $11, $12, $13)
       RETURNING id`,
       [
         body.employeeCode,
@@ -328,7 +341,10 @@ router.post('/:id/convert', requireRole(...HR_ROLES), async (req, res, next) => 
         positionName,
         body.employmentType || jobEmploymentType,
         body.hireDate,
-        body.baseSalary
+        body.baseSalary,
+        body.dateOfBirth,
+        body.gender,
+        body.idNumber || null
       ]
     );
     const employeeId = employee.rows[0].id;
