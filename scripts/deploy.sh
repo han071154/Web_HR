@@ -24,7 +24,7 @@ fi
 # Đọc vài giá trị từ env file. Không `source`/export cả file: biến môi trường của shell sẽ đè lên env file khi
 # docker compose đọc, và Git Bash trên Windows còn tự đổi "/api" thành đường dẫn Windows (hỏng VITE_API_URL).
 env_value() {
-  grep -E "^$1=" "$ENV_FILE" | tail -1 | cut -d= -f2- | tr -d ''
+  grep -E "^$1=" "$ENV_FILE" | tail -1 | cut -d= -f2- | tr -d '\r'
 }
 
 PROJECT="$(env_value COMPOSE_PROJECT_NAME)"

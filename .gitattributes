@@ -1,0 +1,5 @@
+# Script shell và cấu hình CI/Docker luôn dùng LF, kể cả khi checkout trên Windows (CRLF làm hỏng bash trên Linux).
+*.sh text eol=lf
+*.yml text eol=lf
+Dockerfile text eol=lf
+*.conf text eol=lf
