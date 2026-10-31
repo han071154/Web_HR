@@ -1,5 +1,6 @@
 import pg from 'pg';
 import { config } from './config.js';
+import { logger } from './utils/logger.js';
 
 const { Pool, types } = pg;
 
@@ -17,6 +18,12 @@ const isCloudDatabase =
 export const pool = new Pool({
   connectionString: config.databaseUrl,
   ...(isCloudDatabase ? { ssl: { rejectUnauthorized: false } } : {})
+});
+
+// Kết nối rảnh bị đóng (CSDL khởi động lại, mất mạng) làm pool phát sự kiện 'error'; không bắt thì cả tiến
+// trình Node bị sập. Chỉ ghi log: request sau sẽ mở kết nối mới, /api/health trả 503 trong lúc CSDL chưa lên.
+pool.on('error', (error) => {
+  logger.error('Idle database client error', { error });
 });
 
 export async function query(text, params) {

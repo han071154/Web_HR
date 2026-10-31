@@ -155,7 +155,7 @@ describe('POST /api/attendance-records/check-in uses the company timezone', () =
       .set('Authorization', `Bearer ${tokenFor('EMPLOYEE')}`);
 
     expect(response.status).toBe(201);
-    expect(query.mock.calls[3][1]).toEqual(['emp-1', 'schedule-1', '2026-10-12', 'LATE']);
+    expect(query.mock.calls[3][1]).toEqual(['emp-1', 'schedule-1', '2026-10-12', 'LATE', 20]);
   });
 
   it('keeps 08:10 in Vietnam within the late threshold', async () => {
@@ -173,6 +173,7 @@ describe('POST /api/attendance-records/check-in uses the company timezone', () =
       .set('Authorization', `Bearer ${tokenFor('EMPLOYEE')}`);
 
     expect(query.mock.calls[3][1][3]).toBe('PRESENT');
+    expect(query.mock.calls[3][1][4]).toBe(0);
   });
 });
 
@@ -193,6 +194,102 @@ describe('POST /api/attendance-records/check-out', () => {
       .set('Authorization', `Bearer ${tokenFor('EMPLOYEE')}`);
 
     expect(response.status).toBe(409);
+  });
+});
+
+// HR-035: về sớm so với giờ kết thúc ca.
+describe('POST /api/attendance-records/check-out (early leave)', () => {
+  const app = createApp();
+
+  beforeEach(() => {
+    query.mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function mockCheckOut() {
+    query
+      .mockResolvedValueOnce({ rows: [{ employee_id: 'emp-1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'att-1', schedule_id: 'schedule-1', check_in: '2026-10-12T01:00:00Z', check_out: null }] })
+      .mockResolvedValueOnce({ rows: [{ end_time: '17:00:00' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'att-1', work_date: '2026-10-12', early_leave_minutes: 30 }] })
+      .mockResolvedValueOnce({ rows: [] });
+  }
+
+  it('records the minutes left before the end of the shift', async () => {
+    vi.setSystemTime(new Date('2026-10-12T09:30:00Z')); // 16:30 giờ Việt Nam, ca kết thúc 17:00
+    mockCheckOut();
+
+    const response = await request(app)
+      .post('/api/attendance-records/check-out')
+      .set('Authorization', `Bearer ${tokenFor('EMPLOYEE')}`);
+
+    expect(response.status).toBe(200);
+    expect(query.mock.calls[3][1]).toEqual([30, 'att-1']);
+    expect(response.body.data.earlyLeaveMinutes).toBe(30);
+  });
+
+  it('does not count leaving within the threshold', async () => {
+    vi.setSystemTime(new Date('2026-10-12T09:50:00Z')); // 16:50 giờ Việt Nam
+    mockCheckOut();
+
+    await request(app)
+      .post('/api/attendance-records/check-out')
+      .set('Authorization', `Bearer ${tokenFor('EMPLOYEE')}`);
+
+    expect(query.mock.calls[3][1]).toEqual([0, 'att-1']);
+  });
+});
+
+// HR-035: ghi Vắng cho ca đã xếp mà không chấm công.
+describe('POST /api/attendance-records/mark-absent', () => {
+  const app = createApp();
+
+  beforeEach(() => {
+    query.mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('rejects non-HR roles', async () => {
+    const response = await request(app)
+      .post('/api/attendance-records/mark-absent')
+      .set('Authorization', `Bearer ${tokenFor('EMPLOYEE')}`)
+      .send({ date: '2026-10-12' });
+
+    expect(response.status).toBe(403);
+  });
+
+  it('rejects today or a future date', async () => {
+    vi.setSystemTime(new Date('2026-10-12T03:00:00Z'));
+
+    const response = await request(app)
+      .post('/api/attendance-records/mark-absent')
+      .set('Authorization', `Bearer ${tokenFor('HR_STAFF')}`)
+      .send({ date: '2026-10-12' });
+
+    expect(response.status).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('marks scheduled shifts without attendance as ABSENT', async () => {
+    vi.setSystemTime(new Date('2026-10-12T03:00:00Z'));
+    query.mockResolvedValueOnce({ rowCount: 4 }).mockResolvedValueOnce({ rows: [] });
+
+    const response = await request(app)
+      .post('/api/attendance-records/mark-absent')
+      .set('Authorization', `Bearer ${tokenFor('HR_MANAGER')}`)
+      .send({ date: '2026-10-11' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({ date: '2026-10-11', created: 4 });
+    expect(query.mock.calls[0][0]).toMatch(/'ABSENT'[\s\S]*ws.status = 'SCHEDULED'[\s\S]*ON CONFLICT \(employee_id, work_date\) DO NOTHING/);
+    expect(query.mock.calls[0][1]).toEqual(['2026-10-11']);
   });
 });
 

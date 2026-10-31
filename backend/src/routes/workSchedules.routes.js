@@ -4,6 +4,7 @@ import { config } from '../config.js';
 import { query } from '../db.js';
 import { requireRole } from '../middleware/auth.js';
 import { logAudit } from '../utils/audit.js';
+import { formatVnDate, notifyEmployee } from '../utils/notifications.js';
 import { httpError } from '../utils/httpError.js';
 import { getOwnEmployeeId } from '../utils/selfService.js';
 import { dateSchema } from '../utils/validation.js';
@@ -405,8 +406,6 @@ router.patch('/change-requests/:id', requireRole('ADMIN', 'HR_MANAGER'), async (
        RETURNING *`,
       [body.status, req.user.sub, req.params.id]
     );
-    // Không có hạ tầng thông báo (notification) nên ghi nhận quyết định vào audit log;
-    // nhân viên xem kết quả qua GET /api/work-schedules/me/change-requests.
     await logAudit({
       entityType: 'SHIFT_CHANGE_REQUEST',
       entityId: req.params.id,
@@ -415,6 +414,18 @@ router.patch('/change-requests/:id', requireRole('ADMIN', 'HR_MANAGER'), async (
     });
 
     const detailed = await query(`${changeRequestSelectSql} WHERE r.id = $1`, [updated.rows[0].id]);
+    const reviewed = detailed.rows[0];
+    // Báo cho nhân viên kết quả duyệt (HR-034); lịch sử đầy đủ xem ở GET /api/work-schedules/me/change-requests.
+    await notifyEmployee({
+      employeeId: reviewed.employee_id,
+      type: body.status === 'APPROVED' ? 'SHIFT_CHANGE_APPROVED' : 'SHIFT_CHANGE_REJECTED',
+      title: body.status === 'APPROVED' ? 'Yêu cầu đổi ca đã được duyệt' : 'Yêu cầu đổi ca bị từ chối',
+      message: body.status === 'APPROVED'
+        ? `Ca ngày ${formatVnDate(reviewed.work_date)} của bạn đã đổi sang ${reviewed.current_shift_name}.`
+        : `Yêu cầu đổi ca ngày ${formatVnDate(reviewed.work_date)} không được duyệt, bạn vẫn làm ${reviewed.current_shift_name}.`,
+      entityType: 'SHIFT_CHANGE_REQUEST',
+      entityId: reviewed.id
+    });
     res.json({ data: mapChangeRequest(detailed.rows[0]) });
   } catch (error) {
     next(error);

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { query } from '../db.js';
 import { requireRole } from '../middleware/auth.js';
 import { logAudit } from '../utils/audit.js';
+import { formatVnDate, notifyEmployee } from '../utils/notifications.js';
 import { httpError } from '../utils/httpError.js';
 import { getOwnEmployeeId } from '../utils/selfService.js';
 import { dateSchema } from '../utils/validation.js';
@@ -22,6 +23,8 @@ const createLeaveRequestSchema = z
     path: ['endDate'],
     message: 'End date must be on or after start date'
   });
+
+const leaveTypeLabels = { ANNUAL: 'nghỉ phép năm', SICK: 'nghỉ ốm', UNPAID: 'nghỉ không lương', OTHER: 'nghỉ' };
 
 const reviewLeaveRequestSchema = z.object({
   status: z.enum(['APPROVED', 'REJECTED'])
@@ -209,6 +212,17 @@ router.patch('/:id', requireRole('ADMIN', 'HR_MANAGER'), async (req, res, next) 
 
     const updated = await query(`${leaveSelectSql} WHERE l.id = $1`, [req.params.id]);
     await logAudit({ entityType: 'LEAVE_REQUEST', entityId: req.params.id, action: body.status, user: req.user });
+    const period = row.start_date === row.end_date
+      ? `ngày ${formatVnDate(row.start_date)}`
+      : `từ ${formatVnDate(row.start_date)} đến ${formatVnDate(row.end_date)}`;
+    await notifyEmployee({
+      employeeId: row.employee_id,
+      type: body.status === 'APPROVED' ? 'LEAVE_APPROVED' : 'LEAVE_REJECTED',
+      title: body.status === 'APPROVED' ? 'Đơn nghỉ phép đã được duyệt' : 'Đơn nghỉ phép bị từ chối',
+      message: `Đơn ${leaveTypeLabels[row.leave_type] || 'nghỉ phép'} ${period} ${body.status === 'APPROVED' ? 'đã được duyệt' : 'không được duyệt'}.`,
+      entityType: 'LEAVE_REQUEST',
+      entityId: row.id
+    });
 
     res.json({ data: mapLeaveRequest(updated.rows[0]) });
   } catch (error) {

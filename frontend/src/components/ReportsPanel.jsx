@@ -1,4 +1,4 @@
-import { Download } from 'lucide-react';
+import { Download, FileText } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { currentMonthValue, downloadBlob, formatCompact, formatHours, monthRange } from '../format.js';
@@ -71,10 +71,10 @@ export default function ReportsPanel({ departments, showToast }) {
     loadWorkHours();
   }, [loadWorkHours]);
 
-  async function handleExport() {
+  async function handleExport(format) {
     try {
-      const blob = await api.exportWorkHours({ ...range, departmentId: departmentFilter });
-      downloadBlob(blob, `bao-cao-gio-cong-${range.from}-${range.to}.xlsx`);
+      const blob = await api.exportWorkHours({ ...range, departmentId: departmentFilter, format });
+      downloadBlob(blob, `bao-cao-gio-cong-${range.from}-${range.to}.${format}`);
     } catch (err) {
       showToast('error', err.message);
     }
@@ -135,9 +135,13 @@ export default function ReportsPanel({ departments, showToast }) {
             ))}
           </select>
           <div className="toolbar-actions">
-            <button type="button" className="ghost-button" onClick={handleExport} disabled={!workHours.length}>
+            <button type="button" className="ghost-button" onClick={() => handleExport('xlsx')} disabled={!workHours.length}>
               <Download size={17} aria-hidden="true" />
               Xuất Excel
+            </button>
+            <button type="button" className="ghost-button" onClick={() => handleExport('pdf')} disabled={!workHours.length}>
+              <FileText size={17} aria-hidden="true" />
+              Xuất PDF
             </button>
           </div>
         </div>
@@ -156,6 +160,7 @@ export default function ReportsPanel({ departments, showToast }) {
                 <th>Nhân viên</th>
                 <th>Ngày công</th>
                 <th>Đi trễ</th>
+                <th>Về sớm</th>
                 <th>Vắng</th>
                 <th>Tổng giờ</th>
                 <th>Giờ OT</th>
@@ -164,7 +169,7 @@ export default function ReportsPanel({ departments, showToast }) {
             <tbody>
               {loading && !workHours.length ? (
                 <tr>
-                  <td colSpan="6">Đang tải dữ liệu</td>
+                  <td colSpan="7">Đang tải dữ liệu</td>
                 </tr>
               ) : workHours.length ? (
                 workHours.slice((page - 1) * ROWS_PAGE_SIZE, page * ROWS_PAGE_SIZE).map((row) => (
@@ -177,6 +182,9 @@ export default function ReportsPanel({ departments, showToast }) {
                     <td data-label="Đi trễ" className={row.lateCount ? 'warning-cell' : ''}>
                       {row.lateCount}
                     </td>
+                    <td data-label="Về sớm" className={row.earlyLeaveCount ? 'warning-cell' : ''}>
+                      {row.earlyLeaveCount ?? 0}
+                    </td>
                     <td data-label="Vắng" className={row.absentCount ? 'danger-cell' : ''}>
                       {row.absentCount}
                     </td>
@@ -186,7 +194,7 @@ export default function ReportsPanel({ departments, showToast }) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6">Chưa có dữ liệu chấm công trong khoảng này</td>
+                  <td colSpan="7">Chưa có dữ liệu chấm công trong khoảng này</td>
                 </tr>
               )}
             </tbody>

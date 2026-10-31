@@ -40,6 +40,7 @@ import LoginPage from './components/LoginPage.jsx';
 import MyAttendancePanel from './components/MyAttendancePanel.jsx';
 import MyLeavePanel from './components/MyLeavePanel.jsx';
 import MySchedulePanel from './components/MySchedulePanel.jsx';
+import NotificationBell from './components/NotificationBell.jsx';
 import Pagination from './components/Pagination.jsx';
 import PositionsPanel from './components/PositionsPanel.jsx';
 import RecruitmentPanel from './components/RecruitmentPanel.jsx';
@@ -875,6 +876,7 @@ function Dashboard({ user, onLogout }) {
             <h1>{header.title}</h1>
             {header.crumbs ? <Breadcrumb items={header.crumbs} /> : <p className="page-subtitle">{header.subtitle}</p>}
           </div>
+          <NotificationBell />
         </header>
 
         {view === 'dashboard' ? (

@@ -53,6 +53,7 @@ export async function computeWorkHourStats({ employeeId, departmentId, from, to 
        e.full_name AS employee_name,
        COUNT(*) FILTER (WHERE a.status IN ('PRESENT', 'LATE'))::int AS work_days,
        COUNT(*) FILTER (WHERE a.status = 'LATE')::int AS late_count,
+       COUNT(*) FILTER (WHERE a.early_leave_minutes > 0)::int AS early_leave_count,
        COUNT(*) FILTER (WHERE a.status = 'ABSENT')::int AS absent_count,
        COALESCE(SUM(${workedHours})
          FILTER (WHERE a.check_in IS NOT NULL AND a.check_out IS NOT NULL), 0) AS total_hours,
@@ -74,6 +75,7 @@ export async function computeWorkHourStats({ employeeId, departmentId, from, to 
     employeeName: row.employee_name,
     workDays: row.work_days,
     lateCount: row.late_count,
+    earlyLeaveCount: row.early_leave_count,
     absentCount: row.absent_count,
     totalHours: Number(row.total_hours),
     otHours: Number(row.ot_hours)
