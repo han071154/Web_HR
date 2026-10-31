@@ -606,6 +606,19 @@ nav {
   gap: 4px;
 }
 
+/* Menu dài hơn chiều cao màn hình (vd phóng to trình duyệt 125% trở lên) thì cuộn trong menu,
+   chân sidebar (tài khoản + Đăng xuất) luôn hiện thay vì bị đẩy ra ngoài màn hình. */
+.sidebar nav {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.sidebar-footer {
+  flex-shrink: 0;
+}
+
 /* Mục menu: bo 8px, padding 11.2px × 16px, đang chọn nền Primary */
 .nav-item {
   display: flex;
@@ -4139,6 +4152,34 @@ table.chart-table {
 
   .topbar {
     align-items: flex-start;
+  }
+}
+
+/* Màn hình thấp (laptop phóng to 110–125%): thu gọn khoảng cách để hiện được nhiều mục menu
+   hơn trước khi phải cuộn. */
+@media (min-width: 901px) and (max-height: 760px) {
+  .sidebar {
+    padding: 20px 16px 16px;
+  }
+
+  .menu-label {
+    margin-top: 16px;
+  }
+
+  .nav-item {
+    padding: 8px 16px;
+  }
+
+  .workspace {
+    padding: 24px;
+  }
+}
+
+/* Màn ngang thấp (phóng to 150–200% trên laptop): thanh menu không dính trên cùng nữa,
+   tránh chiếm gần nửa màn hình khi cuộn nội dung. */
+@media (max-width: 900px) and (max-height: 600px) {
+  .sidebar {
+    position: static;
   }
 }
 
