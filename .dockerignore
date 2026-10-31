@@ -1,0 +1,15 @@
+# Không đưa bí mật, dữ liệu và file sinh ra vào build context của Docker image.
+**/.env
+**/.env.*
+!**/.env.example
+!.env.staging.example
+**/node_modules
+**/dist
+.git
+backups
+dist-release
+logs
+**/logs
+backend/uploads
+backend/storage
+coverage

@@ -1,13 +1,22 @@
+# Dùng chung cho dev (chỉ service db), staging và production. Staging chạy cùng file này với
+# `--env-file .env.staging -p web-hr-staging` (xem scripts/deploy.sh và docs/DEPLOYMENT.md).
+
+# Log container dạng json-file có xoay vòng: tối đa 5 file × 10 MB mỗi service, không đầy ổ đĩa.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   db:
     image: postgres:16-alpine
-    container_name: web_hr_db
     environment:
       POSTGRES_DB: web_hr
       POSTGRES_USER: web_hr
-      POSTGRES_PASSWORD: web_hr_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-web_hr_password}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -15,18 +24,26 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
+    logging: *default-logging
 
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: web_hr_backend
     environment:
+      NODE_ENV: production
       PORT: 4000
-      DATABASE_URL: postgres://web_hr:web_hr_password@db:5432/web_hr
+      DATABASE_URL: postgres://web_hr:${POSTGRES_PASSWORD:-web_hr_password}@db:5432/web_hr
       JWT_SECRET: ${JWT_SECRET:-change_this_secret_in_production}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change_this_refresh_secret_in_production}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Ho_Chi_Minh}
+      # Log JSON một dòng/sự kiện (utils/logger.js), xem bằng `docker compose logs backend`.
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Tự ghi Vắng cho ca đã xếp hôm qua mà không chấm công (HR-035).
+      AUTO_MARK_ABSENT: ${AUTO_MARK_ABSENT:-true}
     ports:
       - "${BACKEND_PORT:-4000}:4000"
     depends_on:
@@ -35,6 +52,15 @@ services:
     volumes:
       - backend_uploads:/app/backend/uploads
       - backend_storage:/app/backend/storage
+    # /api/health kiểm tra cả kết nối CSDL (503 nếu mất kết nối).
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/api/health > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    logging: *default-logging
 
   frontend:
     build:
@@ -42,11 +68,18 @@ services:
       dockerfile: frontend/Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
-    container_name: web_hr_frontend
     ports:
       - "${FRONTEND_PORT:-8080}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging: *default-logging
 
 volumes:
   postgres_data:
