@@ -16,7 +16,8 @@ export const config = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1d',
   avatarUploadDir: path.resolve(backendDir, process.env.AVATAR_UPLOAD_DIR || 'uploads/avatars'),
   avatarMaxSizeMb: Number(process.env.AVATAR_MAX_SIZE_MB || 5),
-  // CV ứng viên có thông tin cá nhân: lưu ngoài thư mục uploads/ (thư mục đó được public).
+  // CV mới được lưu nội dung thẳng vào CSDL (applications.cv_data), bền vững hơn đĩa cục bộ. Thư mục này
+  // chỉ còn dùng để đọc CV của hồ sơ nộp TRƯỚC khi có cv_data (xem middleware/cvUpload.js).
   cvUploadDir: path.resolve(backendDir, process.env.CV_UPLOAD_DIR || 'storage/cvs'),
   cvMaxSizeMb: Number(process.env.CV_MAX_SIZE_MB || 5),
   excelMaxSizeMb: Number(process.env.EXCEL_MAX_SIZE_MB || 10),

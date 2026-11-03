@@ -370,7 +370,10 @@ Success returns `201`:
 | More than 10 applications per hour from one IP | 429 | `Too many applications, please try again later` |
 
 An email can apply again for the same job only after the previous application was `REJECTED`.
-CV files are stored in `backend/storage/cvs` (`CV_UPLOAD_DIR`), which is not served publicly.
+CV content is stored in the database (`applications.cv_data`), not on local disk — this keeps it intact when
+the backend runs with multiple instances, redeploys, or no persistent disk (e.g. a serverless host). It is
+never served publicly: `GET /applications/:id/cv` requires HR login. Applications submitted before this
+change (only `cv_path`, no `cv_data`) still read from `backend/storage/cvs` (`CV_UPLOAD_DIR`) as a fallback.
 
 ## Job postings (HR)
 

@@ -10,7 +10,7 @@ Trinh duyet ── React SPA (Vite) ──HTTP/JSON──> Express REST API ─�
                  │                                   │
                  │                                   ├─ JWT (access + refresh), phan quyen theo vai tro
                  │                                   ├─ Validation (zod), Helmet, CORS, rate limit
-                 │                                   ├─ Upload: avatar (public), CV ung vien (khong public)
+                 │                                   ├─ Upload: avatar (dia, public), CV ung vien (CSDL, khong public)
                  │                                   ├─ Xuat file: Excel (exceljs), PDF (pdfkit + font DejaVu)
                  │                                   ├─ Thong bao trong ung dung, audit log
                  │                                   └─ Tac vu nen: tu ghi Vang (AUTO_MARK_ABSENT)
@@ -34,7 +34,7 @@ ngoai, unique index va CHECK.
                     ┌──────────────▼────────────────┐
                     │ backend (node:22-alpine)      │  cong BACKEND_PORT (4000; staging 4001)
                     │ Express API, log JSON         │  healthcheck GET /api/health (kiem tra CSDL)
-                    │ volume: uploads, storage (CV) │
+                    │ volume: uploads (avatar)      │
                     └──────────────┬────────────────┘
                                    │ postgres://db:5432
                     ┌──────────────▼────────────────┐

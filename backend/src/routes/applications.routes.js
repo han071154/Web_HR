@@ -71,9 +71,13 @@ const convertSchema = z
     }
   });
 
+// Liệt kê cột thay vì "a.*": applications.cv_data (BYTEA, có thể vài MB) không cần cho danh sách/chi
+// tiết hồ sơ, chỉ GET /:id/cv mới đọc riêng — tránh kéo cả nội dung CV về cho mỗi dòng danh sách.
 const applicationSelectSql = `
   SELECT
-    a.*,
+    a.id, a.application_no, a.job_posting_id, a.full_name, a.email, a.phone, a.cv_path,
+    a.cv_original_name, a.cover_letter, a.status, a.note, a.interview_at, a.employee_id,
+    a.viewed_at, a.created_at, a.updated_at,
     j.code AS job_code,
     j.title AS job_title,
     j.department_id AS job_department_id,
@@ -114,8 +118,24 @@ async function findApplication(id) {
   return result.rows[0];
 }
 
-function cvFilePath(application) {
+// Chỉ còn dùng cho hồ sơ cũ (trước khi CV được lưu vào cột cv_data): thử đọc file trên đĩa như cách cũ,
+// phòng khi đĩa đó vẫn còn nguyên (ví dụ Docker Compose với volume bền vững).
+function legacyCvFilePath(application) {
   return path.join(config.cvUploadDir, path.basename(application.cv_path));
+}
+
+// Dung lượng CV để hiển thị: đọc octet_length trong CSDL (không kéo cả nội dung về) nếu có, không thì
+// thử file cũ trên đĩa.
+async function cvSize(application) {
+  const result = await query('SELECT octet_length(cv_data) AS size FROM applications WHERE id = $1', [application.id]);
+  const size = result.rows[0]?.size;
+
+  if (size != null) {
+    return size;
+  }
+
+  const filePath = legacyCvFilePath(application);
+  return fs.existsSync(filePath) ? fs.statSync(filePath).size : null;
 }
 
 router.get('/', requireRole(...HR_ROLES), async (req, res, next) => {
@@ -176,7 +196,7 @@ router.get('/:id', requireRole(...HR_ROLES), async (req, res, next) => {
     res.json({
       data: {
         ...mapApplication(application),
-        cvSize: fs.existsSync(cvFilePath(application)) ? fs.statSync(cvFilePath(application)).size : null,
+        cvSize: await cvSize(application),
         history: await listAudit('APPLICATION', req.params.id)
       }
     });
@@ -195,22 +215,28 @@ router.get('/:id/cv', requireRole(...HR_ROLES), async (req, res, next) => {
       throw httpError(404, 'Application not found');
     }
 
-    const filePath = cvFilePath(application);
+    const fileName = application.cv_original_name || `${applicationCode(application.application_no)}.pdf`;
+    const disposition = `${req.query.inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+    const stored = await query('SELECT cv_data FROM applications WHERE id = $1', [req.params.id]);
+    const cvData = stored.rows[0]?.cv_data;
+
+    if (cvData) {
+      res.type('application/pdf');
+      res.setHeader('Content-Disposition', disposition);
+      res.send(cvData);
+      return;
+    }
+
+    // Hồ sơ cũ (trước khi CV được lưu vào cv_data): thử đọc file trên đĩa như cách cũ.
+    const filePath = legacyCvFilePath(application);
 
     if (!fs.existsSync(filePath)) {
       throw httpError(404, 'CV file not found');
     }
 
-    const fileName = application.cv_original_name || `${applicationCode(application.application_no)}.pdf`;
-
-    if (req.query.inline) {
-      res.type('application/pdf');
-      res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(fileName)}`);
-      res.sendFile(filePath);
-      return;
-    }
-
-    res.download(filePath, fileName);
+    res.type('application/pdf');
+    res.setHeader('Content-Disposition', disposition);
+    res.sendFile(filePath);
   } catch (error) {
     next(error);
   }
