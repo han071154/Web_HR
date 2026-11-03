@@ -4292,6 +4292,12 @@ table.chart-table {
     flex-direction: column;
   }
 
+  /* Chuông xuống dòng dưới tiêu đề, nằm bên trái → khung thông báo mở sang phải để không tràn khỏi màn hình */
+  .notification-panel {
+    right: auto;
+    left: 0;
+  }
+
   .form-grid,
   .detail-grid {
     grid-template-columns: 1fr;
