@@ -153,6 +153,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS employees_id_number_key
 ALTER TABLE applications
   ADD COLUMN IF NOT EXISTS viewed_at TIMESTAMPTZ;
 
+-- BUG: file CV lưu trên đĩa cục bộ (storage/cvs) bị mất khi backend chạy trên môi trường không có đĩa
+-- bền vững (serverless, nhiều instance, redeploy) — "Không tìm thấy file CV trên máy chủ" dù hồ sơ vẫn
+-- còn trong CSDL. Từ nay lưu thẳng nội dung file vào CSDL (đã bền vững, đang dùng); cv_path chỉ còn là
+-- định danh/tên file hiển thị, không bắt buộc trỏ tới file thật trên đĩa nữa. Hồ sơ cũ (trước bản sửa
+-- này) không có cv_data thì vẫn thử đọc từ đĩa như trước để không mất CV đang đọc tốt.
+ALTER TABLE applications
+  ADD COLUMN IF NOT EXISTS cv_data BYTEA;
+
 -- Nhật ký thay đổi (thẻ "Lịch sử" ở M-03a và M-08d): ai làm gì, lúc nào.
 -- details lưu chi tiết dạng JSON, ví dụ {"fields": {"phone": {"from": "...", "to": "..."}}}.
 CREATE TABLE IF NOT EXISTS audit_logs (

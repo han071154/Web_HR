@@ -2,7 +2,8 @@
 # Sao lưu TOÀN BỘ dự án vào một thư mục có timestamp (WBS 259):
 #   1. CSDL      : pg_dump dạng custom (.dump, phục hồi bằng pg_restore) + bản SQL thuần nén (.sql.gz)
 #   2. Mã nguồn  : git bundle chứa mọi nhánh và tag (khôi phục: git clone web-hr.bundle)
-#   3. File      : ảnh đại diện + CV ứng viên (backend/uploads, backend/storage) nén .tar.gz
+#   3. File      : ảnh đại diện + CV của hồ sơ cũ chưa chuyển sang CSDL (backend/uploads, backend/storage)
+#                  nén .tar.gz — CV hiện tại đã nằm trong CSDL nên đã có trong bản dump ở bước 1
 #   4. SHA256SUMS: checksum để kiểm tra bản sao lưu không bị hỏng
 #
 # Nguồn CSDL (ưu tiên theo thứ tự):

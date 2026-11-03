@@ -1,7 +1,7 @@
 import express from 'express';
 import { z } from 'zod';
 import { query } from '../db.js';
-import { cvUpload, isPdfFile, removeCvFile } from '../middleware/cvUpload.js';
+import { cvUpload, isPdfBuffer, randomCvFilename } from '../middleware/cvUpload.js';
 import { applicationCode } from '../utils/applicationCode.js';
 import { logAudit } from '../utils/audit.js';
 import { httpError } from '../utils/httpError.js';
@@ -140,7 +140,7 @@ router.post('/:id/applications', cvUpload, async (req, res, next) => {
       throw httpError(400, 'CV file is required');
     }
 
-    if (!(await isPdfFile(req.file.path))) {
+    if (!isPdfBuffer(req.file.buffer)) {
       throw httpError(400, 'CV must be a PDF file');
     }
 
@@ -168,11 +168,12 @@ router.post('/:id/applications', cvUpload, async (req, res, next) => {
 
     // Multer đọc tên file theo latin1, đổi lại UTF-8 để giữ tên tiếng Việt.
     const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+    // Nội dung CV lưu thẳng vào cv_data (CSDL, bền vững); cv_path chỉ còn là định danh cho các bản ghi cũ.
     const result = await query(
-      `INSERT INTO applications (job_posting_id, full_name, email, phone, cv_path, cv_original_name, cover_letter)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO applications (job_posting_id, full_name, email, phone, cv_path, cv_data, cv_original_name, cover_letter)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id, application_no, status, created_at`,
-      [job.id, body.fullName, body.email, body.phone, req.file.filename, originalName, body.coverLetter || null]
+      [job.id, body.fullName, body.email, body.phone, randomCvFilename(), req.file.buffer, originalName, body.coverLetter || null]
     );
     const created = result.rows[0];
     await logAudit({ entityType: 'APPLICATION', entityId: created.id, action: 'SUBMITTED', actorName: body.fullName });
@@ -191,7 +192,6 @@ router.post('/:id/applications', cvUpload, async (req, res, next) => {
       }
     });
   } catch (error) {
-    await removeCvFile(req.file?.filename);
     next(error);
   }
 });
